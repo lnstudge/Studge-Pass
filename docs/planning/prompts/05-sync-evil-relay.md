@@ -27,4 +27,4 @@ Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test 
 5. Two-device and three-device simulations: concurrent edits converge, deletes follow the rule, and an offline device catches up.
 6. Add a table to THREAT_MODEL.md mapping every evil-relay test to the threat it covers.
 
-Run every check, update PROGRESS.md, and commit with -s. Stop and report the attack list with pass/fail for each.
+Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report the attack list with pass/fail for each.

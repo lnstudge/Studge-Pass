@@ -8,4 +8,4 @@ Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+
 - ASCredentialImportManager and ASCredentialExportManager for passkey transfer on iOS 26.
 - The same feature set as Android.
 
-Commit with -s. Stop and report.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

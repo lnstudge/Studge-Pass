@@ -23,4 +23,4 @@ Tests:
 - RFC 6238 test vectors for TOTP.
 - Basic statistics tests for the generator.
 
-Run every check, update PROGRESS.md, and commit with -s. Stop and report.
+Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

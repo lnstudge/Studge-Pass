@@ -12,12 +12,15 @@ Screens:
 - Settings: auto-lock (default 10 min, plus lock on OS sleep or screen lock), clipboard timer, theme, language. Use i18next with English and Hindi string files to start.
 
 Design:
-- The name is "Studge Pass", with its own identity: a deep teal accent and calm neutrals. Avoid purple and anything that looks like Proton Pass.
-- WCAG AA contrast, visible focus states, light and dark themes.
+- Build every screen from the @studge/design components (Phase 6b). The desktop app is the flagship: it should look and feel more polished than 1Password.
+- Signature moments: a satisfying unlock animation, an elegant vault list with monogram avatars, and a copy button with a visible 30 s clipboard countdown.
 
 Security:
-- Strict Tauri CSP and no remote content.
+- Use Tauri's isolation pattern. Strict CSP: `default-src 'self'`, with no unsafe-inline and no unsafe-eval.
+- No remote content.
 - Capability allowlist with only the commands the app needs.
 - Devtools disabled in release builds.
 
-Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit with -s. Stop and tell me exactly how to run it.
+Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
+
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
