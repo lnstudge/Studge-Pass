@@ -6,3 +6,30 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
+
+[dependencies]
+# Every version here is pinned in Cargo.lock and justified in docs/DECISIONS.md.
+argon2 = "0.6.0"
+blake3 = "1.8.7"
+chacha20poly1305 = "0.11.0"
+ciborium = "0.2.2"
+ed25519-dalek = { version = "3.0.0", features = ["rand_core", "signature"] }
+getrandom = { version = "0.4.3", features = ["sys_rng"] }
+hkdf = "0.13.0"
+hpke = { version = "0.15.1", default-features = false, features = ["x25519", "chacha", "getrandom"] }
+sha2 = "0.11.1"
+subtle = "2.6.1"
+thiserror = "2.0.21"
+unicode-normalization = "0.1.26"
+x25519-dalek = { version = "3.0.0", features = ["static_secrets", "getrandom"] }
+zeroize = { version = "1.9.1", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1.12.0"
+serde_json = "1.0.154"
+
+[features]
+# Exposes fixed-input constructors (nonce, seed, key bytes) so the known-answer
+# vectors in core/tests/vectors/ can be reproduced. MUST NOT be enabled for a
+# release build: it exists for tests and the crypto_tour example only.
+test-vectors = []

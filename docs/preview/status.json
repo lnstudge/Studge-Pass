@@ -1,93 +1,93 @@
 {
   "phase": {
-    "id": 1,
-    "name": "Protocol specification and threat model",
-    "branch": "phase-01-spec",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/35"
+    "id": 2,
+    "name": "Core cryptography",
+    "branch": "phase-02-core-crypto",
+    "pr_url": null
   },
   "steps": [
     {
       "n": 1,
-      "title": "Branch and phase plan",
+      "title": "Branch, plan and pinned crypto dependencies",
       "state": "done",
-      "summary": "Created branch phase-01-spec from main (Phase 0 merged as f42d833); plan posted and written to status.json. Documentation only: no product code.",
-      "commit_sha": "a6dec94b2209abdc8728aff9da91f5bd3d8addf7"
+      "summary": "Branch phase-02-core-crypto from main (Phases 0–1 merged as 4ef461d); plan in status.json; crypto crates pinned in core/Cargo.toml with every version justified in DECISIONS.md.",
+      "commit_sha": null
     },
     {
       "n": 2,
-      "title": "SPEC §1–3: purpose, terminology, trust model",
-      "state": "done",
-      "summary": "Goals G1–G8, non-goals, 24-term glossary, parties/trust table, the precise list of what the relay can see, assumptions A-1…A-6 and the fail-closed policy. 1,769 words.",
-      "commit_sha": "86ae2c943006e3b5b4ae6b91a8c677b26390d125"
+      "title": "Foundations: random, labels, CryptoError",
+      "state": "next",
+      "summary": "One OsRng-backed random function; every HKDF label as a constant in labels.rs; a thiserror CryptoError with no secret data in messages.",
+      "commit_sha": null
     },
     {
       "n": 3,
-      "title": "SPEC §4: identities and key hierarchy",
-      "state": "done",
-      "summary": "Identifiers, the SP1 Secret Key (125-bit proposal D-0101 with checksum), Argon2id→HKDF→MUK, OPAQUE auth secret, AK and key bundle, identity keys (Ed25519/X25519/ML-KEM-768), device certification and revocation, VK/IK, rotation table.",
-      "commit_sha": "f03aca2e27fa872b0163752c3b18aa5643865e97"
+      "title": "secret_key: SP1 format",
+      "state": "next",
+      "summary": "Generate 128 bits, encode to SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX with a BLAKE3 check character, decode with Crockford normalisation; reject bad length, bad checksum and set pad bits.",
+      "commit_sha": null
     },
     {
       "n": 4,
-      "title": "SPEC §5–6: encryption format and op log",
-      "state": "done",
-      "summary": "XChaCha20-Poly1305 envelopes, the exact AAD map and record-type enum, the HKDF label table, field rules and failure policy; the signed op DAG, Lamport rules, conflict resolution, signed heads, head pinning with rollback/fork detection, limits.",
-      "commit_sha": "b87913f4a1ed649b886d2dedc0b6d0606e134742"
+      "title": "aad: typed builder and canonical CBOR",
+      "state": "next",
+      "summary": "Deterministic CBOR with RFC 8949 key ordering; closed record-type enum; the API makes encrypting without an AAD impossible.",
+      "commit_sha": null
     },
     {
       "n": 5,
-      "title": "SPEC §7: relay API and transports",
-      "state": "done",
-      "summary": "OPAQUE register/login, 256-bit tokens stored as SHA-256 with 24 h expiry, all 13 endpoints, head CAS, validation scope, quotas and rate limits, generic error model, storage tables, and the http/folder/memory transports.",
-      "commit_sha": "6f091fea9f638232a5182a876d0aaa201216f4cb"
+      "title": "aead: XChaCha20-Poly1305 envelope",
+      "state": "next",
+      "summary": "seal/open with a 24-byte OsRng nonce, strict envelope parsing, suite check, hard error on any failure.",
+      "commit_sha": null
     },
     {
       "n": 6,
-      "title": "SPEC §8–11: scoring, sharing, recovery, inventory",
-      "state": "done",
-      "summary": "Score formula with p/w tables and local-only breach checks; membership ops, HPKE wrapping with bound info, transparency log, safety codes, rotation on removal; recovery kit, 2-of-3 guardians, 72 h window, emergency access; crypto inventory and forward-only versioning.",
-      "commit_sha": "baa9c0ac82bce498cf3c239c1868ceba179feb06"
+      "title": "kdf: NFKC + Argon2id to MUK, HKDF sub-keys",
+      "state": "next",
+      "summary": "derive_muk with the SPEC parameters and anti-downgrade minimums, derive_subkey, auth secret; small params only in unit tests.",
+      "commit_sha": null
     },
     {
       "n": 7,
-      "title": "THREAT_MODEL part 1: adversaries A1–A8",
-      "state": "done",
-      "summary": "Assets table; per-adversary tables for a malicious relay, network, sharee, malicious page, stolen device, malware (explicitly out of scope with reasoning), supply chain and hostile extensions, each with SPEC-linked mitigations and residual risk.",
-      "commit_sha": "05bfd513e568179a12e0341a266bf8537e305799"
+      "title": "keys: newtypes and wrap/unwrap",
+      "state": "next",
+      "summary": "MasterUnlockKey, AccountKey, VaultKey, ItemKey over Zeroizing<[u8;32]>, redacted Debug, no Clone; wrap/unwrap AK, VK, IK and field keys with per-object salts.",
+      "commit_sha": null
     },
     {
       "n": 8,
-      "title": "THREAT_MODEL part 2: mappings and open risks",
-      "state": "done",
-      "summary": "The four ETH Zurich 2026 malicious-server classes and the DEF CON 33 DOM clickjacking attack mapped to concrete controls; a 17-row open-risk register (R-0001…R-0112) with severity, status and what closes each; Phase 0 appendix restored.",
-      "commit_sha": "03c51e6f4d930ab13bc59973b47c5bb869f42b84"
+      "title": "signing: device keys, certificates, revocations",
+      "state": "next",
+      "summary": "Ed25519 device and identity keys, domain-separated certificate/revocation/enrolment bodies, verification with account binding, future-skew check and revocation cut-off.",
+      "commit_sha": null
     },
     {
       "n": 9,
-      "title": "Decisions: PROPOSED entries for every gap",
-      "state": "done",
-      "summary": "16 PROPOSED decisions (D-0101…D-0116) covering the Secret Key length, OPAQUE KSF, derived wrapping keys, bundle head pins, X25519-only HPKE, domain separation, enrolment proof, per-object salts, ids, limits, compaction, logout, enumeration, folder layout, the Shamir crate and scoring rules.",
-      "commit_sha": "a9ed28aaf29ff78c89f612c93a58daf7a4af37c6"
+      "title": "hpke: X25519 seal/open plus a KEM trait",
+      "state": "next",
+      "summary": "HPKE base mode X25519/HKDF-SHA256/ChaCha20Poly1305 with the SPEC info and aad binding; a trait so the Phase 11 X-Wing upgrade is a swap, not a rewrite.",
+      "commit_sha": null
     },
     {
       "n": 10,
-      "title": "Diagrams: key hierarchy and trust boundary",
-      "state": "done",
-      "summary": "Two hand-written SVGs (key hierarchy, relay trust boundary) with dark panels that read on both themes; embedded in SPEC §3.2 and §4.11; XML validated.",
-      "commit_sha": "16db97b3a331683ddfa4e49939a599571cfd73ac"
+      "title": "Tests: round-trip, tamper matrix, proptest, vectors",
+      "state": "next",
+      "summary": "core/tests with round-trips for every public function, a tamper matrix (nonce, ciphertext, tag, every AAD field, wrong suite, wrong key), proptest properties, known-answer vectors in core/tests/vectors/v1.json and one #[ignore] real-parameter Argon2 test.",
+      "commit_sha": null
     },
     {
       "n": 11,
-      "title": "Preview Docs tab with TOC, tests and screenshots",
-      "state": "done",
-      "summary": "Safe Markdown parser + DOM renderer (no innerHTML), docs view with contents, Status/Docs tabs with hash routing, ?scroll deep links; 43 tests pass; light/dark desktop and narrow screenshots.",
+      "title": "crypto_tour example and preview card",
+      "state": "next",
+      "summary": "cargo run -p studge-core --example crypto_tour walks a fake account through Secret Key, KDF timing, encryption and three failure demos; the preview page gets a Crypto tour card with the command and its output.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "done",
-      "summary": "Attacked the design itself: 15 vectors, 10 blocked by named clauses, 5 recorded (R-0106 freeze, R-0113 read-only membership, R-0114 field labels, R-0115 enrolment intent, plus R-0104). Fixes written into SPEC §5.6, §6.9, §9.1; risks filed as issues #32–#34; PROGRESS.md entry; PR #35 closes #7.",
+      "state": "next",
+      "summary": "At least 10 concrete attacks on the crypto module, each blocked by a test or recorded as a risk; GitHub issues; PROGRESS.md; final checks; PR closing #8.",
       "commit_sha": null
     }
   ],
@@ -96,59 +96,29 @@
     "clippy": "pass",
     "tests": { "passed": 3, "failed": 0, "ignored": 0 },
     "deny": "pass",
-    "updated_at": "2026-11-04T19:39:41Z"
+    "updated_at": "2026-11-04T20:39:56Z"
   },
   "commits": [],
-  "screenshots": [
-    { "path": "screenshots/phase-01/step-11-docs-spec-light.png", "caption": "Docs tab — specification, light, desktop" },
-    { "path": "screenshots/phase-01/step-11-docs-spec-dark.png", "caption": "Docs tab — specification, dark, desktop" },
-    { "path": "screenshots/phase-01/step-11-docs-threat-light.png", "caption": "Docs tab — threat model, light, desktop" },
-    { "path": "screenshots/phase-01/step-11-docs-threat-dark.png", "caption": "Docs tab — threat model, dark, desktop" },
-    { "path": "screenshots/phase-01/step-11-docs-narrow-light.png", "caption": "Docs tab — narrow 390 px, light" },
-    { "path": "screenshots/phase-01/step-11-docs-narrow-dark.png", "caption": "Docs tab — narrow 390 px, dark" },
-    { "path": "screenshots/phase-01/step-11-diagram-light.png", "caption": "Trust-boundary diagram in §3.2, light" },
-    { "path": "screenshots/phase-01/step-11-diagram-dark.png", "caption": "Trust-boundary diagram in §3.2, dark" },
-    { "path": "screenshots/phase-01/step-11-table-light.png", "caption": "Adversary table rendering, light" },
-    { "path": "screenshots/phase-01/step-11-table-dark.png", "caption": "Adversary table rendering, dark" }
-  ],
+  "screenshots": [],
   "try_it": [
-    { "label": "Read the specification in the preview", "command_or_url": "http://localhost:4400/#docs/spec" },
-    { "label": "Read the threat model in the preview", "command_or_url": "http://localhost:4400/#docs/threat-model" },
-    { "label": "Open the dashboard", "command_or_url": ".\\x.ps1 \"pnpm install && pnpm preview\"  then http://localhost:4400" },
-    { "label": "Read the raw documents", "command_or_url": "docs/SPEC.md and docs/THREAT_MODEL.md" },
-    { "label": "Build checks (unchanged Rust)", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
-    { "label": "Preview tests", "command_or_url": ".\\x.ps1 \"pnpm -r lint && pnpm -r test\"" }
+    { "label": "Crypto tour (fake data, DEMO ONLY)", "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example crypto_tour\"" },
+    { "label": "Crypto tests", "command_or_url": ".\\x.ps1 \"cargo test -p studge-core\"" },
+    { "label": "Slow real-parameter Argon2 test", "command_or_url": ".\\x.ps1 \"cargo test -p studge-core -- --ignored\"" },
+    { "label": "All checks", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
+    { "label": "Open the dashboard", "command_or_url": ".\\x.ps1 \"pnpm preview\"  then http://localhost:4400" }
   ],
   "risks": [
     { "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)", "severity": "medium", "status": "open" },
-    { "title": "R-0002 — Link targets in status.json are trusted from the repository (PR review)", "severity": "low", "status": "accepted" },
-    { "title": "R-0003 — Preview dev server needs style-src 'unsafe-inline' for Vite HMR (loopback only)", "severity": "low", "status": "accepted" },
-    { "title": "R-0004 — gitleaks can miss novel secret formats (manual diff scan)", "severity": "low", "status": "accepted" },
-    { "title": "R-0005 — minimatch advisory in dev-only ESLint tooling", "severity": "low", "status": "accepted" },
-    { "title": "R-0101 — The relay learns metadata: ids, sizes, counts, timing, IP", "severity": "low", "status": "accepted" },
-    { "title": "R-0102 — A device with no pinned head can be rolled back before first verification (TOFU)", "severity": "medium", "status": "accepted" },
-    { "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce", "severity": "low", "status": "accepted" },
-    { "title": "R-0104 — Key substitution on first contact before a safety code is verified", "severity": "medium", "status": "accepted" },
-    { "title": "R-0105 — A removed member keeps history they already saw; rotation protects future data only", "severity": "medium", "status": "accepted" },
-    { "title": "R-0106 — A malicious relay can withhold ops; clients detect but cannot obtain them", "severity": "low", "status": "accepted" },
-    { "title": "R-0107 — Device revocation is time-based; clock skew allows ops just before revoked_at", "severity": "low", "status": "accepted" },
-    { "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing", "severity": "medium", "status": "accepted" },
-    { "title": "R-0109 — The printed recovery kit can be photographed or stolen", "severity": "medium", "status": "accepted" },
-    { "title": "R-0110 — Key-transparency log is run by the untrusted relay; a split view is possible", "severity": "medium", "status": "open" },
-    { "title": "R-0111 — The 72-hour recovery window is enforced by the relay", "severity": "low", "status": "open" },
-    { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" },
-    { "title": "R-0113 — v1 membership is write-or-nothing: a 'view only' share cannot be enforced (issue #32, D-0117)", "severity": "medium", "status": "open" },
-    { "title": "R-0114 — A malicious member can use look-alike field names to phish another member (issue #33)", "severity": "low", "status": "open" },
-    { "title": "R-0115 — Device enrolment relies on user intent; show name and fingerprint (issue #34)", "severity": "medium", "status": "open" },
-    { "title": "R-0116 — Vault-key wrapping is X25519-only; Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate", "severity": "low", "status": "open" }
+    { "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce; mitigated by OsRng-only random and no software fallback", "severity": "low", "status": "accepted" },
+    { "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing; Argon2id 64 MiB/t=3/p=1 is the mitigation", "severity": "medium", "status": "accepted" },
+    { "title": "R-0116 — Vault-key wrapping is X25519-only; hpke 0.15 now ships X-Wing, so Phase 11 can switch", "severity": "low", "status": "open" }
   ],
   "links": [
     { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
     { "label": "AGENTS.md (rulebook)", "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md" },
     { "label": "docs/SPEC.md", "url": "/SPEC.md" },
-    { "label": "docs/THREAT_MODEL.md", "url": "/THREAT_MODEL.md" },
-    { "label": "GitHub issue #7 (Phase 1)", "url": "https://github.com/lnstudge/Studge-Pass/issues/7" },
-    { "label": "Phase 1 pull request #35", "url": "https://github.com/lnstudge/Studge-Pass/pull/35" },    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
-    { "label": "Notion: Phase 1 row", "url": "https://app.notion.com/p/40eadee2a7108149b520ff975d01de12" }
+    { "label": "GitHub issue #8 (Phase 2)", "url": "https://github.com/lnstudge/Studge-Pass/issues/8" },
+    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
+    { "label": "Notion: Phase 2 row", "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3" }
   ]
 }
