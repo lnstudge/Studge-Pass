@@ -1,0 +1,15 @@
+[package]
+name = "studge-core-wasm"
+description = "WebAssembly bindings of studge-core for the browser extension."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+studge-core = { path = "../core" }
+wasm-bindgen.workspace = true

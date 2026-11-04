@@ -1,0 +1,57 @@
+{
+  "note": "Notion IDs for the Studge Pass Build Log. These IDs are not secret. Parent of all Studge Pass Notion content is the private page 'Studge Pass' — nothing outside it is read or edited. API version: 2025-09-03.",
+  "parent_page": {
+    "title": "Studge Pass",
+    "id": "40eadee2-a710-80cf-8018-d405561b9343",
+    "url": "https://app.notion.com/p/Studge-Pass-40eadee2a71080cf8018d405561b9343"
+  },
+  "build_log_page": {
+    "title": "Studge Pass: Build Log",
+    "id": "40eadee2-a710-81f5-80d1-daac2f926e80",
+    "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
+  },
+  "start_here_page": {
+    "title": "Start here",
+    "id": "40eadee2-a710-81dc-b863-fabad47de14d",
+    "url": "https://app.notion.com/p/Start-here-40eadee2a71081dcb863fabad47de14d"
+  },
+  "databases": {
+    "prompts": {
+      "name": "Prompts",
+      "database_id": "724fe6e7-f6f3-43a5-aaf7-5ca2446c4afa",
+      "data_source_id": "c6aa3149-bbf8-4ac6-9348-f62d32467553",
+      "url": "https://app.notion.com/p/724fe6e7f6f343a5aaf75ca2446c4afa"
+    },
+    "phases": {
+      "name": "Phases",
+      "database_id": "779736be-93b4-40c7-928d-82e6918357ec",
+      "data_source_id": "c081cbbe-51c4-473f-9b89-a08e845f9199",
+      "url": "https://app.notion.com/p/779736be93b440c7928d82e6918357ec"
+    },
+    "execution_log": {
+      "name": "Execution log",
+      "database_id": "b3eb335d-9173-44ef-90c1-8956e921caef",
+      "data_source_id": "dccf5083-1736-4f48-8815-178a75724cfa",
+      "url": "https://app.notion.com/p/b3eb335d917344ef90c1c8956e921caef"
+    },
+    "decisions": {
+      "name": "Decisions",
+      "database_id": "1a1419ec-6637-475c-b8f3-b2e8ddd30c26",
+      "data_source_id": "445e8505-c672-4e96-a023-53a001b72866",
+      "url": "https://app.notion.com/p/1a1419ec6637475cb8f3b2e8ddd30c26"
+    },
+    "risks_and_findings": {
+      "name": "Risks and findings",
+      "database_id": "3be847cc-1262-4ad5-b586-00522224c119",
+      "data_source_id": "5a5a60cb-b7ec-4f6d-a275-00d69886f6e3",
+      "url": "https://app.notion.com/p/3be847cc12624ad5b58600522224c119"
+    },
+    "test_runs": {
+      "name": "Test runs",
+      "database_id": "4801f882-fb99-4722-ae8a-5229f1b0d882",
+      "data_source_id": "ecd97f27-acdf-462e-911e-6b9d3473f321",
+      "url": "https://app.notion.com/p/4801f882fb994722ae8a5229f1b0d882"
+    }
+  },
+  "updated": "2026-11-04"
+}

@@ -1,0 +1,13 @@
+[package]
+name = "studge-relay"
+description = "Studge Pass sync relay (AGPL-3.0-or-later)."
+version.workspace = true
+edition.workspace = true
+license = "AGPL-3.0-or-later"
+repository.workspace = true
+publish = false
+
+[dependencies]
+axum.workspace = true
+serde.workspace = true
+tokio.workspace = true
