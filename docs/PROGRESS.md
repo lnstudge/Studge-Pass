@@ -72,6 +72,30 @@ Screenshots: `docs/screenshots/phase-00/step-09-preview-{light,dark}.png` and
 | `pnpm audit` | 1 moderate, dev-only — R-0005 (accepted) |
 | GitHub CI on `1d0f2db` | ubuntu-latest and windows-latest green; gitleaks green; CodeQL gated |
 
+### Design self-critique (preview dashboard)
+
+Against the AGENTS.md design bar, honestly:
+
+- **Clarity:** one column, one job per section, one primary action per card
+  (Copy). The eyebrow → title → progress → sections hierarchy reads in order.
+- **Spacing:** every gap and padding comes from the 8-point scale in CSS custom
+  properties; nothing is hard-coded per component.
+- **Themes:** light and dark are separate palettes (warm paper with dark teal vs
+  deep green-black with a brighter teal), not inversions.
+- **Motion:** 180 ms ease-out on hover, progress and the lightbox; all of it is
+  disabled under `prefers-reduced-motion: reduce`.
+- **Contrast:** body ink on surface is roughly 15:1 in light and 12:1 in dark;
+  chips use tinted backgrounds with darker text rather than bare colour.
+- **Keyboard and screen readers:** skip link, visible focus rings, real
+  `<button>`s, table headers with scope, lightbox closes on Escape and restores
+  focus, 44 px minimum touch targets.
+- **Weaknesses:** the step summaries are long, which makes the narrow view very
+  tall (about 14,000 px at 390 px wide); a future pass could collapse each
+  summary behind a disclosure. The gallery thumbnails show a screenshot of the
+  dashboard inside the dashboard — an honest artefact of dogfooding. There is no
+  dedicated error state if `status.json` ever ships broken, because the build
+  validates it first.
+
 ### Known gaps and open questions
 
 - **R-0001 / #23:** CodeQL code scanning needs a public repository or GitHub

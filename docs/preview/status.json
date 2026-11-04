@@ -65,8 +65,8 @@
     {
       "n": 9,
       "title": "Dashboard screenshots",
-      "state": "doing",
-      "summary": "Serve the dashboard at http://localhost:4400, capture light and dark screenshots (desktop 1440 px and narrow 390 px) into docs/screenshots/phase-00/, add to the gallery, self-critique against the design bar.",
+      "state": "done",
+      "summary": "Dashboard served at http://localhost:4400; light and dark screenshots captured at desktop (1440 px) and narrow (390 px) widths into docs/screenshots/phase-00/ and added to the gallery; self-critique written in docs/PROGRESS.md.",
       "commit_sha": null
     },
     {
@@ -95,12 +95,12 @@
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 2,
+      "passed": 3,
       "failed": 0,
       "ignored": 0
     },
     "deny": "pass",
-    "updated_at": "2026-11-04T18:45:05Z"
+    "updated_at": "2026-11-04T18:53:33Z"
   },
   "commits": [
     {
@@ -142,6 +142,36 @@
       "sha": "1d0f2dbe050fdc78e9cbb54fa78195b673c65d94",
       "message": "docs(preview): record full check suite results and try-it commands",
       "url": "https://github.com/lnstudge/Studge-Pass/commit/1d0f2dbe050fdc78e9cbb54fa78195b673c65d94"
+    },
+    {
+      "sha": "848f4cc8ad8e1cff8cf54ce1eb6a3d5fe702e40e",
+      "message": "feat(preview): add the dev-preview dashboard package",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/848f4cc8ad8e1cff8cf54ce1eb6a3d5fe702e40e"
+    },
+    {
+      "sha": "af52c695fde71a0384c24da6dfa055026a31a1a0",
+      "message": "docs(preview): add light/dark desktop and narrow dashboard screenshots",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/af52c695fde71a0384c24da6dfa055026a31a1a0"
+    },
+    {
+      "sha": "46dbb4b1ab97250773011e15311707aa77bfad5c",
+      "message": "ci: gate CodeQL on public repositories and record the gap",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/46dbb4b1ab97250773011e15311707aa77bfad5c"
+    },
+    {
+      "sha": "daaa25a652226f4c376c0907c533bd122ebc093a",
+      "message": "security: add self-attack review, policy tests and loopback bind guard",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/daaa25a652226f4c376c0907c533bd122ebc093a"
+    },
+    {
+      "sha": "9abb74c8f7826cfc7d1fa8ba273eef4970f45bda",
+      "message": "ci(security): add pnpm audit job and record R-0005",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/9abb74c8f7826cfc7d1fa8ba273eef4970f45bda"
+    },
+    {
+      "sha": "53143f82cfae9a3dacc812a9123e06c1e0c1d01f",
+      "message": "docs(progress): write the Phase 0 entry",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/53143f82cfae9a3dacc812a9123e06c1e0c1d01f"
     }
   ],
   "screenshots": [
