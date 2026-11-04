@@ -109,6 +109,46 @@ The goal is the most beautiful, calm and trustworthy password manager available,
 - Security UX: never trade safety for looks. No dark patterns. Warnings are calm, clear and specific.
 - Every UI phase ends with screenshots in docs/screenshots/ (light and dark, desktop and narrow widths) and a short self-critique against this design bar.
 
+## Connected tools: Notion, GitHub and skills
+AutoClaw has the Notion and GitHub connectors and a set of skills. Use them on every task.
+
+### Notion: document everything, from prompt to execution
+The Notion home is a page called **"Studge Pass: Build Log"**. Phase 0 creates it and stores its page and database IDs in `docs/notion.json`. These IDs are not secret.
+It contains these databases:
+- **Prompts:** every prompt given to AutoClaw, saved word for word. Fields: title, phase, date, full prompt text, and a link to the task's execution log.
+- **Phases:** one row per phase. Fields: phase number and name, status (Not started / In progress / In review / Merged), branch, PR link, GitHub issue link, start and end dates, summary, and the preview-dashboard checks.
+- **Execution log:** one row per step. Fields: phase, step number, what and why, commands run, key output, result (pass/fail), commit SHA and GitHub link, screenshots (uploaded images or repo paths), and skills used.
+- **Decisions:** mirrors docs/DECISIONS.md. Fields: decision, options considered, choice, reason, status (Proposed / Approved by founder / Rejected).
+- **Risks and findings:** self-attack, review and red-team findings. Fields: title, severity, phase, status (Open / Fixed / Accepted), test name and GitHub issue link.
+- **Test runs:** per phase, the counts of passed, failed and ignored tests, plus cargo deny and audit results.
+
+Rules:
+1. At the very start of every task, create a Prompts entry containing the exact prompt you received. Then create or update the phase row with status In progress.
+2. After every step, add an Execution log row in the same moment you commit and push, and link it to the commit.
+3. At the end of the phase, write the phase summary (what was built, how to try it, test results, risks, PR link) and set the status to In review.
+4. Keep Notion and the repo in sync. The repo (docs/*.md) is the source of truth for specs. Notion is the readable log and dashboard.
+5. **Never put secrets in Notion.** Notion is not end-to-end encrypted. No keys, tokens, passwords (not even test ones), vault files or private data. Mask any token-like value as `****`.
+6. If a Notion call fails, keep working. Log the step locally in docs/PROGRESS.md, tell me in chat, and back-fill Notion when it works again.
+
+### GitHub: everything goes to GitHub
+- Use the git CLI for commits and pushes, following the Git workflow below.
+- Use the GitHub connector (fall back to the `gh` CLI if it fails) for:
+  - **Issues:** one tracking issue per phase (label `phase`). Every self-attack, review or red-team finding becomes an issue with the `security` label and a severity label. Every follow-up becomes an issue with the `follow-up` label.
+  - **Milestones:** one milestone per phase. Phase issues and PRs are attached to it.
+  - **Pull requests:** open the PR at the end of the phase with "Closes #<phase issue>" in the body and the Notion phase page link. Request review from @lnstudge. Never merge it yourself.
+  - **Labels:** phase, security, severity:critical/high/medium/low, follow-up, design, docs, ci.
+  - Comment progress on the phase issue at the end of the phase, linking the Notion summary.
+- Do not change repository settings, branch protection, secrets or collaborators.
+
+### Skills: use every skill that helps
+- At the start of each task, list the skills available to you and state which ones you will use for this phase and why. Use them wherever they improve the result, for example:
+  - frontend, design or UI skills for Phases 6b, 7, 8, 10 and 13
+  - testing and code-review skills for every phase
+  - documentation skills for the docs and Notion pages
+  - security or audit skills for the self-attack review
+- Record the skills used in each Execution log row.
+- Ask me before using any skill that sends code or data to a third-party service other than GitHub and Notion.
+
 ## Show your work: live preview (the founder wants to see everything)
 The founder watches the build as it happens. Never work silently.
 1. **Plan first.** At the start of a phase, post the plan in chat as a numbered checklist of steps. Write the same checklist into `docs/preview/status.json` (see below).
@@ -128,7 +168,7 @@ The founder watches the build as it happens. Never work silently.
    - a screenshot gallery for the phase
    - the demo commands and dev-server URLs to try
    - the self-attack findings table and open risks
-   - links to Storybook, the PR and the docs
+   - links to Storybook, the PR, the docs, the GitHub phase issue and the Notion phase page
 6. **When a phase ends,** post a final "Preview summary": what I can try, exactly how, and what it should look like.
 
 ## Git workflow: commit and push after every step
@@ -180,6 +220,17 @@ Create a tiny pnpm workspace package `tools/preview` (Vite + TypeScript, no UI f
 - Root `package.json` with pnpm workspaces and `"packageManager"` pinned. Add `docs/preview/status.json` for Phase 0 itself and keep it updated after every step of this phase.
 - Screenshot helper: `pnpm shot <url> <out.png>` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright.
 
+## Notion and GitHub setup (do this first, before the repo scaffold)
+1. List your available skills and connectors and post which ones you will use.
+2. Notion: create the "Studge Pass: Build Log" page with the six databases described in AGENTS.md ("Connected tools"). Save their IDs in `docs/notion.json`. Add this Phase 0 prompt to Prompts, word for word, and create the Phase 0 row.
+   Also add a "Start here" page explaining the structure, linking the GitHub repo, and listing the phases 0–15 (including 6b) with their status.
+3. GitHub:
+   - create the labels listed in AGENTS.md
+   - create one milestone per phase (0, 1, 2, 3, 4, 5, 6, 6b, 7–15)
+   - open a tracking issue for each phase, using the phase title and a short goal, attached to its milestone
+   Use the Phase 0 issue number in this phase's PR ("Closes #N").
+4. Log every step of this phase in the Notion Execution log as you go.
+
 ## CI (.github/workflows/ci.yml)
 Run on push and pull_request, on ubuntu-latest and windows-latest:
 - cargo fmt --all -- --check
@@ -199,6 +250,8 @@ Also add:
 - `cargo run -p studge -- --version` prints the version.
 - `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
 - `pnpm install` then `pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0's steps, checks and commits.
+- Notion has the Build Log page with all six databases, this prompt saved in Prompts, and one Execution log row per step.
+- GitHub has the labels, the milestones and one issue per phase. The Phase 0 PR closes the Phase 0 issue.
 - docs/PROGRESS.md has a "Phase 0" entry.
 - Follow the Git workflow in AGENTS.md: work on branch `phase-00-setup`, commit and push after every step, and finish by opening a pull request with `gh pr create`. Do not merge it.
 

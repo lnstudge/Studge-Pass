@@ -20,3 +20,4 @@ Write integration tests (assert_cmd) against an in-process relay and against a f
 
 Preview for me: record a terminal demo of the CLI (init, add, list, get, totp, generate, health) using fake data. Save the transcript to docs/preview/cli-demo.txt and show it on the preview page.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

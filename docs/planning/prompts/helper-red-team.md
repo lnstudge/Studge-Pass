@@ -13,6 +13,6 @@ Attack it from every angle:
 - malicious import files (zip bombs, huge CSVs, malformed CBOR or JSON)
 - side channels (timing, logs, clipboard, crash reports, swap files)
 
-For each real weakness, write a failing test or a proof-of-concept under test-harness/redteam/ that demonstrates it. Put them on a branch named `redteam-<date>`, commit and push following AGENTS.md, and open a pull request titled "Red team findings <date>".
+For each real weakness, write a failing test or a proof-of-concept under test-harness/redteam/ that demonstrates it. Put them on a branch named `redteam-<date>`, commit and push following AGENTS.md, and open a pull request titled "Red team findings <date>". Open a GitHub issue for each finding (labels: security, severity:<level>, redteam) and record each one in Notion "Risks and findings". Save this prompt in Notion Prompts first. Use any security or testing skills you have.
 
 Report a ranked list: severity, attack steps, affected file:line, proof (test name) and suggested fix. Be ruthless and specific. Never report a weakness without a proof or a precise reasoning chain.
