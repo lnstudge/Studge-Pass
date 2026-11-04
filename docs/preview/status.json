@@ -130,12 +130,12 @@
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 79,
+      "passed": 82,
       "failed": 0,
       "ignored": 1
     },
     "deny": "pass",
-    "updated_at": "2026-11-04T23:00:02Z"
+    "updated_at": "2026-11-04T23:01:20Z"
   },
   "commits": [
     {
@@ -227,6 +227,11 @@
       "sha": "7d4931f98ec555e3453e1d7f22b0ecad86b9b70b",
       "message": "test(vectors): mark randomised entries and guard against silent drift",
       "url": "https://github.com/lnstudge/Studge-Pass/commit/7d4931f98ec555e3453e1d7f22b0ecad86b9b70b"
+    },
+    {
+      "sha": "8e726cb38da6dc67037eb95d89dff6d475ba169a",
+      "message": "docs(progress): record the review fixes and mark Phases 0-1 merged",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/8e726cb38da6dc67037eb95d89dff6d475ba169a"
     }
   ],
   "screenshots": [
