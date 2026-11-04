@@ -79,15 +79,15 @@
     {
       "n": 11,
       "title": "Progress and logs",
-      "state": "doing",
-      "summary": "Phase 0 entry in docs/PROGRESS.md (what changed, how to run, test results, known gaps), Notion phase summary and test-run row, phase status In review.",
+      "state": "done",
+      "summary": "docs/PROGRESS.md now has the full Phase 0 entry: what changed, exact commands to try it, the check results table, known gaps and two open questions for the founder. Notion phase summary and test-run rows written; phase status set to In review.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "Final PR",
-      "state": "next",
-      "summary": "gh pr create --base main (Closes #<phase-0 issue>, requests review from @lnstudge, links Notion summary), comment on the phase issue, post the final preview summary with file tree, verify commands and open questions. No merge.",
+      "state": "doing",
+      "summary": "Refresh the dashboard (checks, commits, screenshots), run the full acceptance suite, then gh pr create --base main (Closes #6, review from @lnstudge, Notion link), comment on issue #6, and post the final preview summary. No merge.",
       "commit_sha": null
     }
   ],

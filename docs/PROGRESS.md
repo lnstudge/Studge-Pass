@@ -4,31 +4,92 @@ One entry per phase, newest last. The Notion Build Log mirrors this file.
 
 ## Phase 0 — Repository setup, rules and preview dashboard
 
-- **Status:** In progress
+- **Status:** In review
 - **Branch:** `phase-00-setup` · **Issue:** #6 · **Milestone:** Phase 0
-- **Started:** 2026-11-04
+- **Dates:** 2026-11-04 → 2026-11-05
 
-### What changed so far
+### What changed
 
-- **Step 1** — phase branch created; 12-step plan posted and written to
-  `docs/preview/status.json` (commit `13a26e2`).
-- **Step 2** — Notion Build Log page, "Start here" page and six databases
-  created under the private "Studge Pass" page; IDs saved in `docs/notion.json`;
-  the founder's task message, the full `00-master-setup.md` (verified word for
-  word by SHA-256) and the continuation message archived in Prompts; Phase 0 row
-  and step-1 execution row created (commit `ae7b932`).
-- **Step 3** — GitHub labels (10), milestones (17, one per phase) and tracking
-  issues (#6–#22) created; Notion Phases database now has one row per phase,
-  each linked to its issue (commit `2e4332c`).
+- **Repository scaffold:** canonical GPL-3.0-or-later `LICENSE` (35,149 bytes)
+  and AGPL-3.0-or-later `relay/LICENSE` (34,523 bytes); `SECURITY.md` (private
+  advisories only); `CONTRIBUTING.md` (DCO, no CLA); extended `README.md`
+  (pre-alpha warning, build steps); `.gitignore`, `.editorconfig`,
+  `rust-toolchain.toml`, `rustfmt.toml`, `deny.toml` (licence allowlist, yanked
+  deny, OpenSSL ban); docs skeletons; placeholder READMEs for
+  `desktop/`, `extension/`, `android/`, `ios/`.
+- **Cargo workspace:** `studge-core` (seven empty modules, `forbid(unsafe_code)`),
+  `studge-core-wasm` (`version()` via wasm-bindgen), `studge-relay`
+  (`GET /health` on `127.0.0.1:8787` returning `{status, version}`),
+  `studge` CLI (`--version` via clap), `studge-test-harness`. `Cargo.lock`
+  committed (73 packages).
+- **CI:** `ci.yml` (fmt, clippy, test and the wasm build on ubuntu-latest and
+  windows-latest; `cargo deny` on ubuntu), `security.yml` (gitleaks on every
+  push/PR, weekly `cargo audit`, `pnpm audit --audit-level high`), `codeql.yml`
+  (JS/TS and Rust, gated while the repository is private), `dependabot.yml`
+  (cargo, npm, github-actions weekly). Every action pinned to a full commit SHA;
+  every workflow starts from `permissions: contents: read`.
+- **Preview dashboard:** `tools/preview` (Vite 8 + TypeScript, no framework, no
+  runtime network), `status.schema.json` validated on build and after every
+  update, light/dark themes designed separately, 28 unit/policy tests.
+- **Notion Build Log:** page, "Start here" page and six databases under the
+  private "Studge Pass" page; IDs in `docs/notion.json`; the founder's task
+  message, the full `00-master-setup.md` (verified word for word by SHA-256) and
+  the continuation message archived in Prompts; 17 phase rows; one execution-log
+  row per step; decisions D-0001…D-0005; risks R-0001…R-0005; test-run rows.
+- **GitHub:** labels (12), milestones (17, one per phase), tracking issues
+  #6–#22, security findings #23–#25.
 
 ### How to try it
 
-To be completed at the end of the phase.
+From the repository root, through the WSL wrapper:
 
-### Test results
+```powershell
+.\x.ps1 cargo build --all
+.\x.ps1 cargo test --all
+.\x.ps1 cargo run -p studge-relay          # then http://127.0.0.1:8787/health
+.\x.ps1 cargo run -p studge -- --version   # prints: studge 0.1.0
+.\x.ps1 "pnpm install"
+.\x.ps1 "pnpm preview"                     # dashboard at http://localhost:4400
+.\x.ps1 "pnpm preview:update"              # refresh checks + commits in status.json
+.\x.ps1 "pnpm shot http://127.0.0.1:4400 docs/screenshots/phase-00/name"  # light+dark PNGs
+```
 
-To be completed at the end of the phase.
+Screenshots: `docs/screenshots/phase-00/step-09-preview-{light,dark}.png` and
+`step-09-preview-narrow-{light,dark}.png`.
+
+### Test results (2026-11-04, through `.\x.ps1`)
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test --all` | 3 passed, 0 failed, 0 ignored (cli 1, relay 2) |
+| `cargo deny check` | advisories ok, bans ok, licenses ok, sources ok |
+| `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` | pass |
+| `pnpm -r lint` (tsc + eslint) | pass |
+| `pnpm -r test` (Vitest) | 28 passed, 0 failed (16 lib, 3 static scan, 9 repo policy) |
+| `pnpm build` | pass — 16.65 kB JS, 9.90 kB CSS |
+| `pnpm audit` | 1 moderate, dev-only — R-0005 (accepted) |
+| GitHub CI on `1d0f2db` | ubuntu-latest and windows-latest green; gitleaks green; CodeQL gated |
 
 ### Known gaps and open questions
 
-To be completed at the end of the phase.
+- **R-0001 / #23:** CodeQL code scanning needs a public repository or GitHub
+  Advanced Security. Everything else in the security automation runs.
+- `cargo-audit` is not installed locally; the binary runs weekly in CI.
+- The preview dashboard's `status.json` is validated, but the screenshots in the
+  gallery were captured before the latest commits; a final refresh runs before
+  the PR.
+- `typescript-eslint` requires TypeScript `< 6.1`, so the preview package pins
+  TypeScript 6.0.3 (recorded here rather than in DECISIONS.md because it is a
+  tooling compatibility constraint, not a product decision).
+- The wrapper prints PowerShell "RemoteException" noise on successful `pnpm`
+  commands that write to stderr; it does not affect exit codes.
+- No Storybook, design tokens package or product UI yet — that is Phase 6b.
+
+### Open questions for the founder
+
+1. Should the repository be made public? It would enable CodeQL and GitHub
+   secret scanning at no cost, and the project is meant to be open source.
+2. Phase 1 (spec + threat model) writes `docs/SPEC.md` in full; the current
+   headings are placeholders.
