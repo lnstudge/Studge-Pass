@@ -185,3 +185,12 @@ No product code changed in this phase.
    (Secret Key length) and D-0115 (Shamir crate).
 2. Should v1 ship sharing as write-or-nothing (D-0117), or wait for signed
    capabilities in Phase 11?
+
+### Follow-ups (outside this phase's scope)
+
+- **CI does not run the preview's TypeScript checks yet.** `ci.yml` covers Rust
+  only, so `pnpm -r lint` and `pnpm -r test` ran locally. Add a `preview` job
+  (`pnpm install --frozen-lockfile`, lint, test) at the start of Phase 2.
+- `tools/preview` still needs a restart after files are added under `docs/`
+  (the static file list is cached at startup).
+- A Storybook and the design-token package arrive in Phase 6b, per the plan.
