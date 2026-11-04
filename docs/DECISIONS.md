@@ -325,3 +325,16 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   means the Phase 11 re-check can almost certainly flip it on; that is a
   Phase 11 change, not a Phase 2 surprise.
 - **Affects:** SPEC §9.2, R-0116. **Status:** Proposed.
+
+## D-0206 — The wasm build uses the browser RNG backend for getrandom
+
+- **Options:** leave wasm builds unsupported; enable getrandom's `wasm_js`
+  feature for wasm32 only; implement a custom backend.
+- **Choice:** enable `wasm_js` in `core-wasm` under
+  `cfg(target_arch = "wasm32")` only.
+- **Reason:** getrandom 0.4 has no default backend on `wasm32-unknown-unknown`,
+  so after Phase 2 added core's RNG the workspace stopped building for the
+  extension target and CI caught it. The documented feature uses the browser's
+  `Crypto.getRandomValues` through wasm-bindgen and does not affect native
+  builds, which keep the OS backend.
+- **Affects:** `core-wasm/Cargo.toml`, `Cargo.lock`. **Status:** Proposed.
