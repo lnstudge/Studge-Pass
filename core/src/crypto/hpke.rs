@@ -217,13 +217,9 @@ pub fn open_from(
         .map_err(|_| CryptoError::InvalidEncoding)?;
     let enc = <HpkeKem as KemTrait>::EncappedKey::from_bytes(&sealed.enc)
         .map_err(|_| CryptoError::InvalidEncoding)?;
-    let mut context = hpke::setup_receiver::<HpkeAead, HpkeKdf, HpkeKem>(
-        &OpModeR::Base,
-        &secret,
-        &enc,
-        info,
-    )
-    .map_err(|_| CryptoError::DecryptionFailed)?;
+    let mut context =
+        hpke::setup_receiver::<HpkeAead, HpkeKdf, HpkeKem>(&OpModeR::Base, &secret, &enc, info)
+            .map_err(|_| CryptoError::DecryptionFailed)?;
     let plaintext = context
         .open(&sealed.ciphertext, aad)
         .map_err(|_| CryptoError::DecryptionFailed)?;
@@ -244,8 +240,7 @@ mod tests {
     #[test]
     fn round_trip() {
         let r = recipient();
-        let sealed =
-            seal_to(&r.public_bytes(), INFO, AAD, b"vault key material").expect("seal");
+        let sealed = seal_to(&r.public_bytes(), INFO, AAD, b"vault key material").expect("seal");
         let opened = open_from(&r, INFO, AAD, &sealed).expect("open");
         assert_eq!(&opened[..], b"vault key material");
     }

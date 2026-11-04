@@ -16,77 +16,77 @@
     {
       "n": 2,
       "title": "Foundations: random, labels, CryptoError",
-      "state": "next",
+      "state": "done",
       "summary": "One OsRng-backed random function; every HKDF label as a constant in labels.rs; a thiserror CryptoError with no secret data in messages.",
-      "commit_sha": null
+      "commit_sha": "2807a08"
     },
     {
       "n": 3,
       "title": "secret_key: SP1 format",
-      "state": "next",
+      "state": "done",
       "summary": "Generate 128 bits, encode to SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX with a BLAKE3 check character, decode with Crockford normalisation; reject bad length, bad checksum and set pad bits.",
-      "commit_sha": null
+      "commit_sha": "af8bde5"
     },
     {
       "n": 4,
       "title": "aad: typed builder and canonical CBOR",
-      "state": "next",
+      "state": "done",
       "summary": "Deterministic CBOR with RFC 8949 key ordering; closed record-type enum; the API makes encrypting without an AAD impossible.",
-      "commit_sha": null
+      "commit_sha": "c3c4d24"
     },
     {
       "n": 5,
       "title": "aead: XChaCha20-Poly1305 envelope",
-      "state": "next",
+      "state": "done",
       "summary": "seal/open with a 24-byte OsRng nonce, strict envelope parsing, suite check, hard error on any failure.",
-      "commit_sha": null
+      "commit_sha": "6882387"
     },
     {
       "n": 6,
       "title": "kdf: NFKC + Argon2id to MUK, HKDF sub-keys",
-      "state": "next",
+      "state": "done",
       "summary": "derive_muk with the SPEC parameters and anti-downgrade minimums, derive_subkey, auth secret; small params only in unit tests.",
-      "commit_sha": null
+      "commit_sha": "9574aa9"
     },
     {
       "n": 7,
       "title": "keys: newtypes and wrap/unwrap",
-      "state": "next",
+      "state": "done",
       "summary": "MasterUnlockKey, AccountKey, VaultKey, ItemKey over Zeroizing<[u8;32]>, redacted Debug, no Clone; wrap/unwrap AK, VK, IK and field keys with per-object salts.",
-      "commit_sha": null
+      "commit_sha": "9574aa9"
     },
     {
       "n": 8,
       "title": "signing: device keys, certificates, revocations",
-      "state": "next",
+      "state": "done",
       "summary": "Ed25519 device and identity keys, domain-separated certificate/revocation/enrolment bodies, verification with account binding, future-skew check and revocation cut-off.",
-      "commit_sha": null
+      "commit_sha": "6882387"
     },
     {
       "n": 9,
       "title": "hpke: X25519 seal/open plus a KEM trait",
-      "state": "next",
+      "state": "done",
       "summary": "HPKE base mode X25519/HKDF-SHA256/ChaCha20Poly1305 with the SPEC info and aad binding; a trait so the Phase 11 X-Wing upgrade is a swap, not a rewrite.",
-      "commit_sha": null
+      "commit_sha": "33d8cf5"
     },
     {
       "n": 10,
       "title": "Tests: round-trip, tamper matrix, proptest, vectors",
-      "state": "next",
+      "state": "done",
       "summary": "core/tests with round-trips for every public function, a tamper matrix (nonce, ciphertext, tag, every AAD field, wrong suite, wrong key), proptest properties, known-answer vectors in core/tests/vectors/v1.json and one #[ignore] real-parameter Argon2 test.",
-      "commit_sha": null
+      "commit_sha": "4e09215"
     },
     {
       "n": 11,
       "title": "crypto_tour example and preview card",
-      "state": "next",
-      "summary": "cargo run -p studge-core --example crypto_tour walks a fake account through Secret Key, KDF timing, encryption and three failure demos; the preview page gets a Crypto tour card with the command and its output.",
+      "state": "done",
+      "summary": "cargo run -p studge-core --example crypto_tour walks a fake account through the SP1 Secret Key, Argon2id timing, wrapping, field encryption and three attacks that each print 'rejected'. The preview page has a Crypto tour card with the command and an Expected line; light/dark screenshots captured.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "next",
+      "state": "doing",
       "summary": "At least 10 concrete attacks on the crypto module, each blocked by a test or recorded as a risk; GitHub issues; PROGRESS.md; final checks; PR closing #8.",
       "commit_sha": null
     }
@@ -94,31 +94,88 @@
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
-    "tests": { "passed": 3, "failed": 0, "ignored": 0 },
+    "tests": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
     "deny": "pass",
     "updated_at": "2026-11-04T20:39:56Z"
   },
   "commits": [],
-  "screenshots": [],
+  "screenshots": [
+    { "path": "screenshots/phase-02/step-11-crypto-tour-light.png", "caption": "Crypto tour card with its expected output, light" },
+    { "path": "screenshots/phase-02/step-11-crypto-tour-dark.png", "caption": "Crypto tour card with its expected output, dark" }
+  ],
   "try_it": [
-    { "label": "Crypto tour (fake data, DEMO ONLY)", "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example crypto_tour\"" },
-    { "label": "Crypto tests", "command_or_url": ".\\x.ps1 \"cargo test -p studge-core\"" },
-    { "label": "Slow real-parameter Argon2 test", "command_or_url": ".\\x.ps1 \"cargo test -p studge-core -- --ignored\"" },
-    { "label": "All checks", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
-    { "label": "Open the dashboard", "command_or_url": ".\\x.ps1 \"pnpm preview\"  then http://localhost:4400" }
+    {
+      "label": "Crypto tour (DEMO ONLY, fake data)",
+      "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example crypto_tour\"",
+      "expect": "9 steps: the SP1 Secret Key, Argon2id timing, key wrapping, field encryption, then three attacks that each print 'rejected: decryption failed'."
+    },
+    {
+      "label": "Crypto tests (76: unit, tamper matrix, properties, vectors)",
+      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core\""
+    },
+    {
+      "label": "Known-answer vectors, byte-exact",
+      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core --features test-vectors\""
+    },
+    {
+      "label": "Slow real-parameter Argon2 vector",
+      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core --test kdf_slow -- --ignored\""
+    },
+    {
+      "label": "Open the dashboard",
+      "command_or_url": ".\\x.ps1 \"pnpm preview\"  then http://localhost:4400"
+    }
   ],
   "risks": [
-    { "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)", "severity": "medium", "status": "open" },
-    { "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce; mitigated by OsRng-only random and no software fallback", "severity": "low", "status": "accepted" },
-    { "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing; Argon2id 64 MiB/t=3/p=1 is the mitigation", "severity": "medium", "status": "accepted" },
-    { "title": "R-0116 — Vault-key wrapping is X25519-only; hpke 0.15 now ships X-Wing, so Phase 11 can switch", "severity": "low", "status": "open" }
+    {
+      "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce; mitigated by OsRng-only random and no software fallback",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing; Argon2id 64 MiB/t=3/p=1 is the mitigation",
+      "severity": "medium",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0116 — Vault-key wrapping is X25519-only; hpke 0.15 now ships X-Wing, so Phase 11 can switch",
+      "severity": "low",
+      "status": "open"
+    }
   ],
   "links": [
-    { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
-    { "label": "AGENTS.md (rulebook)", "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md" },
-    { "label": "docs/SPEC.md", "url": "/SPEC.md" },
-    { "label": "GitHub issue #8 (Phase 2)", "url": "https://github.com/lnstudge/Studge-Pass/issues/8" },
-    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
-    { "label": "Notion: Phase 2 row", "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3" }
+    {
+      "label": "GitHub repository",
+      "url": "https://github.com/lnstudge/Studge-Pass"
+    },
+    {
+      "label": "AGENTS.md (rulebook)",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md"
+    },
+    {
+      "label": "docs/SPEC.md",
+      "url": "/SPEC.md"
+    },
+    {
+      "label": "GitHub issue #8 (Phase 2)",
+      "url": "https://github.com/lnstudge/Studge-Pass/issues/8"
+    },
+    {
+      "label": "Notion: Build Log",
+      "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
+    },
+    {
+      "label": "Notion: Phase 2 row",
+      "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3"
+    }
   ]
 }

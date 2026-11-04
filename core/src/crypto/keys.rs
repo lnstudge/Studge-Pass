@@ -49,7 +49,10 @@ secret_key_type!(
     "Derived from the master password and Secret Key; never stored."
 );
 secret_key_type!(AccountKey, "Wrapped by the MUK; unlocks the key bundle.");
-secret_key_type!(VaultKey, "Wrapped by the AK for the owner; shared via HPKE.");
+secret_key_type!(
+    VaultKey,
+    "Wrapped by the AK for the owner; shared via HPKE."
+);
 secret_key_type!(ItemKey, "Wrapped by the VK; encrypts one item's fields.");
 
 /// The key that wraps the Account Key (SPEC §4.5).
@@ -92,9 +95,7 @@ pub fn wrap_vault_key(
     vk: &VaultKey,
 ) -> CryptoResult<Envelope> {
     let key = derive_subkey(ak.as_bytes(), Some(vault_id), labels::VK_WRAP)?;
-    let aad = Aad::builder(RecordType::VkOwner)
-        .vault(*vault_id)
-        .build()?;
+    let aad = Aad::builder(RecordType::VkOwner).vault(*vault_id).build()?;
     aead::seal(&key, &aad, vk.as_bytes())
 }
 
@@ -105,9 +106,7 @@ pub fn unwrap_vault_key(
     envelope: &Envelope,
 ) -> CryptoResult<VaultKey> {
     let key = derive_subkey(ak.as_bytes(), Some(vault_id), labels::VK_WRAP)?;
-    let aad = Aad::builder(RecordType::VkOwner)
-        .vault(*vault_id)
-        .build()?;
+    let aad = Aad::builder(RecordType::VkOwner).vault(*vault_id).build()?;
     let plaintext = aead::open(&key, &aad, envelope)?;
     Ok(VaultKey::from_bytes(key_from_plaintext(&plaintext)?))
 }
@@ -220,8 +219,7 @@ mod tests {
             CryptoError::DecryptionFailed
         );
         assert_eq!(
-            unwrap_vault_key(&AccountKey::from_bytes([8u8; 32]), &VAULT, &wrapped)
-                .expect_err("ak"),
+            unwrap_vault_key(&AccountKey::from_bytes([8u8; 32]), &VAULT, &wrapped).expect_err("ak"),
             CryptoError::DecryptionFailed
         );
     }

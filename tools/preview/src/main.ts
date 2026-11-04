@@ -45,6 +45,10 @@ function externalLink(href: string, text: string, className = "link"): HTMLAncho
 
 function section(title: string, count?: string): { root: HTMLElement; body: HTMLElement } {
   const root = el("section", "card section");
+  root.id = `section-${title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
   const head = el("div", "section-head");
   head.append(el("h2", "section-title", title));
   if (count !== undefined) head.append(el("span", "chip idle", count));
@@ -251,6 +255,9 @@ function buildTryIt(): HTMLElement {
     text.append(el("p", "try-label", entry.label));
     const code = el("code", "try-command", entry.command_or_url);
     text.append(code);
+    if (entry.expect !== undefined) {
+      text.append(el("p", "try-expect", `Expected: ${entry.expect}`));
+    }
     const button = el("button", "btn copy", "Copy");
     button.type = "button";
     button.setAttribute("aria-label", `Copy: ${entry.label}`);

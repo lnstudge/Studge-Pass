@@ -305,10 +305,7 @@ mod tests {
     fn rejects_non_canonical_envelope() {
         // Correct fields but in the wrong order: suite before nonce before ct.
         let shuffled = Value::Map(vec![
-            (
-                Value::Text("suite".into()),
-                Value::Text(SUITE_V1.into()),
-            ),
+            (Value::Text("suite".into()), Value::Text(SUITE_V1.into())),
             (
                 Value::Text("nonce".into()),
                 Value::Bytes(vec![0u8; NONCE_BYTES]),

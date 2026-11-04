@@ -1,4 +1,4 @@
-﻿//! Known-answer vectors (SPEC Â§5, `core/tests/vectors/v1.json`).
+//! Known-answer vectors (SPEC Â§5, `core/tests/vectors/v1.json`).
 //!
 //! The file is checked in so another language can verify the same bytes. The
 //! normal test run checks everything that does not need freshly generated
@@ -40,7 +40,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn unhex(text: &str) -> Vec<u8> {
-    assert!(text.len() % 2 == 0, "hex length");
+    assert!(text.len().is_multiple_of(2), "hex length");
     (0..text.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&text[i..i + 2], 16).expect("hex"))
@@ -79,8 +79,8 @@ fn secret_key_vector_matches() {
         key.encode(),
         v["secret_key"]["printed"].as_str().expect("printed")
     );
-    let decoded = SecretKey::decode(v["secret_key"]["printed"].as_str().expect("printed"))
-        .expect("decode");
+    let decoded =
+        SecretKey::decode(v["secret_key"]["printed"].as_str().expect("printed")).expect("decode");
     assert_eq!(decoded.as_bytes(), &bytes);
 }
 
@@ -126,7 +126,10 @@ fn aead_vector_is_byte_exact() {
     let nonce_bytes = unhex(aead["nonce_hex"].as_str().expect("nonce"));
     let mut nonce = [0u8; 24];
     nonce.copy_from_slice(&nonce_bytes);
-    let plaintext = aead["plaintext_utf8"].as_str().expect("plaintext").as_bytes();
+    let plaintext = aead["plaintext_utf8"]
+        .as_str()
+        .expect("plaintext")
+        .as_bytes();
     let envelope = aead::seal_with_nonce(&key, &aad(), nonce, plaintext).expect("seal");
     assert_eq!(
         hex(&envelope.to_cbor().expect("encode")),
@@ -170,8 +173,8 @@ fn signing_vector_verifies() {
 
     let device_seed = array32(signing["device_seed_hex"].as_str().expect("device seed"));
     let device_pair = SigningKeyPair::from_seed(device_seed);
-    let created_at = Timestamp::parse(signing["created_at"].as_str().expect("created_at"))
-        .expect("timestamp");
+    let created_at =
+        Timestamp::parse(signing["created_at"].as_str().expect("created_at")).expect("timestamp");
     let cert = DeviceCertificate::create(
         &pair,
         ACCOUNT,
@@ -221,8 +224,8 @@ fn wrapped_account_key_vector_round_trips() {
 #[test]
 #[ignore = "writes core/tests/vectors/v1.json; run with --features test-vectors -- --ignored"]
 fn generate_vectors() {
-    use studge_core::crypto::keys::wrap_account_key;
     use studge_core::crypto::kdf::{derive_muk, KdfParams};
+    use studge_core::crypto::keys::wrap_account_key;
 
     // Secret key: bytes 0x00..0x0f.
     let mut key_bytes = [0u8; 16];

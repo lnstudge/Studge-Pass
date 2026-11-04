@@ -23,7 +23,9 @@ fn decoding_forgives_case_hyphens_and_confusables() {
 
     let lower = canonical.to_lowercase();
     assert_eq!(
-        SecretKey::decode(&lower).expect("lower-case input").as_bytes(),
+        SecretKey::decode(&lower)
+            .expect("lower-case input")
+            .as_bytes(),
         key.as_bytes()
     );
 
@@ -92,7 +94,10 @@ fn debug_never_prints_the_key() {
     let key = SecretKey::from_bytes([0xAB; 16]);
     let printed = format!("{key:?}");
     assert!(printed.contains("redacted"), "debug output: {printed}");
-    assert!(!printed.contains("AB"), "debug output leaked bytes: {printed}");
+    assert!(
+        !printed.contains("AB"),
+        "debug output leaked bytes: {printed}"
+    );
 }
 
 #[test]

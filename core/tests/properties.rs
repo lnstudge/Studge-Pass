@@ -4,9 +4,7 @@
 use proptest::prelude::*;
 use studge_core::crypto::aad::{Aad, RecordType};
 use studge_core::crypto::aead::{self, AeadKey};
-use studge_core::crypto::keys::{
-    unwrap_vault_key, wrap_vault_key, AccountKey, VaultKey,
-};
+use studge_core::crypto::keys::{unwrap_vault_key, wrap_vault_key, AccountKey, VaultKey};
 
 const VAULT: [u8; 16] = [0x10; 16];
 const ITEM: [u8; 16] = [0x20; 16];

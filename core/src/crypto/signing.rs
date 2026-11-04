@@ -8,7 +8,7 @@
 
 use crate::crypto::aad::{canonical_bytes, canonical_map};
 use crate::crypto::error::{CryptoError, CryptoResult};
-use crate::crypto::labels::{SUITE_V1, DEVICE_CERT, DEVICE_ENROLL, DEVICE_REVOCATION};
+use crate::crypto::labels::{DEVICE_CERT, DEVICE_ENROLL, DEVICE_REVOCATION, SUITE_V1};
 use crate::crypto::random;
 use ciborium::value::Value;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
@@ -94,11 +94,8 @@ impl Timestamp {
         if bytes[13] != b':' || bytes[16] != b':' {
             return Err(CryptoError::InvalidTimestamp);
         }
-        let number = |start: usize| -> u32 {
-            text[start..start + 2]
-                .parse::<u32>()
-                .unwrap_or(u32::MAX)
-        };
+        let number =
+            |start: usize| -> u32 { text[start..start + 2].parse::<u32>().unwrap_or(u32::MAX) };
         let (month, day) = (number(5), number(8));
         let (hour, minute, second) = (number(11), number(14), number(17));
         if !(1..=12).contains(&month)
@@ -454,7 +451,11 @@ impl EnrolmentProof {
         {
             return Err(CryptoError::VerificationFailed);
         }
-        verify(device_public, &Self::body(&self.account_id, &self.device_id, &self.nonce)?, &self.signature)
+        verify(
+            device_public,
+            &Self::body(&self.account_id, &self.device_id, &self.nonce)?,
+            &self.signature,
+        )
     }
 }
 
@@ -483,14 +484,8 @@ mod tests {
     }
 
     fn cert() -> DeviceCertificate {
-        DeviceCertificate::create(
-            &identity(),
-            ACCOUNT,
-            DEVICE,
-            device().public_bytes(),
-            now(),
-        )
-        .expect("cert")
+        DeviceCertificate::create(&identity(), ACCOUNT, DEVICE, device().public_bytes(), now())
+            .expect("cert")
     }
 
     #[test]
@@ -505,12 +500,22 @@ mod tests {
     #[test]
     fn certificate_signature_binds_every_field() {
         let base = cert();
-        let other_account =
-            DeviceCertificate::create(&identity(), [0x33; 16], DEVICE, device().public_bytes(), now())
-                .expect("cert");
-        let other_device =
-            DeviceCertificate::create(&identity(), ACCOUNT, [0x44; 16], device().public_bytes(), now())
-                .expect("cert");
+        let other_account = DeviceCertificate::create(
+            &identity(),
+            [0x33; 16],
+            DEVICE,
+            device().public_bytes(),
+            now(),
+        )
+        .expect("cert");
+        let other_device = DeviceCertificate::create(
+            &identity(),
+            ACCOUNT,
+            [0x44; 16],
+            device().public_bytes(),
+            now(),
+        )
+        .expect("cert");
         let other_time = DeviceCertificate::create(
             &identity(),
             ACCOUNT,
@@ -572,14 +577,9 @@ mod tests {
 
     #[test]
     fn revocation_round_trip_and_tamper() {
-        let revocation = DeviceRevocation::create(
-            &identity(),
-            ACCOUNT,
-            DEVICE,
-            now(),
-            "lost phone",
-        )
-        .expect("revocation");
+        let revocation =
+            DeviceRevocation::create(&identity(), ACCOUNT, DEVICE, now(), "lost phone")
+                .expect("revocation");
         revocation
             .verify(&identity().public_bytes(), &ACCOUNT)
             .expect("verify");
@@ -613,7 +613,10 @@ mod tests {
     fn timestamps_parse_and_convert() {
         let t = Timestamp::parse("2026-11-05T10:00:00Z").expect("valid");
         assert_eq!(t.unix_seconds(), 1_793_872_800);
-        assert_eq!(Timestamp::from_unix_seconds(t.unix_seconds()).expect("round"), t);
+        assert_eq!(
+            Timestamp::from_unix_seconds(t.unix_seconds()).expect("round"),
+            t
+        );
         for bad in [
             "2026-11-05 10:00:00Z",
             "2026-13-05T10:00:00Z",

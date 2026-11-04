@@ -26,7 +26,12 @@ fn aad(field: &str) -> Aad {
 }
 
 fn sealed() -> Envelope {
-    aead::seal(&key(0x33), &aad("password"), b"correct horse battery staple").expect("seal")
+    aead::seal(
+        &key(0x33),
+        &aad("password"),
+        b"correct horse battery staple",
+    )
+    .expect("seal")
 }
 
 /// Rewrites one of the envelope's byte strings and re-parses it.
@@ -220,7 +225,7 @@ fn non_canonical_envelope_fails_at_parse() {
 #[test]
 fn wrapping_a_key_into_another_slot_fails() {
     // A vault key wrapped for vault A must not open under vault B or another AK.
-    use studge_core::crypto::keys::{wrap_vault_key, unwrap_vault_key, AccountKey, VaultKey};
+    use studge_core::crypto::keys::{unwrap_vault_key, wrap_vault_key, AccountKey, VaultKey};
     let ak = AccountKey::from_bytes([0x44; 32]);
     let vk = VaultKey::from_bytes([0x55; 32]);
     let wrapped = wrap_vault_key(&ak, &VAULT, &vk).expect("wrap");

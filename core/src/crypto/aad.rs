@@ -152,9 +152,7 @@ impl Aad {
 
 impl std::fmt::Debug for Aad {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Aad")
-            .field("bytes", &self.0.len())
-            .finish()
+        f.debug_struct("Aad").field("bytes", &self.0.len()).finish()
     }
 }
 
@@ -242,10 +240,7 @@ impl AadBuilder {
             ("suite", Value::Text(SUITE_V1.to_string())),
             ("scope", Value::Bytes(scope_bytes.to_vec())),
             ("item_id", item_value),
-            (
-                "record_type",
-                Value::Text(self.record_type.as_str()),
-            ),
+            ("record_type", Value::Text(self.record_type.as_str())),
             ("field_name", field_value),
             ("schema_version", Value::Integer(1i64.into())),
         ]);
@@ -481,7 +476,13 @@ mod tests {
 
     #[test]
     fn rejects_look_alike_field_names() {
-        for name in ["Passwort", "pass wort", "pass\u{043e}rd", "", &"a".repeat(65)] {
+        for name in [
+            "Passwort",
+            "pass wort",
+            "pass\u{043e}rd",
+            "",
+            &"a".repeat(65),
+        ] {
             let result = Aad::builder(RecordType::ItemField)
                 .vault(VAULT)
                 .item(ITEM)
@@ -511,14 +512,8 @@ mod tests {
     fn strict_parser_rejects_non_canonical_maps() {
         // A map with the keys in the wrong order must be rejected.
         let shuffled = Value::Map(vec![
-            (
-                Value::Text("suite".into()),
-                Value::Text("v1".into()),
-            ),
-            (
-                Value::Text("scope".into()),
-                Value::Bytes(vec![0u8; 16]),
-            ),
+            (Value::Text("suite".into()), Value::Text("v1".into())),
+            (Value::Text("scope".into()), Value::Bytes(vec![0u8; 16])),
         ]);
         let mut bytes = Vec::new();
         ciborium::ser::into_writer(&shuffled, &mut bytes).expect("encode");
