@@ -58,15 +58,15 @@
     {
       "n": 8,
       "title": "Preview dashboard",
-      "state": "doing",
-      "summary": "pnpm workspace + tools/preview package (Vite + TypeScript, no framework, no runtime network requests): status.schema.json with build-time validation, light/dark page (progress bar, checklist, check chips, commit timeline, gallery with lightbox, try-it cards with copy buttons, risks table), pnpm preview / preview:update / shot.",
+      "state": "done",
+      "summary": "pnpm workspace + tools/preview (Vite 8 + TypeScript, no framework, no runtime network requests): status.schema.json, strict validation on build, light/dark page with progress bar, checklist, check chips, commit timeline, screenshot gallery with lightbox, try-it cards with copy buttons and a risks table. pnpm preview / preview:update / shot / build all work; lint (tsc + eslint) and 19 Vitest tests pass.",
       "commit_sha": null
     },
     {
       "n": 9,
       "title": "Dashboard screenshots",
-      "state": "next",
-      "summary": "Serve the dashboard at http://localhost:4400, capture light and dark screenshots into docs/screenshots/phase-00/, add to the gallery, self-critique against the design bar.",
+      "state": "doing",
+      "summary": "Serve the dashboard at http://localhost:4400, capture light and dark screenshots (desktop 1440 px and narrow 390 px) into docs/screenshots/phase-00/, add to the gallery, self-critique against the design bar.",
       "commit_sha": null
     },
     {
@@ -94,27 +94,125 @@
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
-    "tests": { "passed": 2, "failed": 0, "ignored": 0 },
+    "tests": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
     "deny": "pass",
-    "updated_at": "2026-11-04T18:33:28Z"
+    "updated_at": "2026-11-04T18:45:05Z"
   },
-  "commits": [],
-  "screenshots": [],
+  "commits": [
+    {
+      "sha": "13a26e249ccb88d7697648165a22e1059492d185",
+      "message": "chore(preview): add Phase 0 plan and status checklist",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/13a26e249ccb88d7697648165a22e1059492d185"
+    },
+    {
+      "sha": "ae7b9329bd05d9db538ecef8784885802c08e296",
+      "message": "chore(notion): create Build Log with six databases and back-fill Phase 0 log",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/ae7b9329bd05d9db538ecef8784885802c08e296"
+    },
+    {
+      "sha": "2e4332cbe300b7ce0a57526f423c6ae4b26ec1ac",
+      "message": "chore(github): record phase issue links in preview status",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/2e4332cbe300b7ce0a57526f423c6ae4b26ec1ac"
+    },
+    {
+      "sha": "b9202765974892aa77bcca4fd7dc421634abfb13",
+      "message": "chore(repo): add licences, project docs and toolchain configuration",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/b9202765974892aa77bcca4fd7dc421634abfb13"
+    },
+    {
+      "sha": "55bb359f592542ed80d73152ed407d379a533aea",
+      "message": "feat(workspace): scaffold core, core-wasm, relay, cli and test-harness",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/55bb359f592542ed80d73152ed407d379a533aea"
+    },
+    {
+      "sha": "90b6d0f3a6ce7297b41e57488c6f28b25eeb8400",
+      "message": "ci: add workflows, secret scanning, CodeQL and dependabot",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/90b6d0f3a6ce7297b41e57488c6f28b25eeb8400"
+    },
+    {
+      "sha": "f6020e1dea124f975084027ceec8c06ecf74ca72",
+      "message": "fix(ci): pass the toolchain input explicitly to dtolnay/rust-toolchain",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/f6020e1dea124f975084027ceec8c06ecf74ca72"
+    },
+    {
+      "sha": "1d0f2dbe050fdc78e9cbb54fa78195b673c65d94",
+      "message": "docs(preview): record full check suite results and try-it commands",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/1d0f2dbe050fdc78e9cbb54fa78195b673c65d94"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "screenshots/phase-00/step-09-preview-light.png",
+      "caption": "Dev-preview dashboard, light theme, desktop (1440 px)"
+    },
+    {
+      "path": "screenshots/phase-00/step-09-preview-dark.png",
+      "caption": "Dev-preview dashboard, dark theme, desktop (1440 px)"
+    },
+    {
+      "path": "screenshots/phase-00/step-09-preview-narrow-light.png",
+      "caption": "Dev-preview dashboard, light theme, narrow (390 px)"
+    },
+    {
+      "path": "screenshots/phase-00/step-09-preview-narrow-dark.png",
+      "caption": "Dev-preview dashboard, dark theme, narrow (390 px)"
+    }
+  ],
   "try_it": [
-    { "label": "Build everything", "command_or_url": ".\\x.ps1 cargo build --all" },
-    { "label": "Run all tests", "command_or_url": ".\\x.ps1 cargo test --all" },
-    { "label": "Relay health endpoint", "command_or_url": ".\\x.ps1 cargo run -p studge-relay   then open http://127.0.0.1:8787/health" },
-    { "label": "CLI version", "command_or_url": ".\\x.ps1 cargo run -p studge -- --version" },
-    { "label": "Golden path checks", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" }
+    {
+      "label": "Build everything",
+      "command_or_url": ".\\x.ps1 cargo build --all"
+    },
+    {
+      "label": "Run all tests",
+      "command_or_url": ".\\x.ps1 cargo test --all"
+    },
+    {
+      "label": "Relay health endpoint",
+      "command_or_url": ".\\x.ps1 cargo run -p studge-relay   then open http://127.0.0.1:8787/health"
+    },
+    {
+      "label": "CLI version",
+      "command_or_url": ".\\x.ps1 cargo run -p studge -- --version"
+    },
+    {
+      "label": "Golden path checks",
+      "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\""
+    }
   ],
   "risks": [],
   "links": [
-    { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
-    { "label": "AGENTS.md (rulebook)", "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md" },
-    { "label": "Phase 0 master prompt", "url": "/planning/prompts/00-master-setup.md" },
-    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
-    { "label": "Notion: Start here", "url": "https://app.notion.com/p/Start-here-40eadee2a71081dcb863fabad47de14d" },
-    { "label": "Notion: Phase 0 row", "url": "https://app.notion.com/p/Phase-0-Repository-setup-rules-and-preview-dashboard-40eadee2a7108199b175c56b9c9ddf88" },
-    { "label": "GitHub issue #6 (Phase 0)", "url": "https://github.com/lnstudge/Studge-Pass/issues/6" }
+    {
+      "label": "GitHub repository",
+      "url": "https://github.com/lnstudge/Studge-Pass"
+    },
+    {
+      "label": "AGENTS.md (rulebook)",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md"
+    },
+    {
+      "label": "Phase 0 master prompt",
+      "url": "/planning/prompts/00-master-setup.md"
+    },
+    {
+      "label": "Notion: Build Log",
+      "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
+    },
+    {
+      "label": "Notion: Start here",
+      "url": "https://app.notion.com/p/Start-here-40eadee2a71081dcb863fabad47de14d"
+    },
+    {
+      "label": "Notion: Phase 0 row",
+      "url": "https://app.notion.com/p/Phase-0-Repository-setup-rules-and-preview-dashboard-40eadee2a7108199b175c56b9c9ddf88"
+    },
+    {
+      "label": "GitHub issue #6 (Phase 0)",
+      "url": "https://github.com/lnstudge/Studge-Pass/issues/6"
+    }
   ]
 }
