@@ -1,0 +1,16 @@
+{
+  "name": "studge-pass",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "preview": "pnpm --filter studge-preview run preview",
+    "preview:update": "pnpm --filter studge-preview run update",
+    "shot": "pnpm --filter studge-preview run shot",
+    "build": "pnpm --filter studge-preview run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test"
+  }
+}

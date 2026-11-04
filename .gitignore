@@ -1,0 +1,11 @@
+# Rust build output
+target/
+
+# Node
+node_modules/
+dist/
+
+# Secrets and local data
+.env*
+*.studgevault
+*.log
