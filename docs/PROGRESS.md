@@ -223,7 +223,10 @@ Phase 2 can start on merge.
   AAD, AEAD, MUK, HPKE, a certificate and a wrapped account key. DEMO-ONLY data.
 - **`core/examples/crypto_tour.rs`** — the demo the phase asked for; the preview
   page has a “Crypto tour” card with its expected output.
-- **CI** — an extra step runs the byte-exact vector checks.
+- **CI** — an extra step runs the byte-exact vector checks. The first CI run
+  also caught a real regression: adding the RNG broke the wasm target
+  (`getrandom` has no default backend there). Fixed in `74f3b05` by enabling its
+  documented `wasm_js` feature for `cfg(target_arch = "wasm32")` only (D-0206).
 - **Decisions** — D-0201 (crate versions), D-0202 (timestamps), D-0203
   (`test-vectors` feature), D-0204 (KDF minimums), D-0205 (hybrid deferred;
   upstream now has X-Wing).
