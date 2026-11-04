@@ -82,7 +82,7 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
   <h1>Build Studge Pass with AutoClaw, one phase at a time</h1>
   <p>Repo: <a href="https://github.com/lnstudge/Studge-Pass">github.com/lnstudge/Studge-Pass</a>. Product brief: the Studge Pass Brief artifact. This page gives you a master prompt, one prompt per build phase (17 in all), and what to check after each. Copy a prompt, paste it into a new AutoClaw task, then verify before moving on.</p>
   <nav class="toc" aria-label="Sections">
-    <a href="#first">Read first</a><a href="#map">The 17 phases</a><a href="#step-1">Step 1 · PC setup</a><a href="#step-2">Step 2 · Repo</a><a href="#step-3">Step 3 · AutoClaw</a><a href="#step-4">Step 4 · Master prompt</a><a href="#step-5">Step 5 · The loop</a><a href="#phases">All phase prompts</a><a href="#helpers">Helper prompts</a><a href="#alongside">Alongside the code</a><a href="#trouble">When things go wrong</a>
+    <a href="#first">Read first</a><a href="#map">The 17 phases</a><a href="#step-1">Step 1 · PC setup</a><a href="#step-2">Step 2 · Repo</a><a href="#step-3">Step 3 · AutoClaw</a><a href="#step-4">Step 4 · Master prompt</a><a href="#see">Seeing everything</a><a href="#step-5">Step 5 · The loop</a><a href="#phases">All phase prompts</a><a href="#helpers">Helper prompts</a><a href="#alongside">Alongside the code</a><a href="#trouble">When things go wrong</a>
   </nav>
 </div></header>
 
@@ -164,11 +164,31 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
 <section id="step-4"><div class="wrap">
   <div class="step"><span class="n">4</span><div>
     <h2>Run the master prompt (Phase 0)</h2>
-    <p>Start a <strong>New task</strong> (Ctrl+N) in the Studge Pass project with the Coding tab and GLM-5.3. Copy the <a href="#phase-0">Phase 0 prompt</a> below, paste it in, and send. It carries the whole product context and writes <code>AGENTS.md</code>, the rulebook that keeps later tasks consistent even though each task starts fresh.</p>
+    <p>Your AutoClaw project already points at <code>C:\dev\Studge-Pass</code>, which is right. Start a <strong>New task</strong> (Ctrl+N) in the Studge Pass project with the Coding tab and GLM-5.3. Copy the <a href="#phase-0">Phase 0 prompt</a> below, paste it in, and send. It carries the whole product context and writes <code>AGENTS.md</code>, the rulebook that keeps later tasks consistent even though each task starts fresh.</p>
     <p>AutoClaw works on a branch called <code>phase-00-setup</code>, pushes after every step, and finishes by opening a pull request. When it stops, run the Phase 0 checks, look at the pull request on GitHub, then merge it:</p>
     <pre class="cmd">gh pr merge --squash --delete-branch</pre>
     <pre class="cmd">git switch main</pre>
     <pre class="cmd">git pull</pre>
+  </div></div>
+</div></section>
+
+<section id="see"><div class="wrap">
+  <div class="step"><span class="n">★</span><div>
+    <h2>Seeing everything while it builds</h2>
+    <p>Every prompt tells AutoClaw to work in the open:</p>
+    <ul>
+      <li><strong>In the AutoClaw chat:</strong> a plan checklist at the start, a sentence before each step, and a "Step N done" report after it, covering what changed, the test results and how you can see it right now.</li>
+      <li><strong>The dev-preview dashboard:</strong> built in Phase 0. Run it in a second PowerShell window and leave it open in your browser. It shows the phase checklist, test results, pushed commits, a screenshot gallery, "Try it" commands and open security risks, and updates after every step.</li>
+    </ul>
+    <pre class="cmd">cd C:\dev\Studge-Pass</pre>
+    <pre class="cmd">pnpm preview</pre>
+    <p>Then open <code>http://localhost:4400</code>.</p>
+    <ul>
+      <li><strong>Phases with no screens yet</strong> (crypto, vault, relay, sync) ship runnable demos with fake data, for example <code>cargo run -p studge-core --example crypto_tour</code>, and get their own views on the preview page (op-log graph, relay endpoint list, the evil-relay "Attack wall").</li>
+      <li><strong>Phases with screens</strong> keep the dev server running (Storybook, the desktop app, the extension, the Android emulator) and add light and dark screenshots after every step.</li>
+      <li><strong>On GitHub:</strong> every step is pushed, so the phase branch and its pull request show progress live.</li>
+      <li>Lost track? Paste the <a href="#helpers">"Show me where we are"</a> helper prompt into a new task.</li>
+    </ul>
   </div></div>
 </div></section>
 
@@ -194,7 +214,7 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
 <article class="phase" id="phase-0">
   <header><span class="badge">Phase 0</span><h3>Repository setup and rules</h3></header>
   <p>Master prompt. Creates the repo skeleton, AGENTS.md (the rulebook every later task follows), licences and CI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">1,997 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
+  <div class="pblock"><div class="pbar"><span class="mono small">2,636 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
 
 ## Product context (remember it for all future work)
 Studge Pass is a password + passkey manager in which every feature is free forever.
@@ -303,6 +323,28 @@ The goal is the most beautiful, calm and trustworthy password manager available,
 - Security UX: never trade safety for looks. No dark patterns. Warnings are calm, clear and specific.
 - Every UI phase ends with screenshots in docs/screenshots/ (light and dark, desktop and narrow widths) and a short self-critique against this design bar.
 
+## Show your work: live preview (the founder wants to see everything)
+The founder watches the build as it happens. Never work silently.
+1. **Plan first.** At the start of a phase, post the plan in chat as a numbered checklist of steps. Write the same checklist into `docs/preview/status.json` (see below).
+2. **Narrate each step.** Before each step, say in 1–2 plain sentences what you are about to do and why. After each step, post a short &quot;Step N done&quot; report in chat:
+   - what changed (files, plus a 3–5 line summary of the diff)
+   - the command you ran and the key lines of its output (test summary, server response, build result)
+   - **how I can see it myself right now**: a URL, a command or a screenshot
+3. **Visual work.** Whenever you build or change anything visible (Storybook, desktop app, extension, Android, dashboard):
+   - start or keep running its dev server and give me the local URL
+   - after each UI step, take Playwright screenshots (light and dark) into `docs/screenshots/phase-NN/step-NN-&lt;name&gt;-&lt;theme&gt;.png`
+   - show the screenshot in chat if AutoClaw can display images; otherwise give the file path
+4. **Non-visual work** (crypto, storage, relay, sync): give me a runnable demo with FAKE data that prints what is happening in plain language, for example `cargo run -p studge-core --example crypto_tour`. Never print real secrets; demo keys are labelled &quot;DEMO ONLY&quot;.
+5. **The preview page.** Keep the local dev-preview dashboard up to date (built in Phase 0, opened with `pnpm preview`, served at http://localhost:4400). After every step, update `docs/preview/status.json`, then rebuild the page. It shows:
+   - the current phase and its checklist with done, in-progress and next steps
+   - the latest check results (fmt, clippy, tests passed/failed, cargo deny)
+   - a timeline of commits pushed in this phase, with links to GitHub
+   - a screenshot gallery for the phase
+   - the demo commands and dev-server URLs to try
+   - the self-attack findings table and open risks
+   - links to Storybook, the PR and the docs
+6. **When a phase ends,** post a final &quot;Preview summary&quot;: what I can try, exactly how, and what it should look like.
+
 ## Git workflow: commit and push after every step
 1. At the start of a phase: `git switch main`, `git pull`, then `git switch -c phase-NN-short-name`.
 2. After EVERY logical step:
@@ -328,11 +370,29 @@ The goal is the most beautiful, calm and trustworthy password manager available,
   cargo deny check
   pnpm -r lint and pnpm -r test, if TypeScript packages changed
 - Commit and push after every logical step, following the Git workflow above. Use `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data.
-- At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions.
+- At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions. Keep docs/preview/status.json current after every step, not only at the end.
 - If a security decision is unclear, stop and ask. Do not guess.
 - The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
 - Keep dependencies few. Prefer the standard library and the approved crates.
 -----END AGENTS.md-----
+
+## Dev preview dashboard (build it in this phase)
+Create a tiny pnpm workspace package `tools/preview` (Vite + TypeScript, no UI framework needed, no external network requests):
+- Data source: `docs/preview/status.json`. Define its JSON schema in `tools/preview/status.schema.json` and validate the file on build. Fields:
+  - phase {id, name, branch, pr_url}
+  - steps [{n, title, state: done|doing|next, summary, commit_sha}]
+  - checks {fmt, clippy, tests {passed, failed, ignored}, deny, updated_at}
+  - commits [{sha, message, url}]
+  - screenshots [{path, caption}]
+  - try_it [{label, command_or_url}]
+  - risks [{title, severity, status}]
+  - links [{label, url}]
+- Page: a clean, readable single page in the Studge Pass style (deep teal accent, light and dark themes, IBM Plex Sans or a system font). It has a progress bar, a step checklist, a check-results panel with pass/fail chips, a commit timeline, a screenshot gallery with a click-to-enlarge lightbox, &quot;Try it&quot; cards with copy buttons, and a risks table.
+- Commands:
+  - `pnpm preview` builds the page and serves it at http://localhost:4400, rebuilding automatically when status.json or screenshots change.
+  - `pnpm preview:update` runs the fast checks and git log, then writes their results into status.json.
+- Root `package.json` with pnpm workspaces and `&quot;packageManager&quot;` pinned. Add `docs/preview/status.json` for Phase 0 itself and keep it updated after every step of this phase.
+- Screenshot helper: `pnpm shot &lt;url&gt; &lt;out.png&gt;` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright.
 
 ## CI (.github/workflows/ci.yml)
 Run on push and pull_request, on ubuntu-latest and windows-latest:
@@ -352,8 +412,11 @@ Also add:
 - `cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health.
 - `cargo run -p studge -- --version` prints the version.
 - `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
+- `pnpm install` then `pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0&#x27;s steps, checks and commits.
 - docs/PROGRESS.md has a &quot;Phase 0&quot; entry.
 - Follow the Git workflow in AGENTS.md: work on branch `phase-00-setup`, commit and push after every step, and finish by opening a pull request with `gh pr create`. Do not merge it.
+
+Follow &quot;Show your work&quot; in AGENTS.md from the very first step: post your plan, narrate each step, and keep the preview page updated.
 
 When you finish, stop and give me:
 1. the file tree
@@ -364,7 +427,7 @@ When you finish, stop and give me:
 <article class="phase" id="phase-1">
   <header><span class="badge">Phase 1</span><h3>Protocol spec and threat model</h3></header>
   <p>Documents only. This is where security is decided, so take your time reviewing.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">926 words</span><button type="button" class="copy" data-target="p2">Copy prompt</button></div><pre id="p2" tabindex="0">Read AGENTS.md first. **Phase 1: protocol specification and threat model.** This phase is documentation only. Do not write code.
+  <div class="pblock"><div class="pbar"><span class="mono small">993 words</span><button type="button" class="copy" data-target="p2">Copy prompt</button></div><pre id="p2" tabindex="0">Read AGENTS.md first. **Phase 1: protocol specification and threat model.** This phase is documentation only. Do not write code.
 
 Write docs/SPEC.md (8–15 pages) and docs/THREAT_MODEL.md using the decisions below. Where a detail is missing, propose one, mark it **PROPOSED**, and list it in docs/DECISIONS.md for my review.
 
@@ -429,13 +492,16 @@ Add two mapping sections:
 2. The DEF CON 33 DOM-based extension clickjacking attack mapped to our mitigation.
 
 ### Finish
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and list the 10 decisions I most need to review, each with your recommendation.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and list the 10 decisions I most need to review, each with your recommendation.
+
+Preview for me: render SPEC.md and THREAT_MODEL.md into the preview page (a &quot;Docs&quot; tab with a table of contents), and add a simple SVG diagram of the key hierarchy (password + Secret Key → MUK → AK → vault keys → item keys) and of the relay trust boundary.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Read <code>docs/SPEC.md</code> and <code>docs/DECISIONS.md</code>. You don't need to understand every line, but every PROPOSED item needs a yes or no from you.</li><li>Start a new task: <em>"Read AGENTS.md. Apply my decisions to SPEC.md and DECISIONS.md: 1) … 2) …. Commit with -s."</em></li><li>Optional but valuable: paste SPEC.md into a second AI (or ask a security-minded friend) and ask "what is wrong with this design?"</li><li>When you are happy with the spec, make the GitHub repo public if it isn't already. Openness is part of the brand.</li></ul></div>
 </article>
 <article class="phase" id="phase-2">
   <header><span class="badge">Phase 2</span><h3>Core cryptography</h3></header>
   <p>Key derivation, encryption, signatures and the Secret Key. The most important code in the project.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">349 words</span><button type="button" class="copy" data-target="p3">Copy prompt</button></div><pre id="p3" tabindex="0">Read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md. **Phase 2: the cryptography module in core/src/crypto, implemented exactly as SPEC.md says.** No networking and no storage.
+  <div class="pblock"><div class="pbar"><span class="mono small">433 words</span><button type="button" class="copy" data-target="p3">Copy prompt</button></div><pre id="p3" tabindex="0">Read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md. **Phase 2: the cryptography module in core/src/crypto, implemented exactly as SPEC.md says.** No networking and no storage.
 
 Implement:
 1. `secret_key`: generate, encode and decode the SP1 format with its checksum. Reject bad checksums and wrong lengths.
@@ -455,13 +521,16 @@ Tests in core/tests/:
 - Use small Argon2 parameters in normal tests, plus one #[ignore] test with the real parameters.
 
 Constraints: #![forbid(unsafe_code)]. No unwrap or expect outside tests. Errors use a thiserror enum, CryptoError, whose messages contain no secret data. Pin crate versions and justify each in DECISIONS.md.
-Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report test counts and any deviations from SPEC.</pre></div>
+Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report test counts and any deviations from SPEC.
+
+Preview for me: `cargo run -p studge-core --example crypto_tour`. It walks through creating a demo account with fake data step by step: Secret Key format, KDF timing, encrypting an item, then showing that a flipped byte, a swapped AAD field and a wrong key each fail with a clear message. Add a &quot;Crypto tour&quot; card to the preview page with the command and its expected output.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p studge-core</code>. All tests pass, and the report lists the tamper tests.</li><li>Always run the <a href="#helpers">review prompt</a> after this phase, then the fix prompt for anything critical or high.</li><li>Check <code>docs/DECISIONS.md</code> names every crypto crate and its version.</li></ul></div>
 </article>
 <article class="phase" id="phase-3">
   <header><span class="badge">Phase 3</span><h3>Vault, op log, storage, import/export</h3></header>
   <p>Item types (including the India templates), the signed change log, local encrypted database, importers, generator and TOTP.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">378 words</span><button type="button" class="copy" data-target="p4">Copy prompt</button></div><pre id="p4" tabindex="0">Read AGENTS.md and the docs. **Phase 3: vault data model, operation log, local encrypted storage, import/export, generator and TOTP, all in core.**
+  <div class="pblock"><div class="pbar"><span class="mono small">463 words</span><button type="button" class="copy" data-target="p4">Copy prompt</button></div><pre id="p4" tabindex="0">Read AGENTS.md and the docs. **Phase 3: vault data model, operation log, local encrypted storage, import/export, generator and TOTP, all in core.**
 
 1. Item types (core/src/vault/items.rs):
    - Login: title, username, password, urls with a match rule (exact-host default | base-domain | starts-with), totp secret, notes, custom fields and linked passkeys.
@@ -484,13 +553,16 @@ Tests:
 - RFC 6238 test vectors for TOTP.
 - Basic statistics tests for the generator.
 
-Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: `cargo run -p studge-core --example vault_tour` creates a demo vault with fake items (including Aadhaar, PAN and UPI templates), shows the op log as a readable table (op hash, parents, device, kind), demonstrates a conflict being resolved, and imports a fake Bitwarden file with its ImportReport. Add an &quot;Op log&quot; view to the preview page that renders the demo log as a small graph.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test --all</code>.</li><li>Look in <code>core/tests/fixtures</code>: the fixture files must contain fake data only.</li><li>Run the review prompt.</li></ul></div>
 </article>
 <article class="phase" id="phase-4">
   <header><span class="badge">Phase 4</span><h3>Relay server</h3></header>
   <p>The sync server. It only ever sees ciphertext.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">343 words</span><button type="button" class="copy" data-target="p5">Copy prompt</button></div><pre id="p5" tabindex="0">Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
+  <div class="pblock"><div class="pbar"><span class="mono small">424 words</span><button type="button" class="copy" data-target="p5">Copy prompt</button></div><pre id="p5" tabindex="0">Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
 
 - axum + tokio. sqlx with SQLite, with migrations in relay/migrations. An optional `postgres` feature.
 - OPAQUE registration and login with opaque-ke (ristretto255, Argon2id KSF). Create the OPAQUE ServerSetup key file on first run, at a path set in config. Never store it in the database.
@@ -518,13 +590,16 @@ Integration tests (reqwest against a relay spawned on a random port):
 - rate limit hit
 - another account&#x27;s vault returns 404
 
-Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: start the relay and give me the URL. Add a &quot;Relay&quot; section to the preview page that lists every endpoint with a ready-to-copy curl or PowerShell `Invoke-RestMethod` example, and shows live results from /health. Run a scripted demo (`cargo run -p studge-relay --example relay_tour`) that registers a fake account, appends ops and prints each request and response, with tokens masked.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge-relay</code> starts it. <code>cargo test -p studge-relay</code> runs the integration tests.</li><li>Optional: install Docker Desktop and run <code>docker compose up</code> from the relay folder.</li></ul></div>
 </article>
 <article class="phase" id="phase-5">
   <header><span class="badge">Phase 5</span><h3>Sync engine and evil-relay harness</h3></header>
   <p>Proves the server can&#x27;t cheat. This is your strongest public selling point.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">297 words</span><button type="button" class="copy" data-target="p6">Copy prompt</button></div><pre id="p6" tabindex="0">Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test harness.** This harness is a public selling point, so make it thorough and readable.
+  <div class="pblock"><div class="pbar"><span class="mono small">368 words</span><button type="button" class="copy" data-target="p6">Copy prompt</button></div><pre id="p6" tabindex="0">Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test harness.** This harness is a public selling point, so make it thorough and readable.
 
 1. core/src/sync: an async Transport trait with three implementations:
    - HttpRelayTransport (reqwest, rustls only)
@@ -551,13 +626,16 @@ Run every check, update PROGRESS.md with how to run the relay on Windows and in 
 5. Two-device and three-device simulations: concurrent edits converge, deletes follow the rule, and an offline device catches up.
 6. Add a table to THREAT_MODEL.md mapping every evil-relay test to the threat it covers.
 
-Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report the attack list with pass/fail for each.</pre></div>
+Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report the attack list with pass/fail for each.
+
+Preview for me: `cargo run -p test-harness --example evil_relay_show` runs every evil-relay attack and prints a coloured table: attack, what the server tried, what the client detected, PASS/FAIL. Show the same table on the preview page as the &quot;Attack wall&quot;. Also show a two-device sync animation (simple SVG timeline) from the simulation tests.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p test-harness -- --nocapture</code>. Every <code>evil_relay_*</code> test passes.</li><li>Copy the attack table from <code>docs/THREAT_MODEL.md</code> into your README later. It's great marketing.</li></ul></div>
 </article>
 <article class="phase" id="phase-6">
   <header><span class="badge">Phase 6</span><h3>Command-line client</h3></header>
   <p>Your first real, usable Studge Pass. Test it with fake accounts.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">183 words</span><button type="button" class="copy" data-target="p7">Copy prompt</button></div><pre id="p7" tabindex="0">Read AGENTS.md and the docs. **Phase 6: the `studge` command-line client** (clap).
+  <div class="pblock"><div class="pbar"><span class="mono small">233 words</span><button type="button" class="copy" data-target="p7">Copy prompt</button></div><pre id="p7" tabindex="0">Read AGENTS.md and the docs. **Phase 6: the `studge` command-line client** (clap).
 
 Commands:
 - `init`: create an account on a relay URL or in a folder. Print the Secret Key once and write a recovery-kit text file.
@@ -573,13 +651,16 @@ Rules:
 - Never accept the master password as an argument. Read it with rpassword. STUDGE_PASSWORD is allowed only with a printed warning.
 - Keep the unlocked session in the OS credential store (keyring crate) for a configurable number of minutes. Never write plaintext to disk.
 
-Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: record a terminal demo of the CLI (init, add, list, get, totp, generate, health) using fake data. Save the transcript to docs/preview/cli-demo.txt and show it on the preview page.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge -- init</code> with a test folder such as <code>C:\dev\studge-test-vault</code>, then <code>add login</code>, <code>list</code> and <code>get</code>.</li><li>Sync the same folder from a second <code>init</code> to see two devices merge.</li></ul></div>
 </article>
 <article class="phase" id="phase-6b">
   <header><span class="badge">Phase 6b</span><h3>Design system and brand</h3></header>
   <p>Tokens, fonts, logo, icons and a component library with Storybook. Every later screen is built from it.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">442 words</span><button type="button" class="copy" data-target="p8">Copy prompt</button></div><pre id="p8" tabindex="0">Read AGENTS.md (especially the Design bar) and the docs. **Phase 6b: the Studge Pass design system and brand.** Do this before any app UI exists. Every later screen is built from it.
+  <div class="pblock"><div class="pbar"><span class="mono small">498 words</span><button type="button" class="copy" data-target="p8">Copy prompt</button></div><pre id="p8" tabindex="0">Read AGENTS.md (especially the Design bar) and the docs. **Phase 6b: the Studge Pass design system and brand.** Do this before any app UI exists. Every later screen is built from it.
 
 1. Research first. Write docs/DESIGN.md with a short written UX teardown of 1Password, Bitwarden, Proton Pass, Dashlane and Apple Passwords: what each does well, where each frustrates users, and exactly how Studge Pass will beat each one. Do not copy their visual identity.
 2. Brand:
@@ -613,13 +694,16 @@ Write integration tests (assert_cmd) against an in-process relay and against a f
 7. Self-critique: compare your mockups against the teardown in DESIGN.md, list the 5 weakest points, and fix them.
 
 Checks for me: `pnpm --filter @studge/design storybook` opens Storybook in the browser.
-Commit and push following AGENTS.md, run the self-attack review (for UI: XSS through item fields, clickjacking, leaking secrets into the DOM or logs), open the pull request, stop and report with screenshots.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review (for UI: XSS through item fields, clickjacking, leaking secrets into the DOM or logs), open the pull request, stop and report with screenshots.
+
+Preview for me: keep Storybook running and give me its URL after every component batch. Put a screenshot of every component and mockup (light and dark) in the preview gallery as you go, not only at the end.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>pnpm install</code> then <code>pnpm --filter @studge/design storybook</code>. Storybook opens in your browser.</li><li>Click through every component and the full-page mockups in light and dark mode. If you don't love it, start a new task and say exactly what to change. This is the moment to be picky.</li><li>The Accessibility tab in Storybook shows zero violations.</li></ul></div>
 </article>
 <article class="phase" id="phase-7">
   <header><span class="badge">Phase 7</span><h3>Desktop app</h3></header>
   <p>Windows, macOS and Linux app with the full vault UI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">358 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
+  <div class="pblock"><div class="pbar"><span class="mono small">413 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
 
 Screens:
 - Onboarding: create account → show the Secret Key and save or print the recovery kit → choose sync (Studge relay URL, self-hosted URL or local folder). Import from another manager.
@@ -642,13 +726,16 @@ Security:
 
 Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
 
-Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.</pre></div>
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: keep `pnpm tauri dev` running so I can click around while you build, and tell me which screen to look at after each step. Add before/after screenshots of each screen to the preview gallery.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cd desktop</code>, <code>pnpm install</code>, <code>pnpm tauri dev</code>. A window opens.</li><li>Walk through onboarding, add items, lock and unlock, and check that the clipboard clears after 30 s.</li></ul></div>
 </article>
 <article class="phase" id="phase-8">
   <header><span class="badge">Phase 8</span><h3>Browser extension: passwords</h3></header>
   <p>Autofill and save in Chrome, Edge, Brave and Firefox, hardened against clickjacking.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">362 words</span><button type="button" class="copy" data-target="p10">Copy prompt</button></div><pre id="p10" tabindex="0">Read AGENTS.md and the docs. **Phase 8: the browser extension for passwords** (Chrome, Edge, Brave and Firefox; MV3, TypeScript, Vite, webextension-polyfill). Use studge-core through core-wasm.
+  <div class="pblock"><div class="pbar"><span class="mono small">434 words</span><button type="button" class="copy" data-target="p10">Copy prompt</button></div><pre id="p10" tabindex="0">Read AGENTS.md and the docs. **Phase 8: the browser extension for passwords** (Chrome, Edge, Brave and Firefox; MV3, TypeScript, Vite, webextension-polyfill). Use studge-core through core-wasm.
 
 Architecture:
 - Background service worker: holds the unlocked session (core-wasm) and locks on a timer and on browser idle. Keys never go to content scripts.
@@ -670,13 +757,16 @@ Tests:
 
 Build to dist/chrome and dist/firefox, and document loading the unpacked extension. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
-Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-08/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.</pre></div>
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-08/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: build to dist/chrome after each step and tell me to reload it in chrome://extensions. Keep a local fixture site running (login, signup, multi-step and clickjacking test pages) at a localhost URL I can open. Add short Playwright videos or GIF-like screenshot sequences of fill and save flows to the preview page.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Build it, then go to <code>chrome://extensions</code>, turn on Developer mode, choose Load unpacked and pick <code>extension/dist/chrome</code>.</li><li>Try it on the fixture pages, then on a throwaway account on a real site (never your real accounts yet).</li></ul></div>
 </article>
 <article class="phase" id="phase-9">
   <header><span class="badge">Phase 9</span><h3>Passkeys in the extension + CXF</h3></header>
   <p>Create and use passkeys, plus import and export in the FIDO format.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">316 words</span><button type="button" class="copy" data-target="p11">Copy prompt</button></div><pre id="p11" tabindex="0">Read AGENTS.md and the docs. **Phase 9: passkeys in the extension, plus FIDO CXF import/export.**
+  <div class="pblock"><div class="pbar"><span class="mono small">383 words</span><button type="button" class="copy" data-target="p11">Copy prompt</button></div><pre id="p11" tabindex="0">Read AGENTS.md and the docs. **Phase 9: passkeys in the extension, plus FIDO CXF import/export.**
 
 1. Authenticator in Rust core:
    - ES256 (p256) keys and 32-byte random credential IDs.
@@ -699,13 +789,16 @@ Tests:
 - Playwright E2E against a local test relying party built with @simplewebauthn/server: register and sign in work; a wrong origin and a mismatched rpId are rejected.
 - Add a manual checklist for webauthn.io and passkeys.io to PROGRESS.md.
 
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: run the local test relying party at a localhost URL with a page that shows each WebAuthn request and response in readable form (decoded clientDataJSON, authenticatorData flags, rpIdHash). Add a &quot;Passkeys&quot; section to the preview page with that decoded view and screenshots of the passkey picker.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Go to <code>webauthn.io</code>, register with a made-up username, then sign in. Studge Pass should handle both.</li><li>Repeat on <code>passkeys.io</code>. Run the review prompt; this code handles origins, so it is security-critical.</li></ul></div>
 </article>
 <article class="phase" id="phase-10">
   <header><span class="badge">Phase 10</span><h3>Passkey-aware dashboard</h3></header>
   <p>The phishing-resistance score, blast-radius view and next-best-action list.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">368 words</span><button type="button" class="copy" data-target="p12">Copy prompt</button></div><pre id="p12" tabindex="0">Read AGENTS.md and the docs. **Phase 10: the passkey-aware security dashboard.** The logic lives in Rust core. The UI goes in the desktop app and in a &quot;Health&quot; tab of the extension popup.
+  <div class="pblock"><div class="pbar"><span class="mono small">429 words</span><button type="button" class="copy" data-target="p12">Copy prompt</button></div><pre id="p12" tabindex="0">Read AGENTS.md and the docs. **Phase 10: the passkey-aware security dashboard.** The logic lives in Rust core. The UI goes in the desktop app and in a &quot;Health&quot; tab of the extension popup.
 
 Core (core/src/health):
 - Findings for each account:
@@ -731,13 +824,16 @@ UI:
 
 Tests: scoring fixtures, an HIBP client tested against a mock server, and dataset signature verification. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
-Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-10/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.</pre></div>
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-10/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: seed a demo vault (about 40 fake accounts with a realistic mix of passkeys, weak, reused and breached passwords) and show the dashboard live in the desktop app and in Storybook. Add the score breakdown table to the preview page.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Import a fake test vault with weak, reused and breached passwords (for example <code>password123</code>), then open the Health tab.</li><li>Check that the score's breakdown matches the formula.</li></ul></div>
 </article>
 <article class="phase" id="phase-11">
   <header><span class="badge">Phase 11</span><h3>Sharing and families</h3></header>
   <p>Shared vaults, key-transparency log and safety codes.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">210 words</span><button type="button" class="copy" data-target="p13">Copy prompt</button></div><pre id="p13" tabindex="0">Read AGENTS.md and the docs. **Phase 11: sharing and families.**
+  <div class="pblock"><div class="pbar"><span class="mono small">264 words</span><button type="button" class="copy" data-target="p13">Copy prompt</button></div><pre id="p13" tabindex="0">Read AGENTS.md and the docs. **Phase 11: sharing and families.**
 
 - Shared vaults: the owner HPKE-wraps the VK to each member&#x27;s encryption key. Roles are owner, editor and viewer. Membership lives as signed ops in the vault log, and clients reject ops from non-members or from viewers.
 - Removing a member rotates the VK (re-wrapping item keys) and records a key_rotation op.
@@ -756,13 +852,16 @@ Evil-relay tests:
 - the relay cannot add a member
 - a forked key log is detected
 
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a demo with two fake accounts sharing a vault, showing safety codes side by side, plus a key-transparency log viewer on the preview page (tree size, signed head, and a highlighted inclusion proof).
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Create two test accounts, share a vault, remove the member, and confirm they can't read new items.</li></ul></div>
 </article>
 <article class="phase" id="phase-12">
   <header><span class="badge">Phase 12</span><h3>Recovery and emergency access</h3></header>
   <p>Recovery kit, 2-of-3 guardians and emergency access.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">254 words</span><button type="button" class="copy" data-target="p14">Copy prompt</button></div><pre id="p14" tabindex="0">Read AGENTS.md and the docs. **Phase 12: recovery and emergency access.**
+  <div class="pblock"><div class="pbar"><span class="mono small">311 words</span><button type="button" class="copy" data-target="p14">Copy prompt</button></div><pre id="p14" tabindex="0">Read AGENTS.md and the docs. **Phase 12: recovery and emergency access.**
 
 - Recovery kit: generated locally as a printable HTML (and PDF if practical). It contains the account id, Secret Key, a QR code, the relay URL and plain instructions.
 - Guardians (social recovery):
@@ -784,13 +883,16 @@ Tests:
 - the relay replays an old approval
 - the relay swaps a guardian&#x27;s key
 
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a guided demo of the recovery flow with 4 fake accounts (owner and 3 guardians), with screenshots of each screen and a timeline on the preview page showing request → approvals → waiting period → recovered.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Use four test accounts (you plus 3 guardians). Recover with 2 approvals, then confirm 1 approval is not enough.</li></ul></div>
 </article>
 <article class="phase" id="phase-13">
   <header><span class="badge">Phase 13</span><h3>Android app</h3></header>
   <p>Native Android with autofill and passkey provider.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">296 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
+  <div class="pblock"><div class="pbar"><span class="mono small">351 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
 
 Features:
 - Onboarding and unlock: BiometricPrompt, with the unlock key wrapped by Android Keystore (StrongBox when available).
@@ -814,13 +916,16 @@ Targets:
 
 Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
-Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.</pre></div>
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: keep the Android emulator running with the app installed after each step. Capture screenshots with `adb exec-out screencap` into the preview gallery, and record a short screen video of autofill and the passkey provider.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Install Android Studio, open <code>/android</code>, run it on an emulator, then on your own phone over USB.</li><li>Settings → Passwords &amp; accounts → choose Studge Pass as the provider.</li></ul></div>
 </article>
 <article class="phase" id="phase-14">
   <header><span class="badge">Phase 14</span><h3>iOS app (needs a Mac)</h3></header>
   <p>Skip until you have a Mac and an Apple Developer account ($99/yr).</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">90 words</span><button type="button" class="copy" data-target="p16">Copy prompt</button></div><pre id="p16" tabindex="0">Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+). This needs a Mac with Xcode and an Apple Developer account.
+  <div class="pblock"><div class="pbar"><span class="mono small">120 words</span><button type="button" class="copy" data-target="p16">Copy prompt</button></div><pre id="p16" tabindex="0">Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+). This needs a Mac with Xcode and an Apple Developer account.
 
 - Build core as an XCFramework with UniFFI.
 - Credential Provider Extension (ASCredentialProviderViewController) for passwords, one-time codes and passkeys.
@@ -828,13 +933,16 @@ Design: use the @studge/design tokens and components from Phase 6b and follow th
 - ASCredentialImportManager and ASCredentialExportManager for passkey transfer on iOS 26.
 - The same feature set as Android.
 
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: simulator screenshots after each step in the preview gallery.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Can only be built and tested on a Mac with Xcode.</li></ul></div>
 </article>
 <article class="phase" id="phase-15">
   <header><span class="badge">Phase 15</span><h3>Hardening and release</h3></header>
   <p>Fuzzing, reproducible builds, signed releases and the audit pack.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">176 words</span><button type="button" class="copy" data-target="p17">Copy prompt</button></div><pre id="p17" tabindex="0">Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
+  <div class="pblock"><div class="pbar"><span class="mono small">222 words</span><button type="button" class="copy" data-target="p17">Copy prompt</button></div><pre id="p17" tabindex="0">Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
 
 - Fuzzing with cargo-fuzz for the envelope parser, op CBOR decoding, every importer, the CXF parser and relay request parsing. Add a short CI fuzz smoke run.
 - Dependency hygiene: cargo audit, cargo deny and cargo vet in CI, plus Dependabot.
@@ -846,7 +954,10 @@ Commit and push following AGENTS.md, run the self-attack review, and open the pu
 - docs/AUDIT_PACK.md: an architecture overview, links to SPEC and THREAT_MODEL, evil-relay test results, the crypto crates with versions, and known limitations, ready to send to an audit firm.
 - Update SECURITY.md with a disclosure policy and a bug-bounty placeholder.
 
-Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.</pre></div>
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a &quot;Release readiness&quot; panel on the preview page covering fuzzing hours and crashes found, reproducible-build hash comparison, SBOM link, signature verification command and audit-pack status.
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>CI is green. Push a test tag such as <code>v0.1.0-alpha.1</code> and check the release workflow produces signed artifacts.</li></ul></div>
 </article></div>
 </div></section>
@@ -865,7 +976,13 @@ Check for:
 7. TODOs hiding security work
 8. anything that breaks the rules in AGENTS.md
 
-Do NOT change any code. Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with &quot;Ship / Fix first&quot; and one sentence of reasoning.</pre></div></article><article class="phase"><header><h3>Red-team attack (run after Phases 5, 9, 12 and before any release)</h3></header><p>A hostile security review that writes proof-of-concept tests. Run it in a fresh task, then use the fix prompt on what it finds.</p><div class="pblock"><div class="pbar"><span class="mono small">167 words</span><button type="button" class="copy" data-target="p19">Copy prompt</button></div><pre id="p19" tabindex="0">Act as an elite, hostile red team hired to break Studge Pass. Do NOT fix anything in this task. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md, then study the code on main.
+Do NOT change any code. Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with &quot;Ship / Fix first&quot; and one sentence of reasoning.</pre></div></article><article class="phase"><header><h3>Show me where we are (live preview)</h3></header><p>Use any time you want to see everything: it starts the preview page and every dev server, takes fresh screenshots and tells you what to click.</p><div class="pblock"><div class="pbar"><span class="mono small">119 words</span><button type="button" class="copy" data-target="p19">Copy prompt</button></div><pre id="p19" tabindex="0">Pause and show me where we are. Do not write new features in this task.
+1. Read docs/preview/status.json, docs/PROGRESS.md and `git log --oneline -15`.
+2. Run `pnpm preview:update` and start `pnpm preview`, then give me the URL.
+3. Start every dev server that exists for the current phase (Storybook, the desktop app, the relay, the fixture site, the test relying party) and list their URLs.
+4. Take fresh light and dark screenshots of everything visible and add them to the preview gallery.
+5. Tell me in plain language: what works now, what I should click or run to see it, what is half-done, and what comes next.
+If you changed status.json or screenshots, commit and push them following AGENTS.md.</pre></div></article><article class="phase"><header><h3>Red-team attack (run after Phases 5, 9, 12 and before any release)</h3></header><p>A hostile security review that writes proof-of-concept tests. Run it in a fresh task, then use the fix prompt on what it finds.</p><div class="pblock"><div class="pbar"><span class="mono small">167 words</span><button type="button" class="copy" data-target="p20">Copy prompt</button></div><pre id="p20" tabindex="0">Act as an elite, hostile red team hired to break Studge Pass. Do NOT fix anything in this task. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md, then study the code on main.
 
 Attack it from every angle:
 - malicious relay server
@@ -880,9 +997,9 @@ Attack it from every angle:
 
 For each real weakness, write a failing test or a proof-of-concept under test-harness/redteam/ that demonstrates it. Put them on a branch named `redteam-&lt;date&gt;`, commit and push following AGENTS.md, and open a pull request titled &quot;Red team findings &lt;date&gt;&quot;.
 
-Report a ranked list: severity, attack steps, affected file:line, proof (test name) and suggested fix. Be ruthless and specific. Never report a weakness without a proof or a precise reasoning chain.</pre></div></article><article class="phase"><header><h3>Fix the review findings</h3></header><p>Paste the review output where shown.</p><div class="pblock"><div class="pbar"><span class="mono small">50 words</span><button type="button" class="copy" data-target="p20">Copy prompt</button></div><pre id="p20" tabindex="0">Read AGENTS.md. Fix findings #&lt;NUMBERS&gt; from the review below. Keep changes minimal and add a regression test for each finding. Run every check, update docs/PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report what changed.
+Report a ranked list: severity, attack steps, affected file:line, proof (test name) and suggested fix. Be ruthless and specific. Never report a weakness without a proof or a precise reasoning chain.</pre></div></article><article class="phase"><header><h3>Fix the review findings</h3></header><p>Paste the review output where shown.</p><div class="pblock"><div class="pbar"><span class="mono small">50 words</span><button type="button" class="copy" data-target="p21">Copy prompt</button></div><pre id="p21" tabindex="0">Read AGENTS.md. Fix findings #&lt;NUMBERS&gt; from the review below. Keep changes minimal and add a regression test for each finding. Run every check, update docs/PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report what changed.
 
-&lt;PASTE THE REVIEW FINDINGS HERE&gt;</pre></div></article><article class="phase"><header><h3>Resume a task that stopped half-way</h3></header><p>Use this when AutoClaw runs out of context or credits mid-phase.</p><div class="pblock"><div class="pbar"><span class="mono small">48 words</span><button type="button" class="copy" data-target="p21">Copy prompt</button></div><pre id="p21" tabindex="0">Read AGENTS.md and docs/PROGRESS.md. The previous task stopped before Phase &lt;N&gt; was finished. Run `git status`, `git log --oneline -15` and the full test suite. Tell me in 5 lines what is done and what is left, then continue from where it stopped. Do not redo finished work.</pre></div></article><article class="phase"><header><h3>Split a phase that is too big</h3></header><p>Use this if a phase keeps failing or stalling.</p><div class="pblock"><div class="pbar"><span class="mono small">52 words</span><button type="button" class="copy" data-target="p22">Copy prompt</button></div><pre id="p22" tabindex="0">Read AGENTS.md and the docs. Phase &lt;N&gt; is too large for one task. Do only part 1 of it: &lt;PASTE THE FIRST HALF OF THE PHASE PROMPT&gt;. Leave the rest for the next task and list it under &quot;Next&quot; in docs/PROGRESS.md. Run every check, commit and push following AGENTS.md, stop and report.</pre></div></article><article class="phase"><header><h3>Explain it to me</h3></header><p>Use this whenever you don't understand what was built.</p><div class="pblock"><div class="pbar"><span class="mono small">40 words</span><button type="button" class="copy" data-target="p23">Copy prompt</button></div><pre id="p23" tabindex="0">Explain Phase &lt;N&gt; to me as a non-expert founder: what was built, how the parts talk to each other, how I can run and try it myself on Windows (exact commands), and what could go wrong. Make no code changes.</pre></div></article></div>
+&lt;PASTE THE REVIEW FINDINGS HERE&gt;</pre></div></article><article class="phase"><header><h3>Resume a task that stopped half-way</h3></header><p>Use this when AutoClaw runs out of context or credits mid-phase.</p><div class="pblock"><div class="pbar"><span class="mono small">48 words</span><button type="button" class="copy" data-target="p22">Copy prompt</button></div><pre id="p22" tabindex="0">Read AGENTS.md and docs/PROGRESS.md. The previous task stopped before Phase &lt;N&gt; was finished. Run `git status`, `git log --oneline -15` and the full test suite. Tell me in 5 lines what is done and what is left, then continue from where it stopped. Do not redo finished work.</pre></div></article><article class="phase"><header><h3>Split a phase that is too big</h3></header><p>Use this if a phase keeps failing or stalling.</p><div class="pblock"><div class="pbar"><span class="mono small">52 words</span><button type="button" class="copy" data-target="p23">Copy prompt</button></div><pre id="p23" tabindex="0">Read AGENTS.md and the docs. Phase &lt;N&gt; is too large for one task. Do only part 1 of it: &lt;PASTE THE FIRST HALF OF THE PHASE PROMPT&gt;. Leave the rest for the next task and list it under &quot;Next&quot; in docs/PROGRESS.md. Run every check, commit and push following AGENTS.md, stop and report.</pre></div></article><article class="phase"><header><h3>Explain it to me</h3></header><p>Use this whenever you don't understand what was built.</p><div class="pblock"><div class="pbar"><span class="mono small">40 words</span><button type="button" class="copy" data-target="p24">Copy prompt</button></div><pre id="p24" tabindex="0">Explain Phase &lt;N&gt; to me as a non-expert founder: what was built, how the parts talk to each other, how I can run and try it myself on Windows (exact commands), and what could go wrong. Make no code changes.</pre></div></article></div>
 </div></section>
 
 <section id="alongside"><div class="wrap">

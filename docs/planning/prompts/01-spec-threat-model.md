@@ -66,3 +66,6 @@ Add two mapping sections:
 
 ### Finish
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and list the 10 decisions I most need to review, each with your recommendation.
+
+Preview for me: render SPEC.md and THREAT_MODEL.md into the preview page (a "Docs" tab with a table of contents), and add a simple SVG diagram of the key hierarchy (password + Secret Key → MUK → AK → vault keys → item keys) and of the relay trust boundary.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

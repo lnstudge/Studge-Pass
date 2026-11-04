@@ -13,3 +13,6 @@ Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
 - Update SECURITY.md with a disclosure policy and a bug-bounty placeholder.
 
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a "Release readiness" panel on the preview page covering fuzzing hours and crashes found, reproducible-build hash comparison, SBOM link, signature verification command and audit-pack status.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

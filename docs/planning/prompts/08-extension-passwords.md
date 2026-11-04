@@ -23,3 +23,6 @@ Tests:
 Build to dist/chrome and dist/firefox, and document loading the unpacked extension. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-08/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: build to dist/chrome after each step and tell me to reload it in chrome://extensions. Keep a local fixture site running (login, signup, multi-step and clickjacking test pages) at a localhost URL I can open. Add short Playwright videos or GIF-like screenshot sequences of fill and save flows to the preview page.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

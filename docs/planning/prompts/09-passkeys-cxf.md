@@ -24,3 +24,6 @@ Tests:
 - Add a manual checklist for webauthn.io and passkeys.io to PROGRESS.md.
 
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: run the local test relying party at a localhost URL with a page that shows each WebAuthn request and response in readable form (decoded clientDataJSON, authenticatorData flags, rpIdHash). Add a "Passkeys" section to the preview page with that decoded view and screenshots of the passkey picker.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

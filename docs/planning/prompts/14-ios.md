@@ -9,3 +9,6 @@ Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+
 - The same feature set as Android.
 
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: simulator screenshots after each step in the preview gallery.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

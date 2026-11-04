@@ -27,3 +27,6 @@ UI:
 Tests: scoring fixtures, an HIBP client tested against a mock server, and dataset signature verification. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-10/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: seed a demo vault (about 40 fake accounts with a realistic mix of passkeys, weak, reused and breached passwords) and show the dashboard live in the desktop app and in Storybook. Add the score breakdown table to the preview page.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
