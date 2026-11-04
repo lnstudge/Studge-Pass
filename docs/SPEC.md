@@ -424,4 +424,279 @@ See `docs/diagrams/key-hierarchy.svg` for the rendered diagram.
 | Item edit | Field values re-encrypted with fresh nonces under the existing IK; IK wrapped again only if the vault key changed. |
 | Account deletion | Relay-side delete request; local data wiped separately by the client. |
 
+## 5. Encryption format
+
+### 5.1 Suite `v1`
+
+| Role | Algorithm | Parameters |
+| --- | --- | --- |
+| AEAD | XChaCha20-Poly1305 | 24-byte nonce, 16-byte tag appended to ciphertext |
+| Password KDF | Argon2id | v=0x13, m=64 MiB, t=3, p=1, 32-byte output (§4.3) |
+| Sub-key derivation | HKDF-SHA256 | labels below |
+| Hashing | BLAKE3-256 | unkeyed, domain-separated by a label prefix or a `type` field |
+| Signatures | Ed25519 (RFC 8032) | 32-byte public key, 64-byte signature |
+| PAKE | OPAQUE (ristretto255, identity KSF) | §4.4 |
+| Public-key encryption | HPKE (RFC 9180) | X25519 / HKDF-SHA256 / ChaCha20-Poly1305 (§9.2) |
+| Serialisation | Deterministic CBOR (RFC 8949 §4.2.1) | strict parser |
+
+The suite id is the string `v1`. Every envelope, op, head, certificate and
+revocation carries it. A client MUST reject any object whose suite is missing,
+unknown, or not exactly `v1`.
+
+### 5.2 The envelope
+
+Every ciphertext is stored as a CBOR map with exactly three fields:
+
+```cddl
+envelope = { "suite": "v1", "nonce": bstr .size 24, "ct": bstr }
+```
+
+- `ct` is the XChaCha20-Poly1305 output **including** the 16-byte tag, so the
+  minimum length is 16 bytes.
+- The nonce is 24 bytes from `OsRng` for every encryption. Nonces are never
+  counters, never derived from content, and never reused with the same key. With
+  192 random bits, the birthday bound is irrelevant for any realistic vault.
+- The map is canonical CBOR; parsers MUST reject extra fields, duplicate keys,
+  wrong lengths and non-canonical encodings.
+
+### 5.3 Additional authenticated data (AAD)
+
+The AAD binds a ciphertext to exactly one place in the data model. It is
+**reconstructed from local context**, never copied from the message being
+verified:
+
+```cddl
+aad = { "suite": "v1",
+        "scope": bstr,            ; account_id or vault_id
+        "item_id": bstr / null,   ; null when the record is account- or vault-level
+        "record_type": tstr,
+        "field_name": tstr / null,
+        "schema_version": uint }
+```
+
+`record_type` is a closed enumeration: `ak`, `bundle/<entry>`, `vk-owner`,
+`vk-share`, `ik`, `item-field`, `op/item`, `op/item-delete`, `op/item-move`,
+`op/membership`, `op/key-rotation`, `recovery-share`, `emergency-grant`,
+`kt-entry`. Anything else is rejected.
+
+Rules:
+
+- The AAD MUST contain the suite, the account or vault id, the item id (or an
+  explicit `null`), the record type and, for per-field encryption, the field
+  name.
+- Two records that differ only by field name, item, vault or type produce
+  different AADs and therefore cannot be swapped without a tag failure.
+- The `schema_version` lets a future record shape coexist; v1 is `1` and a
+  client MUST reject records with a version it does not implement.
+
+### 5.4 HKDF labels
+
+All purpose labels are `studge/v1/<purpose>` and live as constants in exactly
+one file (`core/src/crypto/labels.rs`, Phase 2):
+
+| Label | Used for | Salt |
+| --- | --- | --- |
+| `studge/v1/muk` | MUK from Argon2id output + Secret Key | empty |
+| `studge/v1/opaque-password` | auth secret from MUK | empty |
+| `studge/v1/ak-wrap` | AK wrapping key from MUK | empty |
+| `studge/v1/key-bundle` | key-bundle key from AK | `account_id` |
+| `studge/v1/vk-wrap` | VK wrapping key from AK | `vault_id` |
+| `studge/v1/ik-wrap` | IK wrapping key from VK | `item_id` |
+| `studge/v1/item-field` | field key from IK | `item_id` |
+| `studge/v1/op-payload` | op payload key from VK | `vault_id` |
+| `studge/v1/vk-share` | HPKE `info` context for shared vaults | — |
+| `studge/v1/recovery-share` | guardian share encryption context | — |
+| `studge/v1/emergency-grant` | emergency-access grant context | — |
+| `studge/v1/kt-entry` | key-transparency leaf context | — |
+| `studge/v1/safety-code` | safety-code digest | — |
+| `studge/v1/secret-key-checksum` | printed Secret Key checksum | — |
+| `studge/v1/device-cert`, `-enroll`, `-revocation` | signature domain strings | — |
+
+No key is used for two labels; no label is derived from another label's output
+except along the hierarchy in §4.11.
+
+### 5.5 What is encrypted where
+
+| Stored object | Protection |
+| --- | --- |
+| Account record: `account_id`, `account_salt`, `kdf` params | plaintext, public by design |
+| Account record: AK envelope, key bundle | AEAD under MUK-derived and AK-derived keys |
+| Device list, certificates, revocations | Ed25519 signatures (public data) |
+| Vault ops | payload AEAD under the vault's `op-payload` key; op header signed |
+| Vault head | Ed25519 signature (public data) |
+| Item key envelopes | AEAD under the vault's `ik-wrap` key |
+| Item fields | AEAD under the item's `item-field` key |
+| Vault key for shared members | HPKE to each member (Phase 11) |
+
+What remains visible to the relay: ids, sizes, counts, `lamport`, `created_at`,
+`kind`, parent hashes. That is the metadata surface recorded as R-0101.
+
+### 5.6 Field-level rules
+
+- Every field is encrypted separately; empty fields are omitted from the map,
+  never stored as empty ciphertext.
+- The field name is authenticated but **not** encrypted, because the relay never
+  needs it and clients need it to render; it is part of the AAD and the op's
+  encrypted payload, never of the relay-visible header. (If a future version
+  wants to hide field names from a local attacker, it can encrypt the map keys
+  as an opaque blob.)
+- A field value is at most 1 MiB; an item has at most 256 fields; an op payload
+  at most 1 MiB. **PROPOSED** limits (D-0110), enforced by clients and the relay.
+
+### 5.7 Hashing
+
+BLAKE3-256 everywhere for our own structures: op hashes, head hashes,
+certificate and revocation bodies, the Secret Key checksum, safety codes. SHA-256
+appears only inside primitives that specify it (OPAQUE, HKDF, HPKE, TLS). A
+digest is never compared with `==`; comparisons use `subtle` (§11.4).
+
+### 5.8 Decryption failure
+
+A tag failure, an AAD mismatch, a wrong inner type, a bad length or a
+non-canonical encoding is fatal for that record: the client zeroizes any partial
+plaintext, reports a clear error, and refuses to use the record. It MUST NOT try
+another key, another nonce, another suite or a “repair” path.
+
+## 6. Vault operation log
+
+### 6.1 The operation
+
+```cddl
+op = { "suite": "v1",
+       "vault_id": bstr .size 16,
+       "op_id": bstr .size 16,
+       "parents": [* bstr .size 32],   ; sorted ascending, 0..16 entries
+       "lamport": uint,
+       "device_id": bstr .size 16,
+       "created_at": tstr,             ; RFC 3339 UTC, e.g. 2026-11-05T09:30:00Z
+       "kind": tstr,                   ; closed enum below
+       "item_id": bstr .size 16 / null,
+       "schema_version": uint,
+       "payload": bstr }               ; an envelope (§5.2)
+```
+
+`kind` is one of `create`, `update`, `delete`, `move`, `membership`,
+`key_rotation`. The payload's inner `record_type` MUST match the kind
+(`op/item`, `op/item-delete`, `op/item-move`, `op/membership`,
+`op/key-rotation`); a mismatch is fatal.
+
+A stored op is the canonical CBOR of `op` followed by a `sig` field of 64 bytes.
+The signature is computed over the op **without** `sig`.
+
+### 6.2 Canonical encoding and hashing
+
+- Deterministic CBOR per RFC 8949 §4.2.1: shortest integer forms, definite
+  lengths only, map keys sorted by encoded length and then bytewise, no duplicate
+  keys, no tags, no floats, no indefinite strings.
+- `parents` are sorted ascending bytewise before encoding, so two clients that
+  merge the same history produce identical bytes.
+- `op_hash = BLAKE3(canonical_bytes(op without sig))` — exactly as the brief
+  specifies; the `suite` field inside the op prevents cross-protocol reuse.
+
+### 6.3 Signatures
+
+```
+sig = Ed25519(device_signing_key, op_hash)
+```
+
+Verification is against the device key in the device's certificate (§4.7) after
+checking that the certificate chains to the pinned identity key and that the
+device is not revoked at `created_at` (§4.8). A client MUST verify the signature
+before using any field of the op, including its `parents`.
+
+### 6.4 The DAG
+
+- The first op of a vault (genesis) has `parents = []`.
+- Every later op references between 1 and 16 parents that the client has already
+  verified. A client MUST reject an op whose parent is unknown; a relay that
+  withholds a parent therefore produces a detectable error, not a silent gap.
+- The vault state is the set of all ops reachable from the current heads.
+- A client that has never seen a vault accepts the genesis op only from a head
+  that chains to it; it does not accept a “middle” of a history as a start.
+
+### 6.5 Lamport clocks
+
+- Genesis: `lamport = 1`.
+- Otherwise `lamport = 1 + max(lamport of parents)`.
+- A client MUST reject an op whose `lamport` differs from that rule (no
+  inflation, no reuse).
+- `created_at` is advisory: it is used for display and for revocation cut-offs,
+  never for ordering.
+
+### 6.6 Conflict resolution
+
+Two item versions conflict when neither is an ancestor of the other. The winner
+is the op with the highest `(lamport, device_id)` tuple, comparing `device_id` as
+16 raw bytes. The rule is total, deterministic and identical on every client, so
+all devices converge without coordination.
+
+### 6.7 History
+
+Losing versions are never deleted: they remain ops in the DAG and are shown in
+the item's history. The UI MAY collapse them, but the protocol keeps them, which
+is what makes “an attacker cannot make a change disappear” true.
+
+### 6.8 Vault heads
+
+```cddl
+head = { "suite": "v1",
+         "type": "vault-head",
+         "vault_id": bstr .size 16,
+         "heads": [1* bstr .size 32],
+         "op_count": uint,
+         "lamport_max": uint,
+         "device_id": bstr .size 16,
+         "created_at": tstr }
+head_sig = Ed25519(device_signing_key, BLAKE3(canonical(head)))
+```
+
+- `heads` lists the current tips of the DAG (at least one).
+- `op_count` is the number of ops in the vault; `lamport_max` the highest
+  Lamport clock seen.
+- The head is replaced with compare-and-swap: `PUT /v1/vaults/:id/head` carries
+  the hash of the head it replaces; the relay answers `409` if it disagrees
+  (§7.4). This prevents two devices from silently overwriting each other on the
+  relay, but it is **not** a security control: the relay can still serve an old
+  head, which §6.9 detects.
+
+### 6.9 Head pinning, rollback and fork detection
+
+A client stores the last verified head per vault (`pinned_head`), locally and as
+a hint in the key bundle. On every sync it MUST check, in this order:
+
+1. The returned head verifies (signature, suite, vault id, device not revoked).
+2. Every `heads` entry exists among the ops the client now has.
+3. Each pinned head hash is **reachable by following parents** from some new
+   head. If it is not, the relay is serving a history that does not descend from
+   what the client saw — a rollback — and the client MUST refuse to sync.
+4. `op_count` and `lamport_max` are not lower than the pinned values.
+5. Every new op verifies: canonical encoding, hash, signature, parents known,
+   Lamport rule, kind/inner-type match, payload AEAD under the vault key.
+
+If two different heads with the same `op_count` appear (for example from two
+relays or two accounts of the same vault), neither descending from the other,
+that is a fork: the client MUST stop, keep its pinned head, and tell the user.
+
+A brand-new device has no pin. It takes the `head_pins` hint from the account
+bundle (§4.5) and verifies internal consistency, but the *first* fetch is
+trust-on-first-use; see R-0102.
+
+### 6.10 Compaction (deferred)
+
+v1 keeps every op forever. Clients MAY cache a materialised state locally, but
+there is no server-side compaction and no snapshot op kind. A future version can
+add snapshots behind a new `kind` and a schema-version bump; doing it now would
+add a second way to reconstruct history and a second way to get it wrong
+(D-0111). Quotas (§7.7) bound growth per vault.
+
+### 6.11 Limits
+
+| Limit | Value |
+| --- | --- |
+| Ops per push request | 100 |
+| Parents per op | 16 |
+| Op payload (plaintext) | 1 MiB |
+| Head size | 16 KiB |
+| `created_at` skew accepted | ±5 minutes |
+
 <!-- SPEC-END -->
