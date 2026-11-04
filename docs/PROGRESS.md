@@ -190,7 +190,6 @@ No product code changed in this phase.
 
 None blocking. All 22 decisions are approved; Phase 1 is ready to merge and
 Phase 2 can start on merge.
-
 ### Follow-ups (outside this phase's scope)
 
 - **CI does not run the preview's TypeScript checks yet.** `ci.yml` covers Rust
@@ -199,3 +198,65 @@ Phase 2 can start on merge.
 - `tools/preview` still needs a restart after files are added under `docs/`
   (the static file list is cached at startup).
 - A Storybook and the design-token package arrive in Phase 6b, per the plan.
+
+## Phase 2 — Core cryptography
+
+- **Status:** In review
+- **Branch:** `phase-02-core-crypto` · **Issue:** #8 · **Milestone:** Phase 2
+- **Dates:** 2026-11-05
+
+### What changed
+
+- **`core/src/crypto/`** — ten modules implementing SPEC §4–§5: `random` (OsRng
+  only), `labels` (every label in one file), `error` (`CryptoError`, no secret
+  data in messages), `secret_key` (128-bit SP1 format with a BLAKE3 check
+  character), `aad` (typed builder, deterministic CBOR, strict re-encode check),
+  `aead` (XChaCha20-Poly1305 envelopes), `kdf` (NFKC + Argon2id → MUK, HKDF
+  sub-keys, anti-downgrade minimums), `keys` (MUK/AK/VK/IK newtypes, wrap/unwrap,
+  field keys), `signing` (Ed25519 device keys, certificates, revocations,
+  enrolment proofs, strict RFC 3339 timestamps), `hpke` (X25519 sealing with a
+  KEM seam for Phase 11).
+- **Tests** — 76 in the default run: 49 unit, 7 secret-key, 11 tamper, 3 property
+  (256 cases each), 6 vector; one `#[ignore]` real-parameter Argon2 test also
+  passes. With `--features test-vectors`, 78 (byte-exact re-encryption).
+- **`core/tests/vectors/v1.json`** — cross-language answers for the Secret Key,
+  AAD, AEAD, MUK, HPKE, a certificate and a wrapped account key. DEMO-ONLY data.
+- **`core/examples/crypto_tour.rs`** — the demo the phase asked for; the preview
+  page has a “Crypto tour” card with its expected output.
+- **CI** — an extra step runs the byte-exact vector checks.
+- **Decisions** — D-0201 (crate versions), D-0202 (timestamps), D-0203
+  (`test-vectors` feature), D-0204 (KDF minimums), D-0205 (hybrid deferred;
+  upstream now has X-Wing).
+
+### How to try it
+
+```powershell
+.\x.ps1 "cargo run -p studge-core --example crypto_tour"
+.\x.ps1 "cargo test -p studge-core"
+.\x.ps1 "cargo test -p studge-core --features test-vectors"
+.\x.ps1 "cargo test -p studge-core --test kdf_slow -- --ignored"
+```
+
+### Test results (2026-11-05, through `.\x.ps1`)
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --check` / `clippy -D warnings` | pass |
+| `cargo test --all` | 76 passed, 0 failed, 1 ignored |
+| `cargo test -p studge-core --features test-vectors` | 78 passed |
+| real-parameter Argon2 test | pass (3.5 s) |
+| `cargo deny check` | advisories, bans, licenses, sources ok |
+| `pnpm -r lint` / `pnpm -r test` | pass; 43 tests |
+
+### Known gaps and open questions
+
+- New accepted risks: R-0117 (the `test-vectors` feature could be enabled in a
+  release build), R-0118 (5-bit check character), R-0119 (HPKE base mode has no
+  sender authentication).
+- The hybrid X-Wing KEM is not wired (D-0205); Phase 11 should flip
+  `KemChoice::XWingMlKem768` — `hpke` 0.15.1 already ships it.
+- Zeroization is best-effort: Rust cannot prove that memory was wiped.
+- The Argon2 demo takes ~3 s in a debug build; a release build is faster.
+- Clarifications recorded for review: fixed-width RFC 3339 timestamps (D-0202)
+  and KDF minimums enforced in `derive_muk` with a crate-internal raw path for
+  fast unit tests (D-0204). Nothing else deviates from SPEC §4–§5.

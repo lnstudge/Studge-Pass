@@ -150,6 +150,21 @@
       "title": "R-0116 — Vault-key wrapping is X25519-only; hpke 0.15 now ships X-Wing, so Phase 11 can switch",
       "severity": "low",
       "status": "open"
+    },
+    {
+      "title": "R-0117 — test-vectors feature exposes fixed-nonce sealing; documented test-only, never in release builds",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0118 — The Secret Key check character is 5 bits: a typo inside the alphabet has a 1-in-32 chance of passing and then fails safely at the MUK",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0119 — HPKE base mode gives no sender authentication; correct for vault-key wrapping, must not be presented as authentication",
+      "severity": "low",
+      "status": "accepted"
     }
   ],
   "links": [
