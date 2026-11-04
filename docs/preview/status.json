@@ -3,7 +3,7 @@
     "id": 0,
     "name": "Repository setup, rules and preview dashboard",
     "branch": "phase-00-setup",
-    "pr_url": null
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/26"
   },
   "steps": [
     {
@@ -86,8 +86,8 @@
     {
       "n": 12,
       "title": "Final PR",
-      "state": "doing",
-      "summary": "Refresh the dashboard (checks, commits, screenshots), run the full acceptance suite, then gh pr create --base main (Closes #6, review from @lnstudge, Notion link), comment on issue #6, and post the final preview summary. No merge.",
+      "state": "done",
+      "summary": "Opened PR #26 against main (Closes #6, review requested from @lnstudge, Notion link in the body, screenshots embedded). Commented on issue #6. Not merged - the founder reviews and merges.",
       "commit_sha": null
     }
   ],
@@ -269,6 +269,10 @@
     {
       "label": "GitHub issue #6 (Phase 0)",
       "url": "https://github.com/lnstudge/Studge-Pass/issues/6"
+    },
+    {
+      "label": "Phase 0 pull request #26",
+      "url": "https://github.com/lnstudge/Studge-Pass/pull/26"
     }
   ]
 }
