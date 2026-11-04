@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studge Pass Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: a security white paper. One reading column, wide tables and the dashboard mockup break out to full width. */
+  --paper: #f6f8f9;
+  --surface: #ffffff;
+  --ink: #14212b;
+  --muted: #55636e;
+  --line: #d6dee3;
+  --accent: #0b6466;
+  --accent-soft: #e2f0ef;
+  --good: #1f7a3d;  --good-bg: #e3f3e7;
+  --warn: #9a5b00;  --warn-bg: #fbf0dc;
+  --bad: #a3262b;   --bad-bg: #f9e3e3;
+  --none: #6b7780;  --none-bg: #edf1f3;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f171d; --surface: #16212a; --ink: #e4ecef; --muted: #9fb0ba; --line: #2a3a45;
+    --accent: #5cc4c0; --accent-soft: #173335;
+    --good: #7fd59a; --good-bg: #183324; --warn: #f0bd6a; --warn-bg: #3a2c14;
+    --bad: #f19a9c; --bad-bg: #3d1d20; --none: #9aa8b1; --none-bg: #202d36;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f171d; --surface: #16212a; --ink: #e4ecef; --muted: #9fb0ba; --line: #2a3a45;
+  --accent: #5cc4c0; --accent-soft: #173335;
+  --good: #7fd59a; --good-bg: #183324; --warn: #f0bd6a; --warn-bg: #3a2c14;
+  --bad: #f19a9c; --bad-bg: #3d1d20; --none: #9aa8b1; --none-bg: #202d36;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16.5px; line-height: 1.6; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.col { max-width: 720px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+header.top .wrap { padding-top: 40px; padding-bottom: 32px; display: grid; gap: 14px; }
+.kicker { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 650; text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 46px); }
+h1 .dev { font-weight: 500; color: var(--muted); }
+h2 { font-size: 27px; margin-bottom: 14px; }
+h3 { font-size: 19.5px; margin-bottom: 8px; }
+.lede { font-size: 19px; max-width: 760px; margin: 0; }
+section { padding: 44px 0 8px; }
+section > .wrap { display: grid; gap: 16px; }
+p { margin: 0; }
+.stack { display: grid; gap: 12px; }
+.mono { font-family: var(--font-mono); font-size: .9em; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14.5px; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+.callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 16px 18px; border-radius: 4px; display: grid; gap: 8px; }
+.callout.risk { background: var(--warn-bg); border-left-color: var(--warn); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 8px; align-content: start; }
+.card .num { font-family: var(--font-mono); color: var(--accent); font-size: 13px; }
+.card p, .card li { font-size: 15.5px; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+thead th { position: sticky; top: 0; background: var(--surface); font-weight: 600; font-size: 13px; border-bottom: 2px solid var(--line); }
+tbody th { font-weight: 500; min-width: 190px; }
+td { min-width: 112px; font-variant-numeric: tabular-nums; }
+td.us, th.us { background: var(--accent-soft); }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; padding: 1px 7px; border-radius: 999px; margin-right: 4px; white-space: nowrap; }
+.f { color: var(--good); background: var(--good-bg); }
+.p { color: var(--warn); background: var(--warn-bg); }
+.x { color: var(--none); background: var(--none-bg); }
+.b { color: var(--bad); background: var(--bad-bg); }
+.note { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; margin-top: 3px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13.5px; color: var(--muted); }
+.small { font-size: 14px; color: var(--muted); }
+/* dashboard mockup */
+.dash { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 18px; }
+.dash-head { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+.score { display: flex; gap: 16px; align-items: center; }
+.ring { width: 96px; height: 96px; }
+.score b { font-family: var(--font-display); font-size: 22px; display: block; }
+.tag { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); border: 1px dashed var(--line); padding: 3px 8px; border-radius: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: grid; gap: 2px; border-top-width: 4px; }
+.tile .n { font-family: var(--font-mono); font-size: 26px; font-weight: 500; }
+.tile .l { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.tile.g { border-top-color: var(--good); } .tile.w { border-top-color: var(--warn); } .tile.r { border-top-color: var(--bad); } .tile.a { border-top-color: var(--accent); }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.panel { border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; align-content: start; }
+.panel h4 { margin: 0; font-size: 14.5px; font-weight: 600; }
+.action { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.action .s { align-self: stretch; border-radius: 2px; }
+.action .s.r { background: var(--bad); } .action .s.w { background: var(--warn); } .action .s.g { background: var(--good); }
+.action button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+.bar { height: 10px; border-radius: 5px; background: var(--none-bg); display: flex; overflow: hidden; }
+.bar span { display: block; height: 100%; }
+.blast { display: grid; gap: 6px; font-size: 14px; }
+.formula { font-family: var(--font-mono); font-size: 13px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: pre; line-height: 1.55; }
+.layers { display: grid; gap: 8px; }
+.layer { display: grid; grid-template-columns: 170px 1fr; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; font-size: 15px; }
+.layer b { font-weight: 600; }
+.layer .why { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+@media (max-width: 600px) { .layer { grid-template-columns: 1fr; gap: 4px; } }
+.phase { display: grid; grid-template-columns: 120px 1fr; gap: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.phase .when { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+@media (max-width: 600px) { .phase { grid-template-columns: 1fr; gap: 2px; } }
+ol.sources { font-size: 14px; gap: 4px; }
+ol.sources li { overflow-wrap: anywhere; }
+footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="kicker">Idea brief · open-source password manager · researched 4 Nov 2026</div>
+    <h1>Studge Pass: the password manager nobody can take away from you</h1>
+    <p class="lede">A fully open-source, free password and passkey manager with no paid tiers. It is built to stay safe even if its own sync server is hacked, it helps people move from passwords to passkeys, and a foundation owns it, so no company can close it or start charging later.</p>
+    <nav class="toc" aria-label="Sections">
+      <a href="#market">1 · Market in late 2026</a>
+      <a href="#passkeys">2 · State of passkeys</a>
+      <a href="#matrix">3 · Feature matrix</a>
+      <a href="#gaps">4 · Gaps</a>
+      <a href="#concept">5 · The concept</a>
+      <a href="#features">6 · Feature list</a>
+      <a href="#security">7 · Security architecture</a>
+      <a href="#dashboard">8 · Passkey dashboard</a>
+      <a href="#license">9 · Licence and funding</a>
+      <a href="#risks">10 · Risks</a>
+      <a href="#roadmap">11 · Roadmap</a>
+      <a href="#sources">Sources</a>
+    </nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="callout col">
+      <h3>The bet in one paragraph</h3>
+      <p>In 2025 and 2026 the incumbents gave users reasons to distrust them. Dashlane ended its free plan. 1Password raised prices by up to 33%. Bitwarden almost doubled Premium and began shipping its app-store builds under a commercial licence. An ETH Zurich study showed that the "zero-knowledge" claims of Bitwarden, LastPass and Dashlane fail when the server is malicious. Meanwhile passkeys reached the mainstream (90% awareness, about 5 billion in use), and the FIDO exchange format finally lets people move them between managers. Studge Pass's bet: <strong>a manager that is free with every feature, cannot be relicensed, is designed for a hostile server, and leads users from passwords to passkeys</strong> can win people who distrust vendors (privacy-minded users, families and the KeePass/Bitwarden crowd), and it can do so without competing on price, because it has no price.</p>
+    </div>
+  </div>
+</section>
+
+<section id="market">
+  <div class="wrap">
+    <h2>1 · The market in late 2026</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Bitwarden</h3>
+        <p>The open-source default. The free plan covers unlimited items and devices plus passkeys. Premium went from $10 to <strong>$19.80/yr</strong> in January 2026 (5 GB storage). Families costs $47.88/yr for 6 users. The paywall covers TOTP, vault health reports, emergency access and attachments.</p>
+        <p><strong>Weak spots:</strong> ETH Zurich found 12 malicious-server attacks, 7 of which disclosed passwords (Bitwarden says they are fixed). There was the 2024 SDK licence scare. Since October 2026, store builds use a commercial licence and only the GitHub builds are GPLv3.</p>
+      </div>
+      <div class="card">
+        <h3>Proton Pass</h3>
+        <p>Has the most generous free tier (unlimited logins, passkeys, 10 hide-my-email aliases, 2 vaults). Plus costs <strong>$35.88/yr</strong>, Family $59.88/yr and Unlimited $119.88/yr. TOTP, dark-web monitoring, attachments, item sharing and emergency access are paid.</p>
+        <p><strong>Weak spots:</strong> clients are open source but the server is closed. It is younger, so it lacks travel mode and its autofill is less polished. Users report no CXP passkey import/export yet. The SSH agent is still on the roadmap. It is best value only inside the Proton ecosystem.</p>
+      </div>
+      <div class="card">
+        <h3>Dashlane</h3>
+        <p><strong>No free plan since 16 Sep 2025.</strong> Premium is about $59.88/yr, bundles Hotspot Shield VPN, dark-web monitoring and phishing alerts, and has no monthly billing. Friends &amp; Family covers 10 people. It uses WebAuthn PRF for passwordless unlock.</p>
+        <p><strong>Weak spots:</strong> closed source, and it is turning into an enterprise "credential protection" company. Emergency contacts were dropped along with the desktop app. ETH found 6 attacks, including a legacy-crypto downgrade that has since been removed.</p>
+      </div>
+      <div class="card">
+        <h3>1Password</h3>
+        <p>Has the best UX in the category. There is no free tier. Individual rose to <strong>$47.88/yr</strong> and Families to $71.88/yr (+33%, from 27 Mar 2026). It offers Watchtower, Travel Mode (unique), an SSH agent, Agentic Autofill for AI browsers, and co-authored CXP.</p>
+        <p><strong>Weak spots:</strong> closed source, cloud only, and the price keeps going up. One report says it classed the DEF CON 33 autofill-clickjacking bug as "informative" rather than patching it (disputed).</p>
+      </div>
+      <div class="card">
+        <h3>KeePassXC and the KeePass family</h3>
+        <p>Fully free GPL software. Data lives in a local KDBX file you can sync any way you like. It has TOTP, an SSH agent, health checks with HIBP and passkeys in the browser extension (2.7.12 changed the backup flags in March 2026).</p>
+        <p><strong>Weak spots:</strong> desktop only. Mobile depends on third-party apps (KeePassDX, Strongbox, KeePassium), and syncing and sharing are DIY with file-merge conflicts. The UX is for power users, and the FIDO exchange format is not supported.</p>
+      </div>
+      <div class="card">
+        <h3>Apple Passwords and Google Password Manager</h3>
+        <p>Free, built in, and on by default for billions of people. Apple has TOTP, shared groups, password history (iOS 26) and CXP passkey export/import. Google offers family sharing (passwords only, not passkeys), passkeys with PRF, and CXP import/export rolling out during 2026.</p>
+        <p><strong>Weak spots:</strong> they lock you into one ecosystem. Apple has no Android app and Google has no real iOS or desktop app. Google killed its Dark Web Report in Feb 2026. Neither offers self-hosting or vendor-independent recovery.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="passkeys">
+  <div class="wrap">
+    <h2>2 · The state of passkeys</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Adoption</h3>
+        <p>The FIDO Alliance's State of Passkeys 2026 report (World Passkey Day, May 2026) puts consumer awareness at 90%, up from 75%. About three-quarters of consumers have enabled at least one passkey and 49% enable them "whenever possible". FIDO estimates about 5 billion passkeys are in use. Most people therefore have a <em>mixed</em> vault: passkeys on some sites, passwords on the rest, and often both on the same site.</p>
+      </div>
+      <div class="card">
+        <h3>Portability: CXF and CXP</h3>
+        <p><strong>CXF</strong> (Credential Exchange Format) v1.0 became a FIDO Proposed Standard in August 2025, with errata published in March 2026. <strong>CXP</strong> (the transfer protocol, using HPKE over a Diffie-Hellman exchange) is still a working draft. In practice, transfers run through OS-mediated, on-device APIs. Bitwarden, 1Password and Dashlane support them on iOS 26, and Bitwarden also does on Android 14+. Passkeys that use signature counters cannot be transferred.</p>
+      </div>
+      <div class="card">
+        <h3>Where a third-party manager plugs in</h3>
+        <ul>
+          <li><strong>iOS/macOS:</strong> AuthenticationServices credential-provider extension (third-party passkeys since iOS 17), plus <span class="mono">ASCredentialExportManager</span> and the matching import API in iOS/macOS 26.</li>
+          <li><strong>Android 14+:</strong> Credential Manager provider service. A few OEMs still block third-party providers.</li>
+          <li><strong>Windows 11:</strong> plugin passkey-manager API, live since the November 2025 update. 1Password and Bitwarden were the first partners.</li>
+          <li><strong>Browsers:</strong> extensions still intercept <span class="mono">navigator.credentials</span> in the page. This is fragile and competes with native prompts, so use the OS provider wherever one exists.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>PRF: unlocking the vault with a passkey</h3>
+        <p>The WebAuthn PRF extension lets a passkey or security key derive a secret, which can unlock the vault without a master password. Bitwarden added this to its web vault and browser extensions (Chromium) in Nov 2025, and Dashlane uses PRF for passwordless accounts. Google Password Manager passkeys include PRF by default. The risk is lockout: if your only PRF passkey sits on a lost phone, you lose the vault, so recovery has to be designed in from day one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="matrix">
+  <div class="wrap">
+    <h2>3 · Feature-parity matrix</h2>
+    <p class="col">Personal plans as of November 2026. "Paid" means the feature is behind a subscription on that product. Prices are annual, in USD, before promotions. Where sources conflict, the cell says so. Studge Pass's column is the target, not a shipped product.</p>
+    <div class="legend">
+      <span><span class="pill f">Free</span>included at $0</span>
+      <span><span class="pill p">Paid</span>needs a subscription</span>
+      <span><span class="pill p">Partial</span>limited or with caveats</span>
+      <span><span class="pill x">No</span>not offered</span>
+      <span><span class="pill b">Issue</span>known security finding</span>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Feature</th>
+            <th scope="col">Bitwarden</th>
+            <th scope="col">Proton Pass</th>
+            <th scope="col">Dashlane</th>
+            <th scope="col">1Password</th>
+            <th scope="col">KeePassXC</th>
+            <th scope="col">Apple Passwords</th>
+            <th scope="col">Google PM</th>
+            <th scope="col" class="us">Studge Pass (target)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Price for every personal feature</th>
+            <td>$19.80/yr</td><td>$35.88/yr (Plus)</td><td>~$59.88/yr</td><td>$47.88/yr</td><td>$0</td><td>$0</td><td>$0</td><td class="us"><strong>$0, forever</strong></td></tr>
+          <tr><th scope="row">Free tier</th>
+            <td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td><span class="pill x">No</span><span class="note">ended 16 Sep 2025</span></td><td><span class="pill x">No</span><span class="note">trial only</span></td><td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td class="us"><span class="pill f">Free</span><span class="note">the only tier</span></td></tr>
+          <tr><th scope="row">Platforms</th>
+            <td>All, incl. Linux, web, CLI</td><td>All, incl. Linux, web</td><td>Web, extension, mobile. No desktop app</td><td>All, incl. Linux, CLI</td><td>Desktop only. Mobile via 3rd-party apps</td><td>Apple + Windows (iCloud). No Android</td><td>Android + Chrome. Weak elsewhere</td><td class="us">All, incl. Linux, CLI</td></tr>
+          <tr><th scope="row">Store and sync passkeys</th>
+            <td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill f">Free</span><span class="note">desktop browsers</span></td><td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td class="us"><span class="pill f">Free</span></td></tr>
+          <tr><th scope="row">Passkey export/import (FIDO CXF/CXP)</th>
+            <td><span class="pill f">Free</span><span class="note">iOS 26, Android 14+</span></td><td><span class="pill x">No</span><span class="note">open user request</span></td><td><span class="pill p">Partial</span><span class="note">iOS</span></td><td><span class="pill p">Paid</span><span class="note">iOS; co-authored spec</span></td><td><span class="pill p">Partial</span><span class="note">own file format</span></td><td><span class="pill f">Free</span><span class="note">iOS/macOS 26</span></td><td><span class="pill p">Partial</span><span class="note">rolling out 2026</span></td><td class="us"><span class="pill f">Free</span><span class="note">every OS API + CXF file</span></td></tr>
+          <tr><th scope="row">Unlock vault with a passkey (PRF)</th>
+            <td><span class="pill f">Free</span><span class="note">Chromium</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Partial</span><span class="note">status unclear</span></td><td><span class="pill p">Partial</span><span class="note">YubiKey HMAC</span></td><td><span class="pill x">n/a</span></td><td><span class="pill x">n/a</span></td><td class="us"><span class="pill f">Free</span><span class="note">PRF + hardware keys</span></td></tr>
+          <tr><th scope="row">Built-in TOTP authenticator</th>
+            <td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill f">Free</span></td><td><span class="pill f">Free</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span></td></tr>
+          <tr><th scope="row">Vault health (weak, reused, breached passwords)</th>
+            <td><span class="pill p">Paid</span></td><td><span class="pill p">Partial</span><span class="note">basic free, full paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span><span class="note">Watchtower</span></td><td><span class="pill f">Free</span></td><td><span class="pill f">Free</span><span class="note">basic</span></td><td><span class="pill f">Free</span><span class="note">Password Checkup</span></td><td class="us"><span class="pill f">Free</span></td></tr>
+          <tr><th scope="row">Email breach / dark-web monitoring</th>
+            <td><span class="pill p">Partial</span><span class="note">basic breach report</span></td><td><span class="pill p">Paid</span><span class="note">Pass Monitor</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span><span class="note">killed Feb 2026</span></td><td class="us"><span class="pill f">Free</span><span class="note">HIBP via relay</span></td></tr>
+          <tr><th scope="row">Passkey-readiness insights (upgradeable sites, leftover passwords)</th>
+            <td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Partial</span><span class="note">flags passkey-capable sites</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Partial</span><span class="note">auto-upgrade API</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">core feature</span></td></tr>
+          <tr><th scope="row">Sharing with other people</th>
+            <td><span class="pill p">Partial</span><span class="note">1 person free; Families paid</span></td><td><span class="pill p">Partial</span><span class="note">vault to 2 free; items paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill p">Partial</span><span class="note">KeeShare files</span></td><td><span class="pill f">Free</span><span class="note">shared groups</span></td><td><span class="pill p">Partial</span><span class="note">family group, no passkeys</span></td><td class="us"><span class="pill f">Free</span><span class="note">unlimited</span></td></tr>
+          <tr><th scope="row">Emergency access / digital legacy</th>
+            <td><span class="pill p">Paid</span></td><td><span class="pill p">Paid</span></td><td><span class="pill x">No</span><span class="note">retired with desktop app</span></td><td><span class="pill p">Partial</span><span class="note">Emergency Kit, family recovery</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Partial</span><span class="note">account-level Legacy Contact</span></td><td><span class="pill p">Partial</span><span class="note">Inactive Account Manager</span></td><td class="us"><span class="pill f">Free</span></td></tr>
+          <tr><th scope="row">Recovery without the vendor (social recovery)</th>
+            <td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Partial</span><span class="note">Apple-mediated contact</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">2-of-3 guardians</span></td></tr>
+          <tr><th scope="row">Email aliases</th>
+            <td><span class="pill f">Free</span><span class="note">via SimpleLogin, addy.io etc.</span></td><td><span class="pill p">Partial</span><span class="note">10 free, unlimited paid</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Partial</span><span class="note">Fastmail integration</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Paid</span><span class="note">iCloud+</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">later; via open-source alias services</span></td></tr>
+          <tr><th scope="row">File attachments</th>
+            <td><span class="pill p">Paid</span><span class="note">5 GB</span></td><td><span class="pill p">Paid</span><span class="note">10 GB on Plus</span></td><td><span class="pill p">Partial</span><span class="note">unverified</span></td><td><span class="pill p">Paid</span></td><td><span class="pill f">Free</span><span class="note">in file</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">1 GB relay; unlimited own storage</span></td></tr>
+          <tr><th scope="row">Self-host or choose your storage</th>
+            <td><span class="pill f">Free</span><span class="note">official + Vaultwarden</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill f">Free</span><span class="note">any file sync</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">relay, own server, any folder, LAN</span></td></tr>
+          <tr><th scope="row">SSH keys / agent</th>
+            <td><span class="pill f">Free</span><span class="note">desktop agent</span></td><td><span class="pill p">Partial</span><span class="note">storage only; agent planned</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Paid</span></td><td><span class="pill f">Free</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">later</span></td></tr>
+          <tr><th scope="row">Travel mode</th>
+            <td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill p">Paid</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Free</span><span class="note">later</span></td></tr>
+          <tr><th scope="row">Bundled VPN</th>
+            <td><span class="pill x">No</span></td><td><span class="pill p">Paid</span><span class="note">Unlimited bundle</span></td><td><span class="pill p">Paid</span><span class="note">Hotspot Shield</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill x">No</span><span class="note">out of scope on purpose</span></td></tr>
+          <tr><th scope="row">Source code</th>
+            <td><span class="pill p">Partial</span><span class="note">GPL/AGPL on GitHub; store builds commercial since Oct 2026</span></td><td><span class="pill p">Partial</span><span class="note">clients open, server closed</span></td><td><span class="pill x">No</span><span class="note">closed</span></td><td><span class="pill x">No</span></td><td><span class="pill f">Open</span><span class="note">GPL</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Open</span><span class="note">GPL/AGPL, reproducible store builds</span></td></tr>
+          <tr><th scope="row">Malicious-server testing (ETH Zurich, Feb 2026)</th>
+            <td><span class="pill b">Issue</span><span class="note">12 attacks, 7 disclose passwords; vendor says fixed</span></td><td><span class="pill x">n/a</span><span class="note">not studied</span></td><td><span class="pill b">Issue</span><span class="note">6 attacks; legacy crypto removed</span></td><td><span class="pill x">n/a</span><span class="note">not in core study</span></td><td><span class="pill x">n/a</span><span class="note">no server</span></td><td><span class="pill x">n/a</span></td><td><span class="pill x">n/a</span></td><td class="us"><span class="pill f">Yes</span><span class="note">designed for it; public test harness</span></td></tr>
+          <tr><th scope="row">Autofill clickjacking (DEF CON 33, 2025)</th>
+            <td><span class="pill f">Fixed</span><span class="note">2025.8.0</span></td><td><span class="pill f">Fixed</span><span class="note">1.31.6</span></td><td><span class="pill f">Fixed</span></td><td><span class="pill b">Issue</span><span class="note">reported "informative"; disputed</span></td><td><span class="pill x">n/a</span></td><td><span class="pill p">Partial</span><span class="note">tested; status unclear</span></td><td><span class="pill x">n/a</span></td><td class="us"><span class="pill f">Yes</span><span class="note">prompts kept out of page DOM</span></td></tr>
+          <tr><th scope="row">Post-quantum vault/sharing crypto</th>
+            <td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td><span class="pill x">No</span></td><td class="us"><span class="pill f">Yes</span><span class="note">hybrid ML-KEM-768 from v1</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">"No" in the post-quantum row means nothing was announced in our searches, not a confirmed absence. Proton's CXP status rests on a user feature request and should be checked against Proton's release notes.</p>
+  </div>
+</section>
+
+<section id="gaps">
+  <div class="wrap">
+    <h2>4 · Gaps nobody fills well</h2>
+    <div class="grid2">
+      <div class="card"><span class="num">Gap 1</span><h3>Every feature free <em>and</em> fully open</h3><p>KeePassXC is fully free but desktop only, with DIY sync. Bitwarden is open but paywalls TOTP, health reports and emergency access, and its store builds are now commercial. Proton's server is closed. No product gives you all of mobile, passkeys, sharing and recovery at $0 in a fully open stack.</p></div>
+      <div class="card"><span class="num">Gap 2</span><h3>Zero-knowledge you can verify</h3><p>ETH Zurich showed that a hacked server can break vaults through unauthenticated metadata, key-substitution tricks in sharing and backward-compatible legacy crypto. Every product says "zero-knowledge". None publishes a malicious-server threat model with a public adversarial test suite.</p></div>
+      <div class="card"><span class="num">Gap 3</span><h3>Passkey migration help</h3><p>Users now have mixed vaults. Nobody tells them which sites are passkey-ready, which accounts still have a weak password left behind a new passkey, or which single email account can reset 50 others.</p></div>
+      <div class="card"><span class="num">Gap 4</span><h3>Recovery without a vendor</h3><p>Lose your master password and you lose everything, unless a company holds an escrow key. Social recovery (trusted people jointly restore access) exists in crypto wallets but in no mainstream password manager.</p></div>
+      <div class="card"><span class="num">Gap 5</span><h3>Storage freedom with good UX</h3><p>KeePass gives freedom with clunky UX. Bitwarden gives UX tied to its own server (or a self-hosted copy). Nobody combines polished multi-device sync with "store the encrypted blobs anywhere".</p></div>
+      <div class="card"><span class="num">Gap 6</span><h3>Built for India and the next billion</h3><p>Hundreds of millions of Indian users rely on Google Password Manager by default. No manager has Indian-language UIs, is tuned for low-end Android, or has templates for Aadhaar, PAN, UPI IDs, netbanking MPINs or DigiLocker.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="concept">
+  <div class="wrap">
+    <h2>5 · The concept: Studge Pass</h2>
+    <div class="col stack">
+      <p><strong>Name.</strong> <em>Studge Pass</em>. "Pass" says plainly what the product does, and "Studge" makes it distinct and ties it to the founder's GitHub identity (lnstudge). Before a public launch, run a trademark search (India classes 9 and 42, EUIPO, USPTO) and check domains and app-store listings. Give it a visual identity clearly unlike Proton Pass, since both names end in "Pass".</p>
+      <p><strong>Positioning.</strong> For people who no longer trust password-manager companies to stay free, open or honest, Studge Pass is the password and passkey manager that a foundation owns and no one can paywall, relicense or quietly weaken. Unlike Bitwarden, it has no paid tier and no commercial store build. Unlike Proton, everything is open, the server included. Unlike Apple and Google, it works on every platform and lets you leave with your passkeys.</p>
+      <p><strong>Who switches first.</strong> (1) Bitwarden Free and Proton Free users who just hit a paywall or a price rise. (2) Ex-Dashlane free users. (3) KeePassXC users who want mobile, sync and sharing without the DIY. (4) Indian families managing parents' and children's accounts.</p>
+    </div>
+    <h3>Five reasons people would switch</h3>
+    <div class="grid2">
+      <div class="card"><span class="num">01</span><h3>Free forever, by charter</h3><p>Every feature is free with no tiers. The foundation's charter includes a "feature freedom pledge": nothing is ever paywalled, no ads, and no telemetry unless you opt in. Contributions use a DCO rather than a CLA, so <strong>nobody, including the foundation, can relicense the code as proprietary</strong>. This blocks the Bitwarden and Dashlane path at the root.</p></div>
+      <div class="card"><span class="num">02</span><h3>Safe even if our server is hacked</h3><p>The server is treated as an attacker. Every byte is authenticated, the vault history is a signed hash chain, sharing keys sit in a public key-transparency log, and there are no legacy crypto modes. A public "evil server" test harness runs in CI so researchers can attack it the way ETH Zurich attacked the others.</p></div>
+      <div class="card"><span class="num">03</span><h3>Passkey Command Center</h3><p>The dashboard gives one phishing-resistance score, a "blast radius" map of the email accounts that can reset everything else, and a queue of one-tap jobs: upgrade this site to a passkey, retire the leftover password behind that one, move your 6 passkeys out of Apple.</p></div>
+      <div class="card"><span class="num">04</span><h3>Recovery without us</h3><p>Pick 3 guardians (family or friends who also use Studge Pass). Any 2 of them can help restore your account through Shamir secret sharing, without ever seeing your data. Emergency access and digital legacy (time-delayed handover) are included for free.</p></div>
+      <div class="card"><span class="num">05</span><h3>Your storage, your choice</h3><p>Sync through the free Studge Pass Relay, a single self-hosted binary, or any folder: WebDAV, S3, Syncthing, Google Drive, iCloud Drive, Dropbox, or the LAN with no internet at all. This works because the server never has to be trusted. Offline-first everywhere.</p></div>
+    </div>
+    <p class="col small">Launch wedge, not a core differentiator: Hindi plus 10 other Indian-language UIs from v1, a 15 MB Android app that runs well on 3 GB RAM phones, and item templates for Aadhaar, PAN, UPI, netbanking, DigiLocker, passport and voter ID, plus a "family caretaker" vault for managing elderly parents' accounts.</p>
+    <div class="callout col">
+      <h3>Why not fork Bitwarden or extend KeePassXC?</h3>
+      <p>Forking Bitwarden would inherit the protocol ETH Zurich attacked, along with its backward-compatibility debt and five large client codebases. Extending KeePassXC would inherit a file format and a desktop-first, volunteer-paced architecture that cannot sync or share well. Studge Pass should define a new protocol, then import from both (Bitwarden JSON, KDBX 4) and export to KDBX and CXF, so leaving Studge Pass is always one click.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>6 · Feature list: MVP versus later</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th scope="col">Area</th><th scope="col">MVP (v1.0, about month 18)</th><th scope="col">Later (v1.x–2.0)</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Vault items</th><td>Logins, passkeys, TOTP, secure notes, cards, identities, Indian ID templates, custom fields, password history, attachments</td><td>SSH keys and SSH agent, Git commit signing, API keys and <span class="mono">.env</span> injection, Wi-Fi QR, crypto seed phrases (with extra warnings)</td></tr>
+          <tr><th scope="row">Passkeys</th><td>Create, store, sync and use passkeys on all platforms. OS provider on iOS, Android, Windows and macOS. Extension fallback on Linux and Firefox. CXP/CXF import/export. Vault unlock with PRF.</td><td>Hardware-key-bound "high value" passkeys, passkey sharing within families once the spec allows it, signature-counter-aware migration</td></tr>
+          <tr><th scope="row">Clients</th><td>Browser extension (Chrome, Edge, Brave, Firefox), Android, iOS, desktop (Windows, macOS, Linux), CLI</td><td>Safari extension, watchOS/Wear OS codes, TV sign-in by QR</td></tr>
+          <tr><th scope="row">Security dashboard</th><td>Phishing-resistance score, weak/reused/breached passwords (HIBP k-anonymity), missing 2FA, passkey-ready sites, leftover passwords, blast-radius map</td><td>Guided password rotation, per-family-member view for caretakers, scheduled reviews</td></tr>
+          <tr><th scope="row">Sharing and family</th><td>Unlimited shared vaults, item sharing, key transparency with safety codes, family caretaker vault</td><td>One-time secure links (Send-style), time-limited shares</td></tr>
+          <tr><th scope="row">Recovery</th><td>Recovery kit (printable), 2-of-3 guardian social recovery, emergency access with time delay</td><td>Digital legacy with inheritance instructions, hardware-key recovery</td></tr>
+          <tr><th scope="row">Sync and storage</th><td>Studge Pass Relay (free, 1 GB), self-host single binary (SQLite/Postgres/S3), folder/WebDAV adapters, offline-first</td><td>LAN peer-to-peer sync, Syncthing-native adapter, multi-relay redundancy</td></tr>
+          <tr><th scope="row">Migration</th><td>Import from Bitwarden, Proton, Dashlane, 1Password (1PUX), KeePass (KDBX), Apple, Google, LastPass and CSV. Export to KDBX, CXF and JSON.</td><td>Continuous mirror export to a KDBX file as an emergency "lifeboat"</td></tr>
+          <tr><th scope="row">Privacy extras</th><td>Generator for passwords, passphrases and usernames</td><td>Email aliases via SimpleLogin and addy.io (both open source), Travel Mode</td></tr>
+          <tr><th scope="row">AI agents</th><td>None; out of scope for v1</td><td>Agent-safe autofill: the model never sees secrets, every fill needs a human tap, grants are scoped and short-lived</td></tr>
+          <tr><th scope="row">Organisations</th><td>None</td><td>Teams, SSO/SCIM and policies. Also free, funded by support contracts.</td></tr>
+          <tr><th scope="row">Never</th><td colspan="2">Bundled VPN, ads, upsells, server-side "AI" on vault data, and any feature that needs the server to read plaintext</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <h2>7 · Security architecture</h2>
+    <p class="col">Design rule: <strong>the relay is an attacker that happens to store blobs.</strong> Every layer below answers one of the failure classes ETH Zurich found (unauthenticated metadata, key substitution in sharing, downgrade through legacy crypto), or the DEF CON 33 extension attack.</p>
+    <div class="layers">
+      <div class="layer"><b>Login</b><div>OPAQUE asymmetric PAKE, so the server never receives a password-equivalent hash. The account key comes from Argon2id(master password) combined via HKDF with a 128-bit Secret Key generated on the device and stored in your recovery kit.<span class="why">A stolen server database cannot be brute-forced, even when the master password is weak.</span></div></div>
+      <div class="layer"><b>Device keys</b><div>Unlock keys are wrapped by Secure Enclave, Android StrongBox or the TPM. A passkey with PRF or a FIDO2 security key can replace typing the master password.<span class="why">Biometric unlock is fast and the master password is rarely typed.</span></div></div>
+      <div class="layer"><b>Item encryption</b><div>Per-item keys use XChaCha20-Poly1305. The AAD binds vault ID, item ID, field name and schema version.<span class="why">The server cannot swap fields or items between vaults, or replay old ciphertext into a new slot.</span></div></div>
+      <div class="layer"><b>Vault integrity</b><div>Each change is a CRDT operation in a hash-chained log, signed by the device's Ed25519 key (ML-DSA hybrid later). Signed version vectors detect rollbacks and forks.<span class="why">The server cannot drop, reorder, roll back or forge vault state without detection.</span></div></div>
+      <div class="layer"><b>Sharing</b><div>Vault keys are wrapped with HPKE using a hybrid of X25519 and ML-KEM-768. Public keys go into an append-only key-transparency log (a Merkle tree, audited by clients). Family members can compare safety codes.<span class="why">The server cannot slip in its own key when you share, and the scheme is ready for post-quantum attackers.</span></div></div>
+      <div class="layer"><b>No legacy crypto</b><div>One cipher suite per protocol version. Migrations only go forward, and clients refuse to downgrade once an account has upgraded.<span class="why">Closes the Dashlane-style downgrade path.</span></div></div>
+      <div class="layer"><b>Code</b><div>A single Rust core handles crypto, sync, item matching and import/export. It is shared through UniFFI (Swift, Kotlin) and WebAssembly (extension), with thin native UIs and zeroized memory.<span class="why">One audited implementation in place of five, written in a memory-safe language.</span></div></div>
+      <div class="layer"><b>Browser extension</b><div>Fill prompts appear in UI the extension owns (toolbar popup, side panel or a native OS sheet), never in DOM the page controls. Origin matching is exact by default. Filling a cross-origin iframe needs confirmation.<span class="why">Removes the opacity-zero clickjacking class shown at DEF CON 33.</span></div></div>
+      <div class="layer"><b>Supply chain</b><div>Reproducible builds, Sigstore-signed releases and an SBOM. Crypto and release changes need two maintainers. Anyone can check that store binaries match the source.<span class="why">The store build is the open build, with no commercial variant.</span></div></div>
+      <div class="layer"><b>Assurance</b><div>Published threat model (malicious server, malicious sharee, compromised device). Protocol modelled in Tamarin or ProVerif. A public adversarial-server harness runs in CI. Two independent audits before 1.0, then yearly, all published. Public bug bounty.<span class="why">Trust that can be checked rather than promised.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard">
+  <div class="wrap">
+    <h2>8 · The passkey-aware security dashboard</h2>
+    <p class="col">The dashboard does one job: <strong>tell you the single next thing that most reduces your risk of being phished or locked out.</strong> All analysis runs on the device. Site capabilities (passkey support, 2FA options, password-change URLs) ship as a signed static list built from public directories, so the relay never learns which sites you use.</p>
+
+    <div class="dash" aria-label="Dashboard mockup">
+      <div class="dash-head">
+        <div class="score">
+          <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Score 62 out of 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--none-bg)" stroke-width="10"></circle>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="163.6 263.9" transform="rotate(-90 50 50)"></circle>
+            <text x="50" y="57" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="24" fill="var(--ink)">62</text>
+          </svg>
+          <div>
+            <b>Phishing-resistance score</b>
+            <span class="small">Up 8 this month · 128 accounts · recovery roots weighted ×5</span>
+          </div>
+        </div>
+        <span class="tag">Mockup · example data</span>
+      </div>
+
+      <div class="tiles">
+        <div class="tile g"><span class="n">41</span><span class="l">accounts protected by a passkey</span></div>
+        <div class="tile w"><span class="n">17</span><span class="l">have a passkey, but a weak or reused password still works</span></div>
+        <div class="tile w"><span class="n">23</span><span class="l">password-only on sites that support passkeys</span></div>
+        <div class="tile r"><span class="n">3</span><span class="l">passwords found in a breach</span></div>
+        <div class="tile a"><span class="n">9</span><span class="l">offer 2FA you have not turned on</span></div>
+      </div>
+
+      <div class="panels">
+        <div class="panel">
+          <h4>Next best actions</h4>
+          <div class="action"><span class="s r"></span><span>Change the breached password on <b>netbanking (example bank)</b>. It also unlocks the UPI app.</span><button type="button">Fix now</button></div>
+          <div class="action"><span class="s r"></span><span>Your <b>main Gmail</b> uses password + SMS. Add a passkey and a backup security key.</span><button type="button">Upgrade</button></div>
+          <div class="action"><span class="s w"></span><span><b>Amazon</b> has your passkey, but the old reused password still works. Replace it with a random 40-character one.</span><button type="button">Retire</button></div>
+          <div class="action"><span class="s w"></span><span><b>GitHub</b> supports passkeys. You still sign in with password + TOTP.</span><button type="button">Upgrade</button></div>
+          <div class="action"><span class="s g"></span><span>Bring the <b>6 passkeys</b> still in Apple Passwords into Studge Pass with CXP.</span><button type="button">Import</button></div>
+        </div>
+        <div class="panel">
+          <h4>Blast radius: accounts that can reset others</h4>
+          <div class="blast">
+            <span><b>you@gmail.com</b> is the reset email for <b>58</b> accounts</span>
+            <div class="bar" aria-hidden="true"><span style="width:45%;background:var(--bad)"></span><span style="width:55%;background:var(--none-bg)"></span></div>
+            <span class="small">Protected by: password + SMS. If this falls, 58 accounts follow.</span>
+            <span><b>+91 phone number</b> receives OTPs for <b>21</b> accounts</span>
+            <div class="bar" aria-hidden="true"><span style="width:16%;background:var(--warn)"></span><span style="width:84%;background:var(--none-bg)"></span></div>
+            <span class="small">SIM-swap risk. Ask your carrier for a port-out PIN and move 2FA to passkeys where you can.</span>
+          </div>
+          <h4>Passkey portability</h4>
+          <div class="bar" aria-label="38 portable, 3 device-bound, 6 in other managers">
+            <span style="width:81%;background:var(--good)"></span><span style="width:6%;background:var(--warn)"></span><span style="width:13%;background:var(--accent)"></span>
+          </div>
+          <span class="small">38 synced and exportable (CXF) · 3 bound to a hardware key · 6 in another manager</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>How the score works</h3>
+    <div class="formula">score = 100 × Σ(wᵢ × pᵢ) / Σ wᵢ
+
+pᵢ (protection of account i)                         wᵢ (weight)
+1.0  passkey or security key, no password left        5  recovery roots: email, phone carrier,
+0.8  passkey + strong unique fallback password           Apple/Google/Microsoft account
+0.6  password + TOTP or security-key 2FA              3  money: banks, UPI, cards, brokers, crypto
+0.3  password + SMS or email OTP                      1  everything else
+0.1  strong unique password only
+0.0  weak, reused or breached password</div>
+    <p class="col small">The formula is published and the same everywhere, so the number means one thing and cannot be gamed by marketing. Recovery roots are inferred from which email or phone number each account uses, and the user can correct them.</p>
+  </div>
+</section>
+
+<section id="license">
+  <div class="wrap">
+    <h2>9 · Licence, governance and funding</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Licensing</h3>
+        <ul>
+          <li><strong>Clients and Rust core:</strong> GPL-3.0-or-later, with a GPLv3 §7 additional permission for app-store distribution, granted from the first commit.</li>
+          <li><strong>Relay server:</strong> AGPL-3.0-or-later, so hosted forks must publish their changes.</li>
+          <li><strong>Protocol spec and vault format:</strong> CC BY 4.0 plus a royalty-free patent pledge, so others can build compatible clients.</li>
+          <li><strong>Contributions:</strong> DCO sign-off, no CLA. Copyright stays spread across contributors, which makes a proprietary relicence practically impossible.</li>
+          <li><strong>Trademark:</strong> held by the foundation under a Mozilla-style policy. Forks must rename, which protects users from malicious lookalike apps.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Governance</h3>
+        <p>A non-profit foundation in the Netherlands (stichting) or Switzerland (Verein), or a fiscal sponsor at launch, with an India entity employing staff. Indian non-profits receiving foreign donations need FCRA registration, which is slow and restrictive, so keep donations outside India. The charter fixes the feature-freedom pledge, no ads, opt-in telemetry and an annual published audit. The board includes outside security researchers.</p>
+      </div>
+    </div>
+    <h3>Rough yearly budget and funding mix (at steady state)</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th scope="col">Cost</th><th scope="col">Estimate</th><th scope="col">Funding source</th><th scope="col">Target share</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">8 FTE (2 Rust core, extension, Android, iOS, desktop/relay, security lead, community/docs), India-based remote</th><td>₹4–5 crore (~$480–600k)</td><td>Recurring "supporter" donations (cosmetic badge only, no features)</td><td>~40%</td></tr>
+          <tr><th scope="row">Two independent audits, bug bounty</th><td>~$130–180k</td><td>Grants: NLnet / NGI Zero, Sovereign Tech Agency, Open Technology Fund</td><td>~30%</td></tr>
+          <tr><th scope="row">Relay infrastructure (blob storage, HIBP proxy) for 1M users</th><td>~$15–40k (vaults are a few MB each)</td><td>Support contracts and SLAs for organisations, plus certified hosting partners paying a trademark/certification fee</td><td>~30%</td></tr>
+          <tr><th scope="row">Total</th><td><strong>~$650–800k/yr</strong></td><td colspan="2">At $2/month per supporter, the donation share needs about 12k supporters, which is about 1% of a 1.2M-user base.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small col">These figures are order-of-magnitude assumptions for planning, not quotes. Infrastructure stays cheap because the relay stores only encrypted blobs. People and audits are the real cost.</p>
+  </div>
+</section>
+
+<section id="risks">
+  <div class="wrap">
+    <h2>10 · Honest risks</h2>
+    <div class="callout risk col">
+      <h3>Riskiest assumption</h3>
+      <p><strong>A project with no paywall can fund about 8 full-time engineers and yearly audits from donations, grants and support contracts for the 3+ years it takes to reach roughly 1M users.</strong> Every open-source manager that reached scale (Bitwarden) did it with paid tiers. KeePassXC survives on volunteers, but only on desktop. If funding falls short, the browser extensions and mobile providers decay first, and in a password manager that becomes a security problem within months.</p>
+      <p><strong>Test it cheaply in 90 days:</strong> publish the threat model and protocol draft, apply for one NLnet grant, and run a founding-supporter pledge page. Proceed beyond the Rust core only with 2,000 pledged monthly supporters <em>and</em> one grant secured.</p>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th scope="col">Risk</th><th scope="col">Severity</th><th scope="col">Mitigation</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Trust bootstrap: nobody hands their most sensitive data to a new, unknown project</th><td><span class="pill b">High</span></td><td>Audits before 1.0, a public threat model and evil-server harness, named security advisors, one-click export to KDBX, and a launch to power users first, who verify and then vouch.</td></tr>
+          <tr><th scope="row">"Good enough and free" already exists: Bitwarden Free, Proton Free, Apple and Google built-ins</th><td><span class="pill b">High</span></td><td>Compete on what free tiers paywall (TOTP, health, sharing, emergency access) and on what built-ins cannot do (cross-platform, recovery, passkey coaching). Do not try to win users who are happy with Apple Passwords.</td></tr>
+          <tr><th scope="row">Browser-extension upkeep: MV3 changes, autofill heuristics breaking on sites, Safari needing a native app</th><td><span class="pill p">Medium-high</span></td><td>Matching logic lives in the shared Rust/WASM core, with community-maintained site-quirk rules and public autofill test pages. Chromium and Firefox first, Safari later. Prefer OS passkey providers over in-page interception.</td></tr>
+          <tr><th scope="row">Platform gatekeeping and churn: iOS and Android provider APIs, OEM gaps, store review, Windows plugin API still new</th><td><span class="pill p">Medium</span></td><td>Track the FIDO and OS betas, join the FIDO Alliance (affordable associate tier) to see the CXP work early, and keep the extension fallback.</td></tr>
+          <tr><th scope="row">A single serious vulnerability destroys trust, and there is no corporate balance sheet to absorb it</th><td><span class="pill b">High</span></td><td>Memory-safe core, minimal dependencies, two-person review, a bug bounty, staged rollouts, a published incident process, and liability insurance for the foundation.</td></tr>
+          <tr><th scope="row">Lockouts: zero-knowledge plus PRF-only unlock means support cannot restore accounts</th><td><span class="pill p">Medium</span></td><td>Recovery kit is required at signup, guardians are suggested by default, and the app nags if a vault has a single point of unlock.</td></tr>
+          <tr><th scope="row">Free relay abused as file hosting, or DDoS cost</th><td><span class="pill p">Medium</span></td><td>1 GB attachment quota, rate limits, bring-your-own-storage for more, and an architecture where losing the relay loses no data (every device holds a full copy).</td></tr>
+          <tr><th scope="row">India regulation: DPDP Act and Rules, CERT-In incident reporting and log-retention directions</th><td><span class="pill p">Medium</span></td><td>Host the relay outside India under the foundation, keep minimal metadata and only ciphertext, and get legal advice before launch. Check how the CERT-In directions apply to a relay operator.</td></tr>
+          <tr><th scope="row">Name or trademark conflict</th><td><span class="pill x">Low</span></td><td>Search before any public launch. Keep a fallback name ready.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <h2>11 · Roadmap</h2>
+    <div class="col stack">
+      <div class="phase"><span class="when">Months 0–3</span><div><strong>Prove demand and funding.</strong> Threat model, protocol draft, foundation or fiscal sponsor, grant applications, pledge page, trademark search. Gate: 2,000 pledges plus one grant.</div></div>
+      <div class="phase"><span class="when">Months 3–9</span><div><strong>Core and desktop alpha.</strong> Rust core, relay, self-host binary, desktop app, Chromium and Firefox extension, importers. Formal protocol model. Audit #1 (protocol and core).</div></div>
+      <div class="phase"><span class="when">Months 9–15</span><div><strong>Mobile and passkeys.</strong> Android Credential Manager provider, iOS credential-provider extension, Windows plugin, CXP/CXF, PRF unlock, dashboard v1, guardians. Public beta for power users.</div></div>
+      <div class="phase"><span class="when">Months 15–18</span><div><strong>1.0.</strong> Audit #2 (full product), bug bounty, Indian-language UIs, family caretaker vault, launch in India and in privacy communities.</div></div>
+      <div class="phase"><span class="when">Year 2+</span><div>SSH agent, aliases, Travel Mode, Safari, agent-safe autofill, organisations funded by support contracts.</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Sources</h2>
+    <p class="small col">Retrieved 4 November 2026. Third-party pricing sites often conflict, so official pages and primary reporting were preferred where available.</p>
+    <ol class="sources">
+      <li><a href="https://bitwarden.com/pricing/">Bitwarden pricing (official)</a></li>
+      <li><a href="https://pricingsaas.com/companies/bitwarden/diffs/2026Q1">PricingSaaS: Bitwarden nearly doubles Premium to $19.80/yr (2026 Q1)</a></li>
+      <li><a href="https://www.thurrott.com/?p=332249">Thurrott: Bitwarden enhances Premium plan, doubles price</a></li>
+      <li><a href="https://www.it-connect.tech/bitwarden-moves-app-store-builds-to-commercial-licensing-what-changes-for-users/">IT-Connect: Bitwarden moves app-store builds to commercial licensing (Oct 2026)</a></li>
+      <li><a href="https://alternativeto.net/news/2024/10/bitwarden-cto-clarifies-sdk-license-concerns-reaffirming-open-source-commitment">AlternativeTo: Bitwarden CTO clarifies SDK licence concerns (Oct 2024)</a></li>
+      <li><a href="https://proton.me/pass/pricing">Proton Pass pricing (official)</a></li>
+      <li><a href="https://proton.me/blog/pass-roadmap-spring-summer-2026">Proton: Pass roadmap, spring/summer 2026</a></li>
+      <li><a href="https://www.security.org/password-manager/proton-pass/">Security.org: Proton Pass review 2026</a></li>
+      <li><a href="https://protonmail.uservoice.com/forums/953584-proton-pass-authenticator/suggestions/51122917-support-fido-alliance-passkey-import-export-standa">Proton UserVoice: request to support FIDO passkey import/export</a></li>
+      <li><a href="https://support.dashlane.com/hc/articles/360001166969">Dashlane support: Free plan discontinued</a></li>
+      <li><a href="https://support.dashlane.com/hc/articles/4407179219986">Dashlane support: emergency contact feature and desktop app</a></li>
+      <li><a href="https://cybernews.com/password-managers/dashlane-review/dashlane-pricing/">Cybernews: Dashlane pricing and plans 2026</a></li>
+      <li><a href="https://www.macrumors.com/2026/02/24/1password-march-price-increase/">MacRumors: 1Password getting more expensive starting in March 2026</a></li>
+      <li><a href="https://alternativeto.net/news/2026/2/1password-to-raise-subscription-prices-for-individual-and-family-plans-by-up-to-33-">AlternativeTo: 1Password to raise prices by up to 33%</a></li>
+      <li><a href="https://dupple.com/pricing/1password">Dupple: 1Password pricing (Oct 2026)</a></li>
+      <li><a href="https://keepassxc.org/blog/2026-03-10-2.7.12-released/">KeePassXC 2.7.12 release notes (Mar 2026)</a></li>
+      <li><a href="https://www.theregister.com/2026/02/16/password_managers/">The Register: ETH Zurich study on malicious-server attacks (Feb 2026)</a></li>
+      <li><a href="https://cyberinsider.com/popular-password-managers-fall-short-of-zero-knowledge-claims/">CyberInsider: popular password managers fall short of zero-knowledge claims</a></li>
+      <li><a href="https://www.securityweek.com/password-managers-vulnerable-to-vault-compromise-under-malicious-server">SecurityWeek: vault compromise under a malicious server</a></li>
+      <li><a href="https://thehackernews.com/2025/08/dom-based-extension-clickjacking.html">The Hacker News: DOM-based extension clickjacking (DEF CON 33)</a></li>
+      <li><a href="https://cyberinsider.com/proton-pass-patches-dom-based-clickjacking-zero-day-vulnerability/">CyberInsider: Proton Pass patches DOM clickjacking; vendor fix status</a></li>
+      <li><a href="https://fidoalliance.org/specs/cx/cxf-v1.0-ps-errata-20260309.pdf">FIDO Alliance: CXF v1.0 Proposed Standard errata (Mar 2026)</a></li>
+      <li><a href="https://www.1password.community/blog/developer-blog/portability-without-compromise-1password-helps-author-a-new-standard-for-secure-/163208">1Password developer blog: helping author the credential exchange standard</a></li>
+      <li><a href="https://bitwarden.com/blog/security-vendors-join-forces-to-make-passkeys-more-portable-for-everyone/">Bitwarden blog: vendors join forces to make passkeys portable</a></li>
+      <li><a href="https://sixcolors.com/post/2025/09/export-keys-securely-from-passwords-to-third-party-managers/">Six Colors: exporting passkeys from Apple Passwords to third-party managers</a></li>
+      <li><a href="https://bgr.com/tech/ios-26-passwords-app-got-a-big-upgrade-but-no-one-can-use-it-yet/">BGR: iOS 26 Passwords app upgrade</a></li>
+      <li><a href="https://www.androidheadlines.com/2026/05/google-may-be-finally-fixing-the-biggest-limitation-of-passkeys-on-android.html">Android Headlines: Google fixing passkey portability on Android (May 2026)</a></li>
+      <li><a href="https://www.techradar.com/pro/security/google-password-manager-now-lets-families-share-details-across-one-account">TechRadar: Google Password Manager family sharing</a></li>
+      <li><a href="https://thehackernews.com/2025/12/google-to-shut-down-dark-web-monitoring.html">The Hacker News: Google to shut down dark web monitoring</a></li>
+      <li><a href="https://passkeys.dev/docs/reference/android/">passkeys.dev: Android reference (Credential Manager, third-party providers)</a></li>
+      <li><a href="https://learn.microsoft.com/windows/apps/develop/security/third-party">Microsoft Learn: third-party passkey providers on Windows</a></li>
+      <li><a href="https://www.androidauthority.com/windows-11-passkeys-update-3489140/">Android Authority: Windows 11 passkeys update</a></li>
+      <li><a href="https://www.businesswire.com/news/home/20251118890517/en/Bitwarden-Expands-Passkey-Login-to-Browser-Extensions-for-Secure-Passwordless-Authentication">Business Wire: Bitwarden expands passkey (PRF) login to browser extensions</a></li>
+      <li><a href="https://www.corbado.com/blog/passkeys-prf-webauthn">Corbado: WebAuthn PRF support landscape (Mar 2026)</a></li>
+      <li><a href="https://fidoalliance.org/the-state-of-passkeys-2026-global-consumer-and-workforce-report/">FIDO Alliance: State of Passkeys 2026 report</a></li>
+      <li><a href="https://fidoalliance.org/fido-alliance-reports-accelerating-global-passkey-adoption-on-world-passkey-day-2026/">FIDO Alliance: World Passkey Day 2026 press release</a></li>
+      <li><a href="https://flaviocopes.com/ai-agent-passwords/">Flavio Copes: how AI agents can log in without seeing your passwords</a></li>
+      <li><a href="https://github.com/dani-garcia/vaultwarden/discussions/3355">Vaultwarden: passkey support discussion</a></li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Idea-stage brief. No code exists. Competitor details change often, so re-check prices and features on official pages before any public claim.</div>
+</footer>
+</body>
+</html>
