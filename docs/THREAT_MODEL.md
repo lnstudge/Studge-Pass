@@ -196,9 +196,10 @@ about how interesting the bug is.
 | R-0110 | The key-transparency log is run by the same untrusted relay, so a split view is possible | medium | Open | Consistency proofs between devices and safety codes (§9.3–9.4); an independent log operator is a Phase 11 design question |
 | R-0111 | The 72-hour recovery window is enforced by the relay, which could shorten it | low | Open | Client-side warning to every device (§10.3); Phase 12 designs the notification path |
 | R-0112 | An approved crate or a pinned action SHA can still be compromised upstream | medium | Accepted | `cargo deny`, `cargo audit`, Dependabot, pinned SHAs, review of every diff; no auto-merge |
-| R-0113 | v1 membership is write-or-nothing: a member device holding the vault key can publish ops, so a “view only” share cannot be enforced | medium | Open | Phase 11 must add signed capabilities, or the product must not offer read-only sharing (D-0117); the UI must not claim view-only today |
+| R-0113 | v1 membership is write-or-nothing: a member device holding the vault key can publish ops, so a “view only” share cannot be enforced | medium | Open | **Phase 11 MUST add owner-signed capabilities** so view-only sharing can be enforced (D-0117 approved, issue #18); the UI must not claim view-only today |
 | R-0114 | A malicious member can name an extra field with a look-alike label (for example a Cyrillic “о” in “password”) to phish another member | low | Open | Clients render labels from item templates and quote unknown field names (§5.6); a test in Phase 3 covers the rendering rule |
 | R-0115 | An attacker can talk the owner into approving *their* device during enrolment; the possession proof does not stop social engineering | medium | Open | Enrolment UI must show device name, platform and key fingerprint, and require an explicit confirmation on the already-trusted device (§4.7); Phase 7/8 implement and test it |
+| R-0116 | Vault-key wrapping is X25519-only; no post-quantum protection for shared vaults yet | low | Open | The ML-KEM-768 identity key is stored from v1 (§4.6); **Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate and switch if one exists** (D-0105 condition) |
 
 ## 14. Phase 1 self-attack review (design level)
 

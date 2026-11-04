@@ -170,10 +170,12 @@ different content (§6.1).
 
 ### 4.2 The Secret Key
 
-**Material.** The Secret Key is generated once, on the first device, from
-`OsRng` and never changes for the life of the account. It is shown once at
-creation, printed in the recovery kit, and stored on each device in the OS
-keystore where one exists.
+**Material.** The Secret Key is **128 random bits** (16 bytes) from `OsRng`,
+generated once on the first device and never changed for the life of the
+account. It is shown once at creation, printed in the recovery kit, and stored
+on each device in the OS keystore where one exists. Because 128 bits need 26
+base32 characters (130 bits), the two most significant bits are always zero and
+a decoder MUST reject a string where either is set.
 
 **Encoding.** Crockford base32 (alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ`),
 upper-case on display. On input, hyphens are ignored, lower-case is accepted, and
@@ -183,26 +185,24 @@ the Crockford confusions are normalised (`I`, `L` → `1`; `O` → `0`); the let
 **Printed form.**
 
 ```
-SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-X
+SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX
 ```
 
-That is 26 characters after the `SP1-` prefix: five groups of five data
-characters and one final check character. Twenty-five data characters carry 125
-bits; the check character carries no key material.
+That is 27 characters after the `SP1-` prefix: five groups of five data
+characters and a final group of two. The first twenty-six characters are the
+key (130 bits with the two most significant bits fixed to zero); the last
+character is a check character. The final group is therefore the 26th key
+character followed by the check.
 
-> **PROPOSED (D-0101).** The brief asks for 128 random bits and this exact
-> printed shape. 128 bits do not fit into 25 base32 characters, so v1 defines
-> the Secret Key as **125 bits of entropy** (16 random bytes with the top three
-> bits cleared), displayed exactly as above, with a 5-bit checksum. 125 bits is
-> still far above the 112-bit floor used for “secure today”. The alternative is
-> a 27-character display (26 data characters + 1 check character) if a full 128
-> bits is required. The founder should pick one; v1 as written uses 125 bits.
+> **Decided (D-0101, option b).** The founder chose the full 128-bit key with a
+> 27-character display rather than a 125-bit key in 26 characters. The printed
+> shape above and the checksum below are the result.
 
-**Checksum.** `c = BLAKE3("studge/v1/secret-key-checksum" || ASCII of the 25
-data characters)`; the check character is `c[0] mod 32` rendered in the alphabet
+**Checksum.** `c = BLAKE3("studge/v1/secret-key-checksum" || ASCII of the 26
+key characters)`; the check character is `c[0] mod 32` rendered in the alphabet
 above. Decoding MUST reject a string whose checksum does not match, whose length
-is wrong, or which contains a character outside the alphabet after
-normalisation.
+is not 27 characters after the prefix, whose high two bits are set, or which
+contains a character outside the alphabet after normalisation.
 
 **Rules.**
 
@@ -244,7 +244,7 @@ Account Key (§4.12); the old parameters are then deleted.
 
 **Why the Secret Key is concatenated into the HKDF input.** Argon2id output
 alone is crackable offline by anyone who steals the relay database and knows the
-salt. Mixing in 125 bits that never reach the relay means an attacker needs both
+salt. Mixing in 128 bits that never reach the relay means an attacker needs both
 the database *and* the Secret Key before guessing a password is even possible.
 
 ### 4.4 Authentication secret (OPAQUE)
@@ -298,9 +298,11 @@ clarification (D-0103).
 Each entry is its own AEAD envelope with `record_type = "bundle/<entry>"` and
 the entry name in the AAD, so entries cannot be swapped or dropped silently. The
 bundle is versioned; unknown entries or versions are rejected. Storing
-`head_pins` in the bundle is **PROPOSED** (D-0104): it gives a brand-new device a
+`head_pins` in the bundle is **approved** (D-0104): it gives a brand-new device a
 rollback anchor as soon as it fetches the account, with the first fetch being
-trust-on-first-use (R-0102).
+trust-on-first-use (R-0102). Because that first fetch is unverified, the UI MUST
+show **“not yet verified”** next to the vault until a second device or a safety
+code confirms the head (Phase 5 implements and tests this).
 
 ### 4.6 Account identity keys
 
@@ -402,7 +404,7 @@ rewrap rather than a re-encryption of all its fields.
 ```
 master password ──► Argon2id ──┐
                                ├──► HKDF ──► MUK ──► k_ak ──► AEAD ──► AK
-Secret Key (125 bits) ─────────┘              │                        │
+Secret Key (128 bits) ─────────┘              │                        │
                                               └──► auth secret         ├──► account identity keys
                                                   (OPAQUE)             │    (Ed25519, X25519, ML-KEM)
                                                                        │
@@ -547,7 +549,8 @@ What remains visible to the relay: ids, sizes, counts, `lamport`, `created_at`,
   wants to hide field names from a local attacker, it can encrypt the map keys
   as an opaque blob.)
 - A field value is at most 1 MiB; an item has at most 256 fields; an op payload
-  at most 1 MiB. **PROPOSED** limits (D-0110), enforced by clients and the relay.
+  at most 1 MiB. Limits per D-0110 (approved), enforced by clients and the relay.
+  These per-record caps sit inside the account storage quota in §7.7.
 - Field names come from the item template (`password`, `username`, `url`, …),
   not from free text. Clients MUST render the template's label for a known field
   name and MUST NOT display an unknown field name as a trusted label; an unknown
@@ -690,7 +693,9 @@ that is a fork: the client MUST stop, keep its pinned head, and tell the user.
 
 A brand-new device has no pin. It takes the `head_pins` hint from the account
 bundle (§4.5) and verifies internal consistency, but the *first* fetch is
-trust-on-first-use; see R-0102.
+trust-on-first-use; see R-0102. Until a second device or a safety code confirms
+the head, the UI labels the vault **“not yet verified”** (D-0104, Phase 5); it
+MUST NOT present a first-sync vault as verified.
 
 **Freeze.** A relay can also do nothing: keep serving the pinned head forever
 while newer ops exist elsewhere. That is indistinguishable from “no changes”
@@ -848,13 +853,13 @@ relay's word for it.
 
 ### 7.7 Quotas and rate limits
 
-| Limit | Value (PROPOSED, D-0110) |
+| Limit | Value (D-0110, approved) |
 | --- | --- |
 | Vaults per account | 100 |
 | Ops per vault | 250,000 |
 | Op payload | 1 MiB |
 | Ops per push | 100 |
-| Stored bytes per account | 10 GiB |
+| Vault data per account | **100 MiB** on the free hosted relay; 1 GiB once attachments ship; self-hosters may raise it |
 | Request body | 8 MiB |
 | Login attempts | 10/hour/account, 60/hour/IP |
 | Registrations | 5/hour/IP |
@@ -987,12 +992,12 @@ A vault has members. Membership changes are ordinary ops (`kind =
 membership`), signed by an authorised device, so they are as verifiable as any
 other change. Each member's access is a wrapped copy of the current vault key.
 
-**Write authorisation (PROPOSED, D-0117).** v1 membership is write-or-nothing:
+**Write authorisation (D-0117, approved).** v1 membership is write-or-nothing:
 a member device that holds the vault key can publish ops, and peers accept them
-because they are signed by a certified device. Read-only membership needs
-signed capabilities that the relay cannot forge, which is Phase 11 work. Until
-then, the UI MUST NOT offer a “view only” share, and this limitation is listed
-as R-0113.
+because they are signed by a certified device. **Phase 11 MUST add owner-signed
+capabilities so that view-only sharing can be enforced** (tracked on issue #18).
+Until that lands, the UI MUST NOT offer a “view only” share, and this limitation
+is listed as R-0113.
 
 ### 9.2 Key wrapping
 
@@ -1004,7 +1009,9 @@ as R-0113.
 - The brief allows hybrid X25519 + ML-KEM-768 “if a maintained crate supports it
   cleanly”. v1 uses X25519 only; the ML-KEM-768 identity key is generated and
   stored now, and a later suite can switch the wrap to hybrid without changing
-  the vault or item format. **PROPOSED** (D-0105).
+  the vault or item format. **Approved (D-0105)** on the condition that **Phase
+  11 re-checks for a maintained hybrid HPKE or X-Wing crate and switches to it
+  if one exists**. Tracked as R-0116.
 
 ### 9.3 Key transparency
 
@@ -1042,17 +1049,38 @@ device is fine; losing every device *and* the kit is unrecoverable by design (G4
 
 ### 10.2 Guardian recovery (2-of-3)
 
-- At setup the client generates a random 256-bit **Recovery Key** and stores an
-  additional AK envelope under `k_rec = HKDF(Recovery Key,
-  "studge/v1/recovery-ak")` on the relay. Recovery therefore restores the
-  account key, not the old password; the user sets a new password afterwards.
-- The Recovery Key is split 2-of-3 with Shamir secret sharing. Each share is
-  HPKE-encrypted to a guardian's identity key and stored on the relay.
-- Two guardians approve; their shares reconstruct the Recovery Key; the account
-  key is unwrapped and re-wrapped to the recovering device.
-- **Crate question:** Shamir sharing needs a maintained crate that is not on the
-  approved list (`sharks`, `vsss-rs`, or similar). This is decision D-0115 and
-  blocks Phase 12, not Phase 1. No sharing scheme is invented here.
+**Primitive.** Replicated XOR secret sharing, built only from approved
+primitives: `OsRng` and XOR. No third-party crate is used (D-0115, approved).
+
+**Sharing.** At setup the client generates a random 256-bit **Recovery Key** `S`
+and stores an additional AK envelope under
+`k_rec = HKDF(S, "studge/v1/recovery-ak")` on the relay. Recovery therefore
+restores the account key, not the old password; the user sets a new password
+afterwards. Then:
+
+1. Draw two 32-byte pads `R1`, `R2` from `OsRng`; compute `R3 = R1 ⊕ R2 ⊕ S`.
+2. Guardian `i` (`i` ∈ {1, 2, 3}) receives the pair `(R_i, R_(i+1 mod 3))` —
+   two of the three pads, 64 bytes, labelled with `share_index = i`.
+3. Each share is sealed with HPKE (RFC 9180, X25519 / HKDF-SHA256 /
+   ChaCha20-Poly1305) to that guardian's identity encryption key, with
+   `aad = CBOR{suite, account_id, guardian_id, share_index,
+   record_type: "recovery-share"}`. The sealed share is stored on the relay.
+
+**Reconstruction.** Any two guardians hold all three pads between them: XOR the
+three pads and the result is `S`. A single share is two uniform 32-byte values
+and reveals nothing about `S` — the scheme is information-theoretically 2-of-3.
+A wrong or corrupted combination fails the AEAD on the `k_rec` envelope, which is
+a hard error; there is no partial recovery and no “try another pair” path that
+silently accepts bad data.
+
+**Approval flow.** Two guardians approve; the client reconstructs `S`, unwraps
+the account key, and re-wraps it to the recovering device after the cancellation
+window (§10.3).
+
+**Test vectors (Phase 12).** Phase 12 MUST publish known-answer vectors: a fixed
+`S`, `R1` and `R2` with the expected `R3`, the exact share bytes for each index,
+the HPKE AAD bytes, and reconstruction results for pairs (1,2), (2,3) and (3,1).
+The vectors live in the Phase 12 tests, not in this document.
 
 ### 10.3 The 72-hour cancellation window
 

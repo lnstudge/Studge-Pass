@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" role="img" aria-labelledby="title desc">
   <title id="title">Studge Pass v1 key hierarchy</title>
-  <desc id="desc">The master password and the 125-bit Secret Key are stretched with Argon2id and combined with HKDF to produce the Master Unlock Key. The MUK derives the OPAQUE authentication secret and wraps the Account Key. The Account Key wraps vault keys, vault keys wrap item keys, and item keys encrypt individual fields. Only wrapped keys and ciphertext ever reach the relay.</desc>
+  <desc id="desc">The master password and the 128-bit Secret Key are stretched with Argon2id and combined with HKDF to produce the Master Unlock Key. The MUK derives the OPAQUE authentication secret and wraps the Account Key. The Account Key wraps vault keys, vault keys wrap item keys, and item keys encrypt individual fields. Only wrapped keys and ciphertext ever reach the relay.</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -32,7 +32,7 @@
 
   <rect class="key" x="290" y="100" width="230" height="64" rx="10"/>
   <text class="t" x="308" y="128">Secret Key</text>
-  <text class="s" x="308" y="148">125 bits · SP1-… · never sent</text>
+  <text class="s" x="308" y="148">128 bits · SP1-… · never sent</text>
 
   <rect class="card" x="40" y="196" width="480" height="64" rx="10"/>
   <text class="t" x="58" y="224">Argon2id</text>
