@@ -191,6 +191,12 @@ fn bytes(value: &[u8]) -> Value {
     Value::Bytes(value.to_vec())
 }
 
+/// BLAKE3-256 over a canonical body — what signatures actually cover
+/// (SPEC §4.7, §4.8, consistent with the operation hash in §6.3).
+fn signing_digest(body: &[u8]) -> [u8; 32] {
+    *blake3::hash(body).as_bytes()
+}
+
 /// A certified device (SPEC §4.7).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceCertificate {
@@ -211,7 +217,7 @@ impl DeviceCertificate {
         created_at: Timestamp,
     ) -> CryptoResult<Self> {
         let body = Self::body(&account_id, &device_id, &device_public_key, &created_at)?;
-        let signature = identity.sign(&body);
+        let signature = identity.sign(&signing_digest(&body));
         Ok(Self {
             account_id,
             device_id,
@@ -289,7 +295,7 @@ impl DeviceCertificate {
             return Err(CryptoError::VerificationFailed);
         }
         let body = self.body_bytes()?;
-        verify(identity_public, &body, &self.signature)?;
+        verify(identity_public, &signing_digest(&body), &self.signature)?;
         if self.created_at.is_later_than(now, MAX_CLOCK_SKEW_SECONDS) {
             return Err(CryptoError::ClockSkew);
         }
@@ -328,7 +334,7 @@ impl DeviceRevocation {
             });
         }
         let body = Self::body(&account_id, &device_id, &revoked_at, reason)?;
-        let signature = identity.sign(&body);
+        let signature = identity.sign(&signing_digest(&body));
         Ok(Self {
             account_id,
             device_id,
@@ -380,6 +386,11 @@ impl DeviceRevocation {
         &self.reason
     }
 
+    /// The revocation signature (storage, vectors).
+    pub fn signature_bytes(&self) -> &[u8; SIGNATURE_BYTES] {
+        &self.signature
+    }
+
     /// Verifies the revocation against the pinned identity key.
     pub fn verify(
         &self,
@@ -389,7 +400,11 @@ impl DeviceRevocation {
         if &self.account_id != expected_account {
             return Err(CryptoError::VerificationFailed);
         }
-        verify(identity_public, &self.body_bytes()?, &self.signature)
+        verify(
+            identity_public,
+            &signing_digest(&self.body_bytes()?),
+            &self.signature,
+        )
     }
 }
 
@@ -412,7 +427,7 @@ impl EnrolmentProof {
         nonce: [u8; 32],
     ) -> CryptoResult<Self> {
         let body = Self::body(&account_id, &device_id, &nonce)?;
-        let signature = device.sign(&body);
+        let signature = device.sign(&signing_digest(&body));
         Ok(Self {
             account_id,
             device_id,
@@ -453,7 +468,7 @@ impl EnrolmentProof {
         }
         verify(
             device_public,
-            &Self::body(&self.account_id, &self.device_id, &self.nonce)?,
+            &signing_digest(&Self::body(&self.account_id, &self.device_id, &self.nonce)?),
             &self.signature,
         )
     }
@@ -632,5 +647,72 @@ mod tests {
     fn debug_redacts_the_seed() {
         let printed = format!("{:?}", identity());
         assert!(printed.contains("redacted"));
+    }
+
+    #[test]
+    fn signatures_cover_the_digest_not_the_raw_body() {
+        let identity = identity();
+        let device_public = device().public_bytes();
+        let created = now();
+        let body =
+            DeviceCertificate::body(&ACCOUNT, &DEVICE, &device_public, &created).expect("body");
+        let digest = signing_digest(&body);
+
+        // A signature over the raw body must not verify as a certificate.
+        let forged = DeviceCertificate {
+            account_id: ACCOUNT,
+            device_id: DEVICE,
+            device_public_key: device_public,
+            created_at: created.clone(),
+            signature: identity.sign(&body),
+        };
+        assert_eq!(
+            forged
+                .verify(&identity.public_bytes(), &ACCOUNT, &now(), None)
+                .expect_err("raw body signature must not verify"),
+            CryptoError::VerificationFailed
+        );
+
+        // A signature over the digest must verify.
+        let good = DeviceCertificate {
+            account_id: ACCOUNT,
+            device_id: DEVICE,
+            device_public_key: device_public,
+            created_at: created,
+            signature: identity.sign(&digest),
+        };
+        good.verify(&identity.public_bytes(), &ACCOUNT, &now(), None)
+            .expect("digest signature verifies");
+    }
+
+    #[test]
+    fn revocation_signatures_cover_the_digest_too() {
+        let identity = identity();
+        let revoked_at = now();
+        let body =
+            DeviceRevocation::body(&ACCOUNT, &DEVICE, &revoked_at, "lost phone").expect("body");
+        let forged = DeviceRevocation {
+            account_id: ACCOUNT,
+            device_id: DEVICE,
+            revoked_at: revoked_at.clone(),
+            reason: "lost phone".to_string(),
+            signature: identity.sign(&body),
+        };
+        assert_eq!(
+            forged
+                .verify(&identity.public_bytes(), &ACCOUNT)
+                .expect_err("raw body signature must not verify"),
+            CryptoError::VerificationFailed
+        );
+
+        let good = DeviceRevocation {
+            account_id: ACCOUNT,
+            device_id: DEVICE,
+            revoked_at,
+            reason: "lost phone".to_string(),
+            signature: identity.sign(&signing_digest(&body)),
+        };
+        good.verify(&identity.public_bytes(), &ACCOUNT)
+            .expect("digest signature verifies");
     }
 }

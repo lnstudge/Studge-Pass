@@ -338,3 +338,16 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   `Crypto.getRandomValues` through wasm-bindgen and does not affect native
   builds, which keep the OS backend.
 - **Affects:** `core-wasm/Cargo.toml`, `Cargo.lock`. **Status:** Proposed.
+
+## D-0207 — Every signature covers a BLAKE3 digest, not the raw body
+
+- **Options:** sign the canonical CBOR directly (as §4.7 read for the enrolment
+  proof); sign `BLAKE3(canonical CBOR)` for every signed object.
+- **Choice:** the digest, for certificates, revocations and enrolment proofs,
+  matching the op hash rule in §6.3. SPEC §4.7 was updated.
+- **Reason:** one rule across the whole protocol, a fixed 32-byte signed message,
+  and domain separation already lives in the body's `suite`/`type` fields.
+  **Note:** the Phase 2 code first signed raw bodies and was corrected during the
+  PR #38 review; the vectors were regenerated.
+- **Affects:** SPEC §4.7, §4.8, §6.3; `core/src/crypto/signing.rs`; vectors.
+  **Status:** Proposed.

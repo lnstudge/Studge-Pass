@@ -6,13 +6,17 @@
 //! `--features test-vectors` it also re-encrypts with the stored nonce and
 //! compares the ciphertext byte for byte.
 
-use serde_json::{json, Value};
+#[cfg(feature = "test-vectors")]
+use serde_json::json;
+use serde_json::Value;
 use studge_core::crypto::aad::{Aad, RecordType};
 use studge_core::crypto::aead::{self, AeadKey, Envelope};
 use studge_core::crypto::hpke::{self, HpkeRecipient, SealedKey};
 use studge_core::crypto::keys::{account_key_wrapping_key, AccountKey, MasterUnlockKey};
 use studge_core::crypto::secret_key::SecretKey;
-use studge_core::crypto::signing::{DeviceCertificate, SigningKeyPair, Timestamp};
+use studge_core::crypto::signing::{
+    DeviceCertificate, DeviceRevocation, SigningKeyPair, Timestamp,
+};
 
 const VAULT: [u8; 16] = [0x10; 16];
 const ITEM: [u8; 16] = [0x20; 16];
@@ -183,9 +187,12 @@ fn signing_vector_verifies() {
         created_at,
     )
     .expect("cert");
+    let body = cert.body_bytes().expect("body");
+    assert_eq!(hex(&body), signing["cert_body_hex"].as_str().expect("body"));
+    // The signature covers BLAKE3(body), not the body itself (D-0207).
     assert_eq!(
-        hex(&cert.body_bytes().expect("body")),
-        signing["cert_body_hex"].as_str().expect("body")
+        hex(blake3::hash(&body).as_bytes()),
+        signing["cert_digest_hex"].as_str().expect("digest")
     );
     assert_eq!(
         hex(cert.signature_bytes()),
@@ -198,6 +205,35 @@ fn signing_vector_verifies() {
         None,
     )
     .expect("verify vector certificate");
+
+    // The revocation vector follows the same digest rule.
+    let revoked_at = Timestamp::parse(signing["revoked_at"].as_str().expect("revoked_at"))
+        .expect("revocation timestamp");
+    let reason = signing["revocation_reason"].as_str().expect("reason");
+    let revocation =
+        DeviceRevocation::create(&pair, ACCOUNT, DEVICE, revoked_at, reason).expect("revocation");
+    let revocation_body = revocation.body_bytes().expect("revocation body");
+    assert_eq!(
+        hex(&revocation_body),
+        signing["revocation_body_hex"]
+            .as_str()
+            .expect("revocation body")
+    );
+    assert_eq!(
+        hex(blake3::hash(&revocation_body).as_bytes()),
+        signing["revocation_digest_hex"]
+            .as_str()
+            .expect("revocation digest")
+    );
+    assert_eq!(
+        hex(revocation.signature_bytes()),
+        signing["revocation_sig_hex"]
+            .as_str()
+            .expect("revocation sig")
+    );
+    revocation
+        .verify(&pair.public_bytes(), &ACCOUNT)
+        .expect("verify vector revocation");
 }
 
 #[test]
@@ -277,6 +313,13 @@ fn generate_vectors() {
         created_at.clone(),
     )
     .expect("cert");
+    let cert_body = cert.body_bytes().expect("cert body");
+
+    // A revocation signed by the same fixed identity key.
+    let revoked_at = Timestamp::parse("2026-11-05T12:00:00Z").expect("timestamp");
+    let revocation = DeviceRevocation::create(&identity, ACCOUNT, DEVICE, revoked_at, "lost phone")
+        .expect("revocation");
+    let revocation_body = revocation.body_bytes().expect("revocation body");
 
     // A wrapped account key with fixed inputs.
     let ak = AccountKey::from_bytes([0x66u8; 32]);
@@ -330,8 +373,14 @@ fn generate_vectors() {
             "account_hex": hex(&ACCOUNT),
             "device_hex": hex(&DEVICE),
             "created_at": created_at.as_str(),
-            "cert_body_hex": hex(&cert.body_bytes().expect("body")),
+            "cert_body_hex": hex(&cert_body),
+            "cert_digest_hex": hex(blake3::hash(&cert_body).as_bytes()),
             "cert_sig_hex": hex(cert.signature_bytes()),
+            "revoked_at": "2026-11-05T12:00:00Z",
+            "revocation_reason": "lost phone",
+            "revocation_body_hex": hex(&revocation_body),
+            "revocation_digest_hex": hex(blake3::hash(&revocation_body).as_bytes()),
+            "revocation_sig_hex": hex(revocation.signature_bytes()),
         },
         "ak_wrap": {
             "muk_hex": hex(ak_muk.as_bytes()),
