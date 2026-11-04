@@ -137,4 +137,87 @@ in the UI rather than hidden.
 | Studge's own UI | Impersonate the Studge popup | The browser draws extension UI; a page cannot fake it, another extension cannot draw inside ours | User confusion between a fake *web page* and the real popup — addressed by the calm, origin-first UI |
 | Clipboard | Read passwords copied by the user | Clipboard is OS-wide by design; auto-clear after a timeout; no background clipboard reads by Studge | The OS clipboard manager may retain history |
 
+## 12. Attack-class mappings
+
+### 12.1 ETH Zurich 2026 malicious-server classes
+
+These are the four classes that paper names for password managers whose server
+is honest-but-compromised-then-malicious. Each maps to a concrete control here.
+
+| Class | How it works | Our mitigation | Residual |
+| --- | --- | --- | --- |
+| **Unauthenticated metadata and field swapping** | The server moves ciphertext between fields, items or records, or changes associated metadata the client does not authenticate | Every ciphertext carries AAD binding suite, scope id, item id, record type, field name and schema version (§5.3); ops are signed over their full header and payload hash (§6.2–6.3); a mismatch is a hard error (§5.8) | None for stored records |
+| **Key substitution during sharing and org joining** | The server hands out its own public key as the contact's, receives the wrapped vault key, and decrypts | Key-transparency log with inclusion and consistency proofs (§9.3); safety codes compared out of band (§9.4); per-member `info` binding so a wrap cannot be replayed (§9.2) | Unverified first contact (R-0104) |
+| **Legacy-crypto downgrade** | The server claims the client must use an older, weaker suite or KDF parameters | Exactly one suite, `v1`; unknown versions rejected (§11.2); `kdf.version` forward-only with hard minimums (§4.3, §11.3); no “compatibility mode” | None |
+| **Rollback** | The server serves an older but internally valid state | Signed heads with `op_count`/`lamport_max` (§6.8); clients pin the last verified head and require every new head to descend from it (§6.9); a fresh device uses the bundle hint and is TOFU (R-0102) | R-0102 for a device with no pin |
+
+### 12.2 DEF CON 33 DOM-based extension clickjacking
+
+The attack: a page styles or overlays elements that an extension has injected
+into the page's own DOM — for example with `opacity: 0`, `pointer-events`, or a
+stacking-context trick — so that a click the user aims at the page activates an
+extension control (a fill button, a “save password” prompt), or a look-alike
+overlay sits where the extension's UI is expected.
+
+| Requirement | Our control |
+| --- | --- |
+| Never render fill or save prompts inside page-controlled DOM | AGENTS.md rule 11. Prompts live in browser-drawn surfaces: the extension popup, the sidebar, or a browser-level overlay outside the page's document. Nothing the page can style is part of a security decision. |
+| Take the origin from the browser, never from page data | `sender.origin`/`sender.tab.url` from the browser's message metadata; page-provided strings are display-only and never used for matching. |
+| No silent fill | Filling requires an explicit user action in extension UI; there is no auto-fill on page load and no programmatic fill triggered by page script. |
+| Passkeys | WebAuthn origin and RP ID binding is enforced by the browser; the extension never forwards a page's request without that binding. |
+| Visual honesty | The prompt shows the full ASCII origin (punycode where relevant), not a favicon fetched from the site (AGENTS.md privacy rule). |
+
+Residual: a page can still present a convincing *web* login form; that is
+phishing (A4), mitigated by the origin display and user education, not by DOM
+isolation.
+
+## 13. Open risks
+
+Ids are stable; later phases close them by referencing the id in a commit and
+moving the status. Severity is about impact × likelihood for a real user, not
+about how interesting the bug is.
+
+| Id | Risk | Severity | Status | Mitigation / what closes it |
+| --- | --- | --- | --- | --- |
+| R-0001 | CodeQL code scanning skipped while the repository is private (no GHAS) | medium | Open (#23) | Make the repo public or enable GHAS |
+| R-0002 | Link targets in `status.json` are trusted from the repository | low | Accepted | Reviewed in every PR; revisit if the file becomes writable by anything else |
+| R-0003 | Preview dev server needs `style-src 'unsafe-inline'` for Vite HMR | low | Accepted | Loopback only, no third-party data; must not be copied into product UI |
+| R-0004 | gitleaks can miss novel secret formats | low | Accepted | Manual staged-diff scan before every commit |
+| R-0005 | `minimatch` advisory in dev-only ESLint tooling | low | Accepted | CI fails on high/critical; Dependabot tracks the fix |
+| R-0101 | The relay learns metadata: ids, ciphertext sizes, op counts, timing, IP | low | Accepted | Padding and cover traffic are out of scope for v1; self-hosting removes the third party |
+| R-0102 | A device with no pinned head can be rolled back before its first verification (TOFU) | medium | Accepted | Head pins in the key bundle (§4.5) narrow the window; a second device or a safety-code check closes it. Phase 5 tests the exact behaviour |
+| R-0103 | A cloned VM snapshot or broken RNG could repeat a 24-byte nonce | low | Accepted | `OsRng` only, no software fallback; nonce reuse under XChaCha20-Poly1305 is catastrophic but requires an RNG failure the OS should prevent |
+| R-0104 | Key substitution on first contact before a safety code is verified | medium | Accepted | Safety codes (§9.4) and transparency proofs (§9.3); the first contact is explicitly marked unverified in the UI |
+| R-0105 | A removed member keeps history they already saw; rotation only protects future data | medium | Accepted by design | Stated in the UI at removal time; the alternative (re-encrypting all history per member) is not affordable |
+| R-0106 | A malicious relay can withhold ops (censorship); clients detect a gap but cannot obtain the missing data elsewhere | low | Accepted | Missing-parent error (§6.4) plus a second relay or the folder transport as an escape hatch |
+| R-0107 | Device revocation is time-based; clock skew lets a malicious device place ops just before `revoked_at` | low | Accepted | ±5 min rule (§6.11); revoke from another device immediately; history shows what happened |
+| R-0108 | A weak master password plus a stolen Secret Key allows offline guessing | medium | Accepted | Argon2id 64 MiB/t=3/p=1, zxcvbn warnings, and the Secret Key requirement; password policy is a product decision in Phase 7 |
+| R-0109 | The printed recovery kit can be photographed or stolen | medium | Accepted | It holds the Secret Key but not the password; both are required to unlock |
+| R-0110 | The key-transparency log is run by the same untrusted relay, so a split view is possible | medium | Open | Consistency proofs between devices and safety codes (§9.3–9.4); an independent log operator is a Phase 11 design question |
+| R-0111 | The 72-hour recovery window is enforced by the relay, which could shorten it | low | Open | Client-side warning to every device (§10.3); Phase 12 designs the notification path |
+| R-0112 | An approved crate or a pinned action SHA can still be compromised upstream | medium | Accepted | `cargo deny`, `cargo audit`, Dependabot, pinned SHAs, review of every diff; no auto-merge |
+
+## 14. Appendix — Phase 0 self-attack review (historical)
+
+Recorded during Phase 0 against the repository, CI and the preview dashboard.
+Full detail and test names: `docs/PROGRESS.md` (Phase 0) and the Phase 0 PR.
+
+| # | Vector | Control | Status |
+| --- | --- | --- | --- |
+| 1 | Stored XSS through `status.json` | `textContent`-only rendering, ESLint sink bans, static-scan tests, CSP without `unsafe-eval` | Blocked |
+| 2 | Screenshot path traversal / other origins | Schema pattern + `screenshotUrl()` allowlist + existence check | Blocked |
+| 3 | npm install-script RCE | `ignore-scripts=true`, policy test | Blocked |
+| 4 | Hijacked action tag | Every `uses:` pinned to a 40-char SHA, policy test | Blocked |
+| 5 | `pull_request_target` / write-token escalation | No target, `contents: read`, policy tests | Blocked |
+| 6 | Committed secret | gitleaks on every push/PR + manual diff scan | Blocked (one false positive triaged) |
+| 7 | Vulnerable or yanked crate | `cargo deny` (advisories, yanked), weekly `cargo audit` | Blocked |
+| 8 | Licence contamination | `cargo deny` licence allowlist | Blocked |
+| 9 | LAN exposure of relay/dashboard | Constant `127.0.0.1` binds, tests | Blocked |
+| 10 | `unwrap`/`expect`/`panic!` on future input paths | Production-source scan test + clippy `-D warnings` | Blocked |
+| 11 | Hostile link in `status.json` | PR review | R-0002 (accepted) |
+| 12 | Reading files outside `docs/` via the dev server | `server.fs.allow` limited to the repo, loopback only | R-0003 (accepted) |
+| 13 | `pnpm shot` pointed at a hostile page | Helper only renders and screenshots; no credentials | Accepted |
+| 14 | Secret format gitleaks does not know | Manual diff review | R-0004 (accepted) |
+| 15 | High-severity npm advisory | `pnpm audit --audit-level high` in CI | Blocked (moderate tracked as R-0005) |
+
 <!-- THREAT-END -->
