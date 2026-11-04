@@ -443,15 +443,12 @@ mod tests {
                 .expect_err("field missing"),
             CryptoError::MissingAadField
         );
-        assert_eq!(
-            Aad::builder(RecordType::Ak)
-                .account(ACCOUNT)
-                .build()
-                .expect("account + no item is right for ak")
-                .as_bytes()
-                .is_empty(),
-            false
-        );
+        assert!(!Aad::builder(RecordType::Ak)
+            .account(ACCOUNT)
+            .build()
+            .expect("account + no item is right for ak")
+            .as_bytes()
+            .is_empty());
         assert_eq!(
             Aad::builder(RecordType::Ak)
                 .vault(VAULT)
