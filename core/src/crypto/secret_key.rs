@@ -70,7 +70,7 @@ impl SecretKey {
     /// Parses the printed form. Accepts lower case, missing hyphens and the
     /// Crockford confusions (`I`, `L` → 1, `O` → 0).
     pub fn decode(text: &str) -> CryptoResult<Self> {
-        let mut cleaned = String::with_capacity(TOTAL_CHARS);
+        let mut cleaned: Zeroizing<String> = Zeroizing::new(String::with_capacity(TOTAL_CHARS));
         for ch in text.trim().chars() {
             if ch == '-' || ch.is_whitespace() {
                 continue;
@@ -80,7 +80,8 @@ impl SecretKey {
         let body = cleaned
             .strip_prefix("SP1")
             .ok_or(CryptoError::InvalidEncoding)?;
-        let chars: Vec<char> = body.chars().collect();
+        let mut chars: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(TOTAL_CHARS));
+        chars.extend_from_slice(body.as_bytes());
         if chars.len() != TOTAL_CHARS {
             return Err(CryptoError::InvalidLength {
                 expected: TOTAL_CHARS,
@@ -89,14 +90,15 @@ impl SecretKey {
         }
 
         // Validate every character and compute the checksum over the first 26.
-        let mut values = [0u8; TOTAL_CHARS];
-        for (i, ch) in chars.iter().enumerate() {
-            values[i] = value_of(*ch)?;
+        let mut values: Zeroizing<[u8; TOTAL_CHARS]> = Zeroizing::new([0u8; TOTAL_CHARS]);
+        for (i, byte) in chars.iter().enumerate() {
+            values[i] = value_of(*byte)?;
         }
-        let canonical: Vec<u8> = values[..KEY_CHARS]
-            .iter()
-            .map(|v| ALPHABET[*v as usize])
-            .collect();
+
+        let mut canonical: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(KEY_CHARS));
+        for value in values.iter().take(KEY_CHARS) {
+            canonical.push(ALPHABET[*value as usize]);
+        }
         let expected = check_index(&canonical);
         if !bool::from(expected.ct_eq(&values[KEY_CHARS])) {
             return Err(CryptoError::InvalidChecksum);
@@ -133,16 +135,16 @@ fn check_index(data: &[u8]) -> u8 {
     (hash.as_bytes()[0] as usize % 32) as u8
 }
 
-/// Alphabet index of one character after Crockford normalisation.
-fn value_of(ch: char) -> CryptoResult<u8> {
+/// Alphabet index of one byte after Crockford normalisation.
+fn value_of(ch: u8) -> CryptoResult<u8> {
     let normalised = match ch {
-        'I' | 'L' => '1',
-        'O' => '0',
+        b'I' | b'L' => b'1',
+        b'O' => b'0',
         other => other,
     };
     ALPHABET
         .iter()
-        .position(|b| *b as char == normalised)
+        .position(|b| *b == normalised)
         .map(|index| index as u8)
         .ok_or(CryptoError::InvalidEncoding)
 }

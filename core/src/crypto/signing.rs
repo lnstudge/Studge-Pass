@@ -29,11 +29,13 @@ impl SigningKeyPair {
     /// Generates a keypair from 32 random bytes.
     pub fn generate() -> CryptoResult<Self> {
         let seed = Zeroizing::new(random::array::<32>()?);
-        Ok(Self::from_seed(*seed))
+        Ok(Self(SigningKey::from_bytes(&seed)))
     }
 
-    /// Rebuilds a keypair from its 32-byte seed (storage, tests, vectors).
+    /// Rebuilds a keypair from its 32-byte seed (storage, tests, vectors). The
+    /// seed is zeroized after the key has copied it.
     pub fn from_seed(seed: [u8; 32]) -> Self {
+        let seed = Zeroizing::new(seed);
         Self(SigningKey::from_bytes(&seed))
     }
 

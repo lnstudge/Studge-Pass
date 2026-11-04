@@ -213,7 +213,8 @@ pub fn open_from(
     aad: &[u8],
     sealed: &SealedKey,
 ) -> CryptoResult<Zeroizing<Vec<u8>>> {
-    let secret = <HpkeKem as KemTrait>::PrivateKey::from_bytes(&recipient.0.to_bytes())
+    let secret_bytes = Zeroizing::new(recipient.0.to_bytes());
+    let secret = <HpkeKem as KemTrait>::PrivateKey::from_bytes(&secret_bytes[..])
         .map_err(|_| CryptoError::InvalidEncoding)?;
     let enc = <HpkeKem as KemTrait>::EncappedKey::from_bytes(&sealed.enc)
         .map_err(|_| CryptoError::InvalidEncoding)?;

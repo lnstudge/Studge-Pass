@@ -90,7 +90,8 @@ pub(crate) fn derive_muk_raw(
     }
 
     // NFKC so that every client feeds the same bytes for the same password.
-    let normalised: String = password.nfkc().collect();
+    // The normalised string is wrapped so it is wiped when dropped.
+    let normalised: Zeroizing<String> = Zeroizing::new(password.nfkc().collect());
 
     let argon_params = Params::new(params.m_kib, params.t, params.p, Some(MUK_BYTES))
         .map_err(|_| CryptoError::WeakKdfParameters)?;
