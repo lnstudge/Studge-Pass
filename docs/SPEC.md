@@ -917,4 +917,190 @@ correlate timing and sizes (R-0101), and deny service. It cannot read, forge,
 swap, reorder undetectably, or roll back a client that has a pin. The threat
 model (A1) works through the list.
 
+## 8. Health scoring
+
+The security dashboard (Phase 10) turns a vault into one number. The formula is
+fixed here so the Rust core and every client agree:
+
+```
+score = round( 100 × Σ(w_i × p_i) / Σ w_i )
+```
+
+### 8.1 Protection values
+
+| `p` | Condition (the best method available on the item) |
+| --- | --- |
+| 1.0 | Passkey or security key, with no password left on the item |
+| 0.8 | Passkey plus a strong, unique fallback password |
+| 0.6 | Password plus TOTP or a security key as second factor |
+| 0.3 | Password plus SMS or email one-time code |
+| 0.1 | Strong, unique password only |
+| 0.0 | Weak, reused, or breached password |
+
+### 8.2 Item weights
+
+| `w` | Class | Examples |
+| --- | --- | --- |
+| 5 | Recovery roots | Email, phone carrier, Apple/Google/Microsoft account |
+| 3 | Money | Banks, UPI, cards, brokers, crypto exchanges |
+| 1 | Everything else | Shopping, forums, streaming |
+
+An item belongs to exactly one class; if it matches several, the highest weight
+wins. Classification comes from the item template and user-editable tags; it is
+never inferred from the URL by a third party (no favicon or reputation lookups).
+**PROPOSED** rule (D-0116).
+
+### 8.3 Computation rules
+
+- Empty vault: score `100`, displayed with an explicit “nothing to score yet”
+  state rather than a perfect score. **PROPOSED** (D-0116).
+- Breach and reuse checks run locally: a bundled list of breached password
+  hashes (offline, no network) and an in-vault reuse scan. No range queries to
+  third-party services in v1; a future k-anonymity lookup would be a Transport
+  call and a product decision.
+- The score is recomputed on unlock and after every vault change; it never leaves
+  the device.
+- Rounding is half-up to the nearest integer; the dashboard shows the integer and
+  the underlying counts.
+
+## 9. Sharing (summary; full design in Phase 11)
+
+### 9.1 Model
+
+A vault has members. Membership changes are ordinary ops (`kind =
+membership`), signed by an authorised device, so they are as verifiable as any
+other change. Each member's access is a wrapped copy of the current vault key.
+
+### 9.2 Key wrapping
+
+- HPKE (RFC 9180), base mode, ciphersuite X25519 / HKDF-SHA256 /
+  ChaCha20-Poly1305, to the member's identity encryption key (§4.6).
+- The HPKE `info` field carries
+  `CBOR{suite, scope: vault_id, record_type: "vk-share", member_id, key_epoch}`,
+  so a wrapped key cannot be replayed to another member or another epoch.
+- The brief allows hybrid X25519 + ML-KEM-768 “if a maintained crate supports it
+  cleanly”. v1 uses X25519 only; the ML-KEM-768 identity key is generated and
+  stored now, and a later suite can switch the wrap to hybrid without changing
+  the vault or item format. **PROPOSED** (D-0105).
+
+### 9.3 Key transparency
+
+- The relay operates an append-only Merkle log of
+  `{account_id, ed25519, x25519, mlkem768, epoch}` entries. Each entry is signed
+  by the account identity key (`kt-entry` label).
+- Clients verify inclusion proofs for the keys they use, and consistency proofs
+  between successive signed tree heads (STHs) they have pinned.
+- Because the log is run by the same untrusted party, a split view is possible;
+  devices gossip STHs between themselves and the safety code (§9.4) is the
+  ultimate check. Residual risk R-0104.
+
+### 9.4 Safety codes
+
+`safety_code = BLAKE3("studge/v1/safety-code" || account_id_A || key_A ||
+account_id_B || key_B)`, rendered as six groups of five Crockford characters.
+Two people compare it out of band once; afterwards key substitution by the relay
+is detectable.
+
+### 9.5 Removing a member
+
+Removal publishes a `key_rotation` op: new VK (`key_epoch + 1`), wrapped to the
+remaining members. The removed member keeps whatever they already had — history
+under older epochs cannot be un-shared — but cannot read anything written after
+the rotation. This is stated plainly because pretending otherwise would be a
+security claim the design cannot back (R-0105).
+
+## 10. Recovery and emergency access (summary; full design in Phase 12)
+
+### 10.1 The recovery kit
+
+A printable page holding: the `account_id`, the `SP1-…` Secret Key, the date, and
+instructions. It never holds the master password. Losing the kit but keeping a
+device is fine; losing every device *and* the kit is unrecoverable by design (G4).
+
+### 10.2 Guardian recovery (2-of-3)
+
+- At setup the client generates a random 256-bit **Recovery Key** and stores an
+  additional AK envelope under `k_rec = HKDF(Recovery Key,
+  "studge/v1/recovery-ak")` on the relay. Recovery therefore restores the
+  account key, not the old password; the user sets a new password afterwards.
+- The Recovery Key is split 2-of-3 with Shamir secret sharing. Each share is
+  HPKE-encrypted to a guardian's identity key and stored on the relay.
+- Two guardians approve; their shares reconstruct the Recovery Key; the account
+  key is unwrapped and re-wrapped to the recovering device.
+- **Crate question:** Shamir sharing needs a maintained crate that is not on the
+  approved list (`sharks`, `vsss-rs`, or similar). This is decision D-0115 and
+  blocks Phase 12, not Phase 1. No sharing scheme is invented here.
+
+### 10.3 The 72-hour cancellation window
+
+After two guardian approvals, every other device of the owner is notified and
+has 72 hours to cancel. Only after the window does the recovering device receive
+the re-wrapped key. The window is enforced by the relay (it withholds the
+wrapped key until it expires) **and** by clients (a device that sees a recovery
+in progress warns the user). A malicious relay can shorten the wait; the client
+warning is the backstop.
+
+### 10.4 Emergency access
+
+An owner-defined contact receives a copy of the account key wrapped to their
+identity key, sealed until a waiting period the owner chose (for example 7 days)
+has passed without cancellation. Same cancellation rule as §10.3. Details in
+Phase 12.
+
+### 10.5 Recovery threat notes
+
+Guardians never hold the vault key, only shares of a recovery key that is
+useless without a second guardian. A guardian who is compromised contributes one
+share; two colluding guardians can recover — that is the design. The printed kit
+is the weakest link against physical theft (R-0109).
+
+## 11. Crypto inventory and versioning
+
+### 11.1 Inventory
+
+| Purpose | Crate (approved list) | Where used |
+| --- | --- | --- |
+| AEAD | `chacha20poly1305` (XChaCha20-Poly1305) | every envelope |
+| KDF | `hkdf` + `sha2` | hierarchy, labels |
+| Password KDF | `argon2` | MUK |
+| Hashing | `blake3` | ops, heads, checksums, safety codes |
+| Signatures | `ed25519-dalek` | devices, identity, ops, heads |
+| Key agreement | `x25519-dalek` | HPKE, sharing |
+| Public-key encryption | `hpke` | vault key wrapping |
+| Post-quantum KEM | `ml-kem` | reserved identity key, later hybrid wrap |
+| PAKE | `opaque-ke` | relay authentication |
+| Randomness | `rand_core` / `getrandom` (`OsRng` only) | everything |
+| Secrets | `zeroize`, `secrecy` | key material |
+| Constant time | `subtle` | tag/token comparisons |
+| CBOR | `ciborium` | every structure |
+| Unicode | `unicode-normalization` | password NFKC |
+| TOTP | `totp-rs` | second-factor items (Phase 3) |
+| Strength | `zxcvbn` | scoring (Phase 3) |
+
+Exact versions are pinned in `Cargo.lock` and justified in `docs/DECISIONS.md`
+as each crate is added (Phase 2 onward). No crate outside this list may be used
+for cryptography without the founder's approval.
+
+### 11.2 One suite, no negotiation
+
+There is exactly one suite, `v1`. Clients and relays do not negotiate: every
+object names the suite it was produced under, and anything that is not `v1` is
+rejected. There is no “compatibility mode”, no legacy reader, and no fallback
+when a primitive fails.
+
+### 11.3 KDF parameters are versioned and forward-only
+
+`kdf.version` is `1`. A client MUST reject parameters below the minimum in §4.3
+and MUST reject unknown versions. Upgrading parameters re-derives the MUK and
+re-wraps the AK; there is no downgrade path and no “try both” behaviour.
+
+### 11.4 Handling of secrets
+
+- All key material lives in `Zeroizing`/`SecretBox`; `Debug` is implemented
+  manually and redacts.
+- Secrets are never serialised into errors, logs, telemetry, crash reports or
+  the clipboard history.
+- Comparisons of tags, tokens and hashes use `subtle::ConstantTimeEq`.
+- Buffers are zeroized on lock, on error and on drop.
+
 <!-- SPEC-END -->
