@@ -41,6 +41,10 @@ pub enum CryptoError {
     #[error("unsupported record type")]
     UnsupportedRecordType,
 
+    /// A schema version this implementation does not know.
+    #[error("unsupported schema version")]
+    UnsupportedSchemaVersion,
+
     /// The AAD builder was not given a field the record type requires.
     #[error("AAD is missing a required field")]
     MissingAadField,
