@@ -102,11 +102,18 @@ impl Timestamp {
             || !(1..=31).contains(&day)
             || hour > 23
             || minute > 59
-            || second > 60
+            || second > 59
         {
             return Err(CryptoError::InvalidTimestamp);
         }
-        Ok(Self(text.to_string()))
+        let candidate = Self(text.to_string());
+        // Reject impossible calendar dates (29 February in a non-leap year,
+        // 31 April, …): a real date must survive the round trip through Unix
+        // seconds unchanged.
+        if Self::from_unix_seconds(candidate.unix_seconds())? != candidate {
+            return Err(CryptoError::InvalidTimestamp);
+        }
+        Ok(candidate)
     }
 
     /// The current UTC time from the system clock.
@@ -132,7 +139,7 @@ impl Timestamp {
             (rem % 3600) / 60,
             rem % 60
         );
-        Self::parse(&text)
+        Ok(Self(text))
     }
 
     /// Unix seconds since the epoch.
@@ -300,7 +307,9 @@ impl DeviceCertificate {
             return Err(CryptoError::ClockSkew);
         }
         if let Some(revoked) = revoked_at {
-            if !self.created_at.as_str().lt(revoked.as_str()) {
+            // Compare numerically (SPEC §4.7 wants calendar semantics, not a
+            // string comparison).
+            if self.created_at.unix_seconds() >= revoked.unix_seconds() {
                 return Err(CryptoError::Revoked);
             }
         }
@@ -641,6 +650,23 @@ mod tests {
         ] {
             assert!(Timestamp::parse(bad).is_err(), "should reject {bad}");
         }
+    }
+
+    #[test]
+    fn timestamps_reject_impossible_dates() {
+        for bad in [
+            "2026-02-29T00:00:00Z", // not a leap year
+            "2026-02-31T00:00:00Z",
+            "2026-04-31T00:00:00Z",
+            "2026-11-05T10:00:60Z", // leap second is not accepted
+        ] {
+            assert!(Timestamp::parse(bad).is_err(), "should reject {bad}");
+        }
+        assert!(
+            Timestamp::parse("2028-02-29T00:00:00Z").is_ok(),
+            "2028 is a leap year"
+        );
+        assert!(Timestamp::parse("2026-04-30T23:59:59Z").is_ok());
     }
 
     #[test]
