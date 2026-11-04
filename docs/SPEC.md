@@ -117,6 +117,9 @@ hash, the Secret Key, the MUK, the auth secret, the Account Key in plaintext,
 vault keys, item keys, plaintext item data, plaintext URLs, or the plaintext of
 any field. §7.11 restates this as a normative list for implementers.
 
+![Relay trust boundary: devices hold every key; the relay stores ciphertext and
+wrapped keys only](diagrams/relay-trust-boundary.svg)
+
 ### 3.3 Assumptions
 
 | # | Assumption | If it fails |
@@ -157,9 +160,9 @@ are no longer needed (§11.4).
 | --- | --- | --- | --- |
 | `account_id` | 16 bytes | UUIDv4 from `OsRng` at registration | Never derived from user data; immutable for the life of the account. |
 | `device_id` | 16 bytes | UUIDv4 at first launch of a client | Bound into the device certificate. |
-| `vault_id` | 16 bytes | UUIDv4 at vault creation | **PROPOSED** (the brief fixes account and device ids only). |
-| `item_id` | 16 bytes | UUIDv4 at item creation | Stable across devices; chosen by the creating device. **PROPOSED** |
-| `op_id` | 16 bytes | UUIDv4 at op creation | Used for idempotency on the relay (§7.6). **PROPOSED** |
+| `vault_id` | 16 bytes | UUIDv4 at vault creation | **PROPOSED** (the brief fixes account and device ids only; D-0109). |
+| `item_id` | 16 bytes | UUIDv4 at item creation | Stable across devices; chosen by the creating device. **PROPOSED** (D-0109) |
+| `op_id` | 16 bytes | UUIDv4 at op creation | Used for idempotency on the relay (§7.6). **PROPOSED** (D-0109) |
 
 Identifiers are rendered as lowercase UUID strings with hyphens. Uniqueness
 relies on 122 random bits; a client MUST reject a duplicate `op_id` with
@@ -410,7 +413,10 @@ Secret Key (125 bits) ─────────┘              │           
                                                                                     k_field ──► AEAD ──► field ciphertext
 ```
 
-See `docs/diagrams/key-hierarchy.svg` for the rendered diagram.
+See `docs/diagrams/key-hierarchy.svg` for the rendered diagram:
+
+![Key hierarchy: password + Secret Key to MUK to AK to vault keys to item
+keys](diagrams/key-hierarchy.svg)
 
 ### 4.12 Rotation and lifecycle
 
