@@ -30,14 +30,14 @@
     {
       "n": 4,
       "title": "Repo scaffold",
-      "state": "next",
-      "summary": "LICENSE (GPL-3.0-or-later), relay/LICENSE (AGPL-3.0-or-later), SECURITY.md, CONTRIBUTING.md, extended README, .gitignore, .editorconfig, rust-toolchain.toml, rustfmt.toml, deny.toml, workspace Cargo.toml, placeholder dirs (desktop/extension/android/ios), docs skeletons (SPEC, THREAT_MODEL, PROGRESS, DECISIONS).",
+      "state": "done",
+      "summary": "GPL-3.0-or-later LICENSE (canonical text), relay/LICENSE (AGPL-3.0-or-later, canonical), README extended with status and build steps, SECURITY.md, CONTRIBUTING.md (DCO, no CLA), .gitignore, .editorconfig, rust-toolchain.toml, rustfmt.toml, deny.toml (licence allowlist, yanked deny, openssl ban), docs skeletons (SPEC, THREAT_MODEL, PROGRESS, DECISIONS), placeholder READMEs for desktop/extension/android/ios.",
       "commit_sha": null
     },
     {
       "n": 5,
       "title": "Starter crates",
-      "state": "next",
+      "state": "doing",
       "summary": "studge-core (lib, forbid unsafe, empty modules), studge-core-wasm (version() via wasm-bindgen), studge-relay (GET /health on 127.0.0.1:8787), studge CLI (--version via clap), studge-test-harness (empty lib).",
       "commit_sha": null
     },
