@@ -1022,7 +1022,7 @@ is listed as R-0113.
   between successive signed tree heads (STHs) they have pinned.
 - Because the log is run by the same untrusted party, a split view is possible;
   devices gossip STHs between themselves and the safety code (§9.4) is the
-  ultimate check. Residual risk R-0104.
+  ultimate check. Residual risk R-0110.
 
 ### 9.4 Safety codes
 
