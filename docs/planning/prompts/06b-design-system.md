@@ -38,3 +38,4 @@ Commit and push following AGENTS.md, run the self-attack review (for UI: XSS thr
 
 Preview for me: keep Storybook running and give me its URL after every component batch. Put a screenshot of every component and mockup (light and dark) in the preview gallery as you go, not only at the end.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

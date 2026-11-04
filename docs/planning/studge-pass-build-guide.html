@@ -156,6 +156,13 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
       <li><strong>Permissions:</strong> use <strong>Default permissions</strong>, so AutoClaw asks before risky commands. Approve builds, tests, <code>git commit</code>, <code>git push -u origin phase-…</code> and <code>gh pr create</code>. Refuse pushes to <code>main</code>, <code>--force</code>, <code>gh pr merge</code>, deletes outside the repo, and global installs you don't recognise. If approving every push gets tiring, you can switch to Full access once branch protection (Step 2) is on, because GitHub will then block anything dangerous on main.</li>
       <li><strong>Agent cluster:</strong> leave it off for Phases 0–6. A single agent is easier to follow. Try it on the big UI phases (7, 8, 13) if a single agent is slow.</li>
       <li><strong>Memory:</strong> if AutoClaw lets you save a memory, add: <em>"For Studge Pass: always read AGENTS.md and docs/PROGRESS.md before starting, follow AGENTS.md strictly, and stop at the end of the phase."</em></li>
+      <li><strong>Connectors and skills:</strong> in Skills &amp; connectors, connect <strong>GitHub</strong> and <strong>Notion</strong> and install the skills you want. When you connect Notion, share only the page where the Build Log should live, not your whole workspace. The prompts then tell AutoClaw to:
+        <ul>
+          <li><strong>Notion:</strong> keep a "Studge Pass: Build Log" with six databases (Prompts, Phases, Execution log, Decisions, Risks and findings, Test runs). Every prompt is saved word for word, and every step is logged with its commands, results and commit link.</li>
+          <li><strong>GitHub:</strong> create labels, a milestone and a tracking issue for each phase, file every security finding as an issue, and open each phase's pull request with "Closes #issue".</li>
+          <li><strong>Skills:</strong> list its skills at the start of each task, use every one that helps, and record which ones it used.</li>
+        </ul>
+        Notion is not end-to-end encrypted, so the rules forbid putting any secret, key or password there, even test ones.</li>
       <li><strong>Credits:</strong> you have 24,000. Note your balance before and after Phase 0 to learn what one phase costs, then plan the rest.</li>
     </ol>
   </div></div>
@@ -186,7 +193,8 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
     <ul>
       <li><strong>Phases with no screens yet</strong> (crypto, vault, relay, sync) ship runnable demos with fake data, for example <code>cargo run -p studge-core --example crypto_tour</code>, and get their own views on the preview page (op-log graph, relay endpoint list, the evil-relay "Attack wall").</li>
       <li><strong>Phases with screens</strong> keep the dev server running (Storybook, the desktop app, the extension, the Android emulator) and add light and dark screenshots after every step.</li>
-      <li><strong>On GitHub:</strong> every step is pushed, so the phase branch and its pull request show progress live.</li>
+      <li><strong>On GitHub:</strong> every step is pushed, so the phase branch, its tracking issue and its pull request show progress live.</li>
+      <li><strong>In Notion:</strong> the Build Log shows every prompt you gave and every step AutoClaw executed. It's the easiest place to read the whole story later.</li>
       <li>Lost track? Paste the <a href="#helpers">"Show me where we are"</a> helper prompt into a new task.</li>
     </ul>
   </div></div>
@@ -214,7 +222,7 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
 <article class="phase" id="phase-0">
   <header><span class="badge">Phase 0</span><h3>Repository setup and rules</h3></header>
   <p>Master prompt. Creates the repo skeleton, AGENTS.md (the rulebook every later task follows), licences and CI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">2,636 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
+  <div class="pblock"><div class="pbar"><span class="mono small">3,500 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
 
 ## Product context (remember it for all future work)
 Studge Pass is a password + passkey manager in which every feature is free forever.
@@ -323,6 +331,46 @@ The goal is the most beautiful, calm and trustworthy password manager available,
 - Security UX: never trade safety for looks. No dark patterns. Warnings are calm, clear and specific.
 - Every UI phase ends with screenshots in docs/screenshots/ (light and dark, desktop and narrow widths) and a short self-critique against this design bar.
 
+## Connected tools: Notion, GitHub and skills
+AutoClaw has the Notion and GitHub connectors and a set of skills. Use them on every task.
+
+### Notion: document everything, from prompt to execution
+The Notion home is a page called **&quot;Studge Pass: Build Log&quot;**. Phase 0 creates it and stores its page and database IDs in `docs/notion.json`. These IDs are not secret.
+It contains these databases:
+- **Prompts:** every prompt given to AutoClaw, saved word for word. Fields: title, phase, date, full prompt text, and a link to the task&#x27;s execution log.
+- **Phases:** one row per phase. Fields: phase number and name, status (Not started / In progress / In review / Merged), branch, PR link, GitHub issue link, start and end dates, summary, and the preview-dashboard checks.
+- **Execution log:** one row per step. Fields: phase, step number, what and why, commands run, key output, result (pass/fail), commit SHA and GitHub link, screenshots (uploaded images or repo paths), and skills used.
+- **Decisions:** mirrors docs/DECISIONS.md. Fields: decision, options considered, choice, reason, status (Proposed / Approved by founder / Rejected).
+- **Risks and findings:** self-attack, review and red-team findings. Fields: title, severity, phase, status (Open / Fixed / Accepted), test name and GitHub issue link.
+- **Test runs:** per phase, the counts of passed, failed and ignored tests, plus cargo deny and audit results.
+
+Rules:
+1. At the very start of every task, create a Prompts entry containing the exact prompt you received. Then create or update the phase row with status In progress.
+2. After every step, add an Execution log row in the same moment you commit and push, and link it to the commit.
+3. At the end of the phase, write the phase summary (what was built, how to try it, test results, risks, PR link) and set the status to In review.
+4. Keep Notion and the repo in sync. The repo (docs/*.md) is the source of truth for specs. Notion is the readable log and dashboard.
+5. **Never put secrets in Notion.** Notion is not end-to-end encrypted. No keys, tokens, passwords (not even test ones), vault files or private data. Mask any token-like value as `****`.
+6. If a Notion call fails, keep working. Log the step locally in docs/PROGRESS.md, tell me in chat, and back-fill Notion when it works again.
+
+### GitHub: everything goes to GitHub
+- Use the git CLI for commits and pushes, following the Git workflow below.
+- Use the GitHub connector (fall back to the `gh` CLI if it fails) for:
+  - **Issues:** one tracking issue per phase (label `phase`). Every self-attack, review or red-team finding becomes an issue with the `security` label and a severity label. Every follow-up becomes an issue with the `follow-up` label.
+  - **Milestones:** one milestone per phase. Phase issues and PRs are attached to it.
+  - **Pull requests:** open the PR at the end of the phase with &quot;Closes #&lt;phase issue&gt;&quot; in the body and the Notion phase page link. Request review from @lnstudge. Never merge it yourself.
+  - **Labels:** phase, security, severity:critical/high/medium/low, follow-up, design, docs, ci.
+  - Comment progress on the phase issue at the end of the phase, linking the Notion summary.
+- Do not change repository settings, branch protection, secrets or collaborators.
+
+### Skills: use every skill that helps
+- At the start of each task, list the skills available to you and state which ones you will use for this phase and why. Use them wherever they improve the result, for example:
+  - frontend, design or UI skills for Phases 6b, 7, 8, 10 and 13
+  - testing and code-review skills for every phase
+  - documentation skills for the docs and Notion pages
+  - security or audit skills for the self-attack review
+- Record the skills used in each Execution log row.
+- Ask me before using any skill that sends code or data to a third-party service other than GitHub and Notion.
+
 ## Show your work: live preview (the founder wants to see everything)
 The founder watches the build as it happens. Never work silently.
 1. **Plan first.** At the start of a phase, post the plan in chat as a numbered checklist of steps. Write the same checklist into `docs/preview/status.json` (see below).
@@ -342,7 +390,7 @@ The founder watches the build as it happens. Never work silently.
    - a screenshot gallery for the phase
    - the demo commands and dev-server URLs to try
    - the self-attack findings table and open risks
-   - links to Storybook, the PR and the docs
+   - links to Storybook, the PR, the docs, the GitHub phase issue and the Notion phase page
 6. **When a phase ends,** post a final &quot;Preview summary&quot;: what I can try, exactly how, and what it should look like.
 
 ## Git workflow: commit and push after every step
@@ -394,6 +442,17 @@ Create a tiny pnpm workspace package `tools/preview` (Vite + TypeScript, no UI f
 - Root `package.json` with pnpm workspaces and `&quot;packageManager&quot;` pinned. Add `docs/preview/status.json` for Phase 0 itself and keep it updated after every step of this phase.
 - Screenshot helper: `pnpm shot &lt;url&gt; &lt;out.png&gt;` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright.
 
+## Notion and GitHub setup (do this first, before the repo scaffold)
+1. List your available skills and connectors and post which ones you will use.
+2. Notion: create the &quot;Studge Pass: Build Log&quot; page with the six databases described in AGENTS.md (&quot;Connected tools&quot;). Save their IDs in `docs/notion.json`. Add this Phase 0 prompt to Prompts, word for word, and create the Phase 0 row.
+   Also add a &quot;Start here&quot; page explaining the structure, linking the GitHub repo, and listing the phases 0–15 (including 6b) with their status.
+3. GitHub:
+   - create the labels listed in AGENTS.md
+   - create one milestone per phase (0, 1, 2, 3, 4, 5, 6, 6b, 7–15)
+   - open a tracking issue for each phase, using the phase title and a short goal, attached to its milestone
+   Use the Phase 0 issue number in this phase&#x27;s PR (&quot;Closes #N&quot;).
+4. Log every step of this phase in the Notion Execution log as you go.
+
 ## CI (.github/workflows/ci.yml)
 Run on push and pull_request, on ubuntu-latest and windows-latest:
 - cargo fmt --all -- --check
@@ -413,6 +472,8 @@ Also add:
 - `cargo run -p studge -- --version` prints the version.
 - `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
 - `pnpm install` then `pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0&#x27;s steps, checks and commits.
+- Notion has the Build Log page with all six databases, this prompt saved in Prompts, and one Execution log row per step.
+- GitHub has the labels, the milestones and one issue per phase. The Phase 0 PR closes the Phase 0 issue.
 - docs/PROGRESS.md has a &quot;Phase 0&quot; entry.
 - Follow the Git workflow in AGENTS.md: work on branch `phase-00-setup`, commit and push after every step, and finish by opening a pull request with `gh pr create`. Do not merge it.
 
@@ -427,7 +488,7 @@ When you finish, stop and give me:
 <article class="phase" id="phase-1">
   <header><span class="badge">Phase 1</span><h3>Protocol spec and threat model</h3></header>
   <p>Documents only. This is where security is decided, so take your time reviewing.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">993 words</span><button type="button" class="copy" data-target="p2">Copy prompt</button></div><pre id="p2" tabindex="0">Read AGENTS.md first. **Phase 1: protocol specification and threat model.** This phase is documentation only. Do not write code.
+  <div class="pblock"><div class="pbar"><span class="mono small">1,048 words</span><button type="button" class="copy" data-target="p2">Copy prompt</button></div><pre id="p2" tabindex="0">Read AGENTS.md first. **Phase 1: protocol specification and threat model.** This phase is documentation only. Do not write code.
 
 Write docs/SPEC.md (8–15 pages) and docs/THREAT_MODEL.md using the decisions below. Where a detail is missing, propose one, mark it **PROPOSED**, and list it in docs/DECISIONS.md for my review.
 
@@ -495,13 +556,14 @@ Add two mapping sections:
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and list the 10 decisions I most need to review, each with your recommendation.
 
 Preview for me: render SPEC.md and THREAT_MODEL.md into the preview page (a &quot;Docs&quot; tab with a table of contents), and add a simple SVG diagram of the key hierarchy (password + Secret Key → MUK → AK → vault keys → item keys) and of the relay trust boundary.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Read <code>docs/SPEC.md</code> and <code>docs/DECISIONS.md</code>. You don't need to understand every line, but every PROPOSED item needs a yes or no from you.</li><li>Start a new task: <em>"Read AGENTS.md. Apply my decisions to SPEC.md and DECISIONS.md: 1) … 2) …. Commit with -s."</em></li><li>Optional but valuable: paste SPEC.md into a second AI (or ask a security-minded friend) and ask "what is wrong with this design?"</li><li>When you are happy with the spec, make the GitHub repo public if it isn't already. Openness is part of the brand.</li></ul></div>
 </article>
 <article class="phase" id="phase-2">
   <header><span class="badge">Phase 2</span><h3>Core cryptography</h3></header>
   <p>Key derivation, encryption, signatures and the Secret Key. The most important code in the project.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">433 words</span><button type="button" class="copy" data-target="p3">Copy prompt</button></div><pre id="p3" tabindex="0">Read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md. **Phase 2: the cryptography module in core/src/crypto, implemented exactly as SPEC.md says.** No networking and no storage.
+  <div class="pblock"><div class="pbar"><span class="mono small">488 words</span><button type="button" class="copy" data-target="p3">Copy prompt</button></div><pre id="p3" tabindex="0">Read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md. **Phase 2: the cryptography module in core/src/crypto, implemented exactly as SPEC.md says.** No networking and no storage.
 
 Implement:
 1. `secret_key`: generate, encode and decode the SP1 format with its checksum. Reject bad checksums and wrong lengths.
@@ -524,13 +586,14 @@ Constraints: #![forbid(unsafe_code)]. No unwrap or expect outside tests. Errors 
 Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report test counts and any deviations from SPEC.
 
 Preview for me: `cargo run -p studge-core --example crypto_tour`. It walks through creating a demo account with fake data step by step: Secret Key format, KDF timing, encrypting an item, then showing that a flipped byte, a swapped AAD field and a wrong key each fail with a clear message. Add a &quot;Crypto tour&quot; card to the preview page with the command and its expected output.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p studge-core</code>. All tests pass, and the report lists the tamper tests.</li><li>Always run the <a href="#helpers">review prompt</a> after this phase, then the fix prompt for anything critical or high.</li><li>Check <code>docs/DECISIONS.md</code> names every crypto crate and its version.</li></ul></div>
 </article>
 <article class="phase" id="phase-3">
   <header><span class="badge">Phase 3</span><h3>Vault, op log, storage, import/export</h3></header>
   <p>Item types (including the India templates), the signed change log, local encrypted database, importers, generator and TOTP.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">463 words</span><button type="button" class="copy" data-target="p4">Copy prompt</button></div><pre id="p4" tabindex="0">Read AGENTS.md and the docs. **Phase 3: vault data model, operation log, local encrypted storage, import/export, generator and TOTP, all in core.**
+  <div class="pblock"><div class="pbar"><span class="mono small">518 words</span><button type="button" class="copy" data-target="p4">Copy prompt</button></div><pre id="p4" tabindex="0">Read AGENTS.md and the docs. **Phase 3: vault data model, operation log, local encrypted storage, import/export, generator and TOTP, all in core.**
 
 1. Item types (core/src/vault/items.rs):
    - Login: title, username, password, urls with a match rule (exact-host default | base-domain | starts-with), totp secret, notes, custom fields and linked passkeys.
@@ -556,13 +619,14 @@ Tests:
 Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: `cargo run -p studge-core --example vault_tour` creates a demo vault with fake items (including Aadhaar, PAN and UPI templates), shows the op log as a readable table (op hash, parents, device, kind), demonstrates a conflict being resolved, and imports a fake Bitwarden file with its ImportReport. Add an &quot;Op log&quot; view to the preview page that renders the demo log as a small graph.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test --all</code>.</li><li>Look in <code>core/tests/fixtures</code>: the fixture files must contain fake data only.</li><li>Run the review prompt.</li></ul></div>
 </article>
 <article class="phase" id="phase-4">
   <header><span class="badge">Phase 4</span><h3>Relay server</h3></header>
   <p>The sync server. It only ever sees ciphertext.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">424 words</span><button type="button" class="copy" data-target="p5">Copy prompt</button></div><pre id="p5" tabindex="0">Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
+  <div class="pblock"><div class="pbar"><span class="mono small">479 words</span><button type="button" class="copy" data-target="p5">Copy prompt</button></div><pre id="p5" tabindex="0">Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
 
 - axum + tokio. sqlx with SQLite, with migrations in relay/migrations. An optional `postgres` feature.
 - OPAQUE registration and login with opaque-ke (ristretto255, Argon2id KSF). Create the OPAQUE ServerSetup key file on first run, at a path set in config. Never store it in the database.
@@ -593,13 +657,14 @@ Integration tests (reqwest against a relay spawned on a random port):
 Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: start the relay and give me the URL. Add a &quot;Relay&quot; section to the preview page that lists every endpoint with a ready-to-copy curl or PowerShell `Invoke-RestMethod` example, and shows live results from /health. Run a scripted demo (`cargo run -p studge-relay --example relay_tour`) that registers a fake account, appends ops and prints each request and response, with tokens masked.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge-relay</code> starts it. <code>cargo test -p studge-relay</code> runs the integration tests.</li><li>Optional: install Docker Desktop and run <code>docker compose up</code> from the relay folder.</li></ul></div>
 </article>
 <article class="phase" id="phase-5">
   <header><span class="badge">Phase 5</span><h3>Sync engine and evil-relay harness</h3></header>
   <p>Proves the server can&#x27;t cheat. This is your strongest public selling point.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">368 words</span><button type="button" class="copy" data-target="p6">Copy prompt</button></div><pre id="p6" tabindex="0">Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test harness.** This harness is a public selling point, so make it thorough and readable.
+  <div class="pblock"><div class="pbar"><span class="mono small">423 words</span><button type="button" class="copy" data-target="p6">Copy prompt</button></div><pre id="p6" tabindex="0">Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test harness.** This harness is a public selling point, so make it thorough and readable.
 
 1. core/src/sync: an async Transport trait with three implementations:
    - HttpRelayTransport (reqwest, rustls only)
@@ -629,13 +694,14 @@ Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every st
 Run every check, update PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report the attack list with pass/fail for each.
 
 Preview for me: `cargo run -p test-harness --example evil_relay_show` runs every evil-relay attack and prints a coloured table: attack, what the server tried, what the client detected, PASS/FAIL. Show the same table on the preview page as the &quot;Attack wall&quot;. Also show a two-device sync animation (simple SVG timeline) from the simulation tests.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p test-harness -- --nocapture</code>. Every <code>evil_relay_*</code> test passes.</li><li>Copy the attack table from <code>docs/THREAT_MODEL.md</code> into your README later. It's great marketing.</li></ul></div>
 </article>
 <article class="phase" id="phase-6">
   <header><span class="badge">Phase 6</span><h3>Command-line client</h3></header>
   <p>Your first real, usable Studge Pass. Test it with fake accounts.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">233 words</span><button type="button" class="copy" data-target="p7">Copy prompt</button></div><pre id="p7" tabindex="0">Read AGENTS.md and the docs. **Phase 6: the `studge` command-line client** (clap).
+  <div class="pblock"><div class="pbar"><span class="mono small">288 words</span><button type="button" class="copy" data-target="p7">Copy prompt</button></div><pre id="p7" tabindex="0">Read AGENTS.md and the docs. **Phase 6: the `studge` command-line client** (clap).
 
 Commands:
 - `init`: create an account on a relay URL or in a folder. Print the Secret Key once and write a recovery-kit text file.
@@ -654,13 +720,14 @@ Rules:
 Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: record a terminal demo of the CLI (init, add, list, get, totp, generate, health) using fake data. Save the transcript to docs/preview/cli-demo.txt and show it on the preview page.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge -- init</code> with a test folder such as <code>C:\dev\studge-test-vault</code>, then <code>add login</code>, <code>list</code> and <code>get</code>.</li><li>Sync the same folder from a second <code>init</code> to see two devices merge.</li></ul></div>
 </article>
 <article class="phase" id="phase-6b">
   <header><span class="badge">Phase 6b</span><h3>Design system and brand</h3></header>
   <p>Tokens, fonts, logo, icons and a component library with Storybook. Every later screen is built from it.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">498 words</span><button type="button" class="copy" data-target="p8">Copy prompt</button></div><pre id="p8" tabindex="0">Read AGENTS.md (especially the Design bar) and the docs. **Phase 6b: the Studge Pass design system and brand.** Do this before any app UI exists. Every later screen is built from it.
+  <div class="pblock"><div class="pbar"><span class="mono small">553 words</span><button type="button" class="copy" data-target="p8">Copy prompt</button></div><pre id="p8" tabindex="0">Read AGENTS.md (especially the Design bar) and the docs. **Phase 6b: the Studge Pass design system and brand.** Do this before any app UI exists. Every later screen is built from it.
 
 1. Research first. Write docs/DESIGN.md with a short written UX teardown of 1Password, Bitwarden, Proton Pass, Dashlane and Apple Passwords: what each does well, where each frustrates users, and exactly how Studge Pass will beat each one. Do not copy their visual identity.
 2. Brand:
@@ -697,13 +764,14 @@ Checks for me: `pnpm --filter @studge/design storybook` opens Storybook in the b
 Commit and push following AGENTS.md, run the self-attack review (for UI: XSS through item fields, clickjacking, leaking secrets into the DOM or logs), open the pull request, stop and report with screenshots.
 
 Preview for me: keep Storybook running and give me its URL after every component batch. Put a screenshot of every component and mockup (light and dark) in the preview gallery as you go, not only at the end.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>pnpm install</code> then <code>pnpm --filter @studge/design storybook</code>. Storybook opens in your browser.</li><li>Click through every component and the full-page mockups in light and dark mode. If you don't love it, start a new task and say exactly what to change. This is the moment to be picky.</li><li>The Accessibility tab in Storybook shows zero violations.</li></ul></div>
 </article>
 <article class="phase" id="phase-7">
   <header><span class="badge">Phase 7</span><h3>Desktop app</h3></header>
   <p>Windows, macOS and Linux app with the full vault UI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">413 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
+  <div class="pblock"><div class="pbar"><span class="mono small">468 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
 
 Screens:
 - Onboarding: create account → show the Secret Key and save or print the recovery kit → choose sync (Studge relay URL, self-hosted URL or local folder). Import from another manager.
@@ -729,13 +797,14 @@ Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
 Preview for me: keep `pnpm tauri dev` running so I can click around while you build, and tell me which screen to look at after each step. Add before/after screenshots of each screen to the preview gallery.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li><code>cd desktop</code>, <code>pnpm install</code>, <code>pnpm tauri dev</code>. A window opens.</li><li>Walk through onboarding, add items, lock and unlock, and check that the clipboard clears after 30 s.</li></ul></div>
 </article>
 <article class="phase" id="phase-8">
   <header><span class="badge">Phase 8</span><h3>Browser extension: passwords</h3></header>
   <p>Autofill and save in Chrome, Edge, Brave and Firefox, hardened against clickjacking.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">434 words</span><button type="button" class="copy" data-target="p10">Copy prompt</button></div><pre id="p10" tabindex="0">Read AGENTS.md and the docs. **Phase 8: the browser extension for passwords** (Chrome, Edge, Brave and Firefox; MV3, TypeScript, Vite, webextension-polyfill). Use studge-core through core-wasm.
+  <div class="pblock"><div class="pbar"><span class="mono small">489 words</span><button type="button" class="copy" data-target="p10">Copy prompt</button></div><pre id="p10" tabindex="0">Read AGENTS.md and the docs. **Phase 8: the browser extension for passwords** (Chrome, Edge, Brave and Firefox; MV3, TypeScript, Vite, webextension-polyfill). Use studge-core through core-wasm.
 
 Architecture:
 - Background service worker: holds the unlocked session (core-wasm) and locks on a timer and on browser idle. Keys never go to content scripts.
@@ -760,13 +829,14 @@ Build to dist/chrome and dist/firefox, and document loading the unpacked extensi
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-08/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
 Preview for me: build to dist/chrome after each step and tell me to reload it in chrome://extensions. Keep a local fixture site running (login, signup, multi-step and clickjacking test pages) at a localhost URL I can open. Add short Playwright videos or GIF-like screenshot sequences of fill and save flows to the preview page.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Build it, then go to <code>chrome://extensions</code>, turn on Developer mode, choose Load unpacked and pick <code>extension/dist/chrome</code>.</li><li>Try it on the fixture pages, then on a throwaway account on a real site (never your real accounts yet).</li></ul></div>
 </article>
 <article class="phase" id="phase-9">
   <header><span class="badge">Phase 9</span><h3>Passkeys in the extension + CXF</h3></header>
   <p>Create and use passkeys, plus import and export in the FIDO format.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">383 words</span><button type="button" class="copy" data-target="p11">Copy prompt</button></div><pre id="p11" tabindex="0">Read AGENTS.md and the docs. **Phase 9: passkeys in the extension, plus FIDO CXF import/export.**
+  <div class="pblock"><div class="pbar"><span class="mono small">438 words</span><button type="button" class="copy" data-target="p11">Copy prompt</button></div><pre id="p11" tabindex="0">Read AGENTS.md and the docs. **Phase 9: passkeys in the extension, plus FIDO CXF import/export.**
 
 1. Authenticator in Rust core:
    - ES256 (p256) keys and 32-byte random credential IDs.
@@ -792,13 +862,14 @@ Tests:
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: run the local test relying party at a localhost URL with a page that shows each WebAuthn request and response in readable form (decoded clientDataJSON, authenticatorData flags, rpIdHash). Add a &quot;Passkeys&quot; section to the preview page with that decoded view and screenshots of the passkey picker.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Go to <code>webauthn.io</code>, register with a made-up username, then sign in. Studge Pass should handle both.</li><li>Repeat on <code>passkeys.io</code>. Run the review prompt; this code handles origins, so it is security-critical.</li></ul></div>
 </article>
 <article class="phase" id="phase-10">
   <header><span class="badge">Phase 10</span><h3>Passkey-aware dashboard</h3></header>
   <p>The phishing-resistance score, blast-radius view and next-best-action list.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">429 words</span><button type="button" class="copy" data-target="p12">Copy prompt</button></div><pre id="p12" tabindex="0">Read AGENTS.md and the docs. **Phase 10: the passkey-aware security dashboard.** The logic lives in Rust core. The UI goes in the desktop app and in a &quot;Health&quot; tab of the extension popup.
+  <div class="pblock"><div class="pbar"><span class="mono small">484 words</span><button type="button" class="copy" data-target="p12">Copy prompt</button></div><pre id="p12" tabindex="0">Read AGENTS.md and the docs. **Phase 10: the passkey-aware security dashboard.** The logic lives in Rust core. The UI goes in the desktop app and in a &quot;Health&quot; tab of the extension popup.
 
 Core (core/src/health):
 - Findings for each account:
@@ -827,13 +898,14 @@ Tests: scoring fixtures, an HIBP client tested against a mock server, and datase
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-10/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
 Preview for me: seed a demo vault (about 40 fake accounts with a realistic mix of passkeys, weak, reused and breached passwords) and show the dashboard live in the desktop app and in Storybook. Add the score breakdown table to the preview page.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Import a fake test vault with weak, reused and breached passwords (for example <code>password123</code>), then open the Health tab.</li><li>Check that the score's breakdown matches the formula.</li></ul></div>
 </article>
 <article class="phase" id="phase-11">
   <header><span class="badge">Phase 11</span><h3>Sharing and families</h3></header>
   <p>Shared vaults, key-transparency log and safety codes.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">264 words</span><button type="button" class="copy" data-target="p13">Copy prompt</button></div><pre id="p13" tabindex="0">Read AGENTS.md and the docs. **Phase 11: sharing and families.**
+  <div class="pblock"><div class="pbar"><span class="mono small">319 words</span><button type="button" class="copy" data-target="p13">Copy prompt</button></div><pre id="p13" tabindex="0">Read AGENTS.md and the docs. **Phase 11: sharing and families.**
 
 - Shared vaults: the owner HPKE-wraps the VK to each member&#x27;s encryption key. Roles are owner, editor and viewer. Membership lives as signed ops in the vault log, and clients reject ops from non-members or from viewers.
 - Removing a member rotates the VK (re-wrapping item keys) and records a key_rotation op.
@@ -855,13 +927,14 @@ Evil-relay tests:
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: a demo with two fake accounts sharing a vault, showing safety codes side by side, plus a key-transparency log viewer on the preview page (tree size, signed head, and a highlighted inclusion proof).
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Create two test accounts, share a vault, remove the member, and confirm they can't read new items.</li></ul></div>
 </article>
 <article class="phase" id="phase-12">
   <header><span class="badge">Phase 12</span><h3>Recovery and emergency access</h3></header>
   <p>Recovery kit, 2-of-3 guardians and emergency access.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">311 words</span><button type="button" class="copy" data-target="p14">Copy prompt</button></div><pre id="p14" tabindex="0">Read AGENTS.md and the docs. **Phase 12: recovery and emergency access.**
+  <div class="pblock"><div class="pbar"><span class="mono small">366 words</span><button type="button" class="copy" data-target="p14">Copy prompt</button></div><pre id="p14" tabindex="0">Read AGENTS.md and the docs. **Phase 12: recovery and emergency access.**
 
 - Recovery kit: generated locally as a printable HTML (and PDF if practical). It contains the account id, Secret Key, a QR code, the relay URL and plain instructions.
 - Guardians (social recovery):
@@ -886,13 +959,14 @@ Tests:
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: a guided demo of the recovery flow with 4 fake accounts (owner and 3 guardians), with screenshots of each screen and a timeline on the preview page showing request → approvals → waiting period → recovered.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Use four test accounts (you plus 3 guardians). Recover with 2 approvals, then confirm 1 approval is not enough.</li></ul></div>
 </article>
 <article class="phase" id="phase-13">
   <header><span class="badge">Phase 13</span><h3>Android app</h3></header>
   <p>Native Android with autofill and passkey provider.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">351 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
+  <div class="pblock"><div class="pbar"><span class="mono small">406 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
 
 Features:
 - Onboarding and unlock: BiometricPrompt, with the unlock key wrapped by Android Keystore (StrongBox when available).
@@ -919,13 +993,14 @@ Tests: unit tests, plus instrumentation tests for autofill and the credential pr
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
 Preview for me: keep the Android emulator running with the app installed after each step. Capture screenshots with `adb exec-out screencap` into the preview gallery, and record a short screen video of autofill and the passkey provider.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Install Android Studio, open <code>/android</code>, run it on an emulator, then on your own phone over USB.</li><li>Settings → Passwords &amp; accounts → choose Studge Pass as the provider.</li></ul></div>
 </article>
 <article class="phase" id="phase-14">
   <header><span class="badge">Phase 14</span><h3>iOS app (needs a Mac)</h3></header>
   <p>Skip until you have a Mac and an Apple Developer account ($99/yr).</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">120 words</span><button type="button" class="copy" data-target="p16">Copy prompt</button></div><pre id="p16" tabindex="0">Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+). This needs a Mac with Xcode and an Apple Developer account.
+  <div class="pblock"><div class="pbar"><span class="mono small">175 words</span><button type="button" class="copy" data-target="p16">Copy prompt</button></div><pre id="p16" tabindex="0">Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+). This needs a Mac with Xcode and an Apple Developer account.
 
 - Build core as an XCFramework with UniFFI.
 - Credential Provider Extension (ASCredentialProviderViewController) for passwords, one-time codes and passkeys.
@@ -936,13 +1011,14 @@ Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every st
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: simulator screenshots after each step in the preview gallery.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>Can only be built and tested on a Mac with Xcode.</li></ul></div>
 </article>
 <article class="phase" id="phase-15">
   <header><span class="badge">Phase 15</span><h3>Hardening and release</h3></header>
   <p>Fuzzing, reproducible builds, signed releases and the audit pack.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">222 words</span><button type="button" class="copy" data-target="p17">Copy prompt</button></div><pre id="p17" tabindex="0">Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
+  <div class="pblock"><div class="pbar"><span class="mono small">277 words</span><button type="button" class="copy" data-target="p17">Copy prompt</button></div><pre id="p17" tabindex="0">Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
 
 - Fuzzing with cargo-fuzz for the envelope parser, op CBOR decoding, every importer, the CXF parser and relay request parsing. Add a short CI fuzz smoke run.
 - Dependency hygiene: cargo audit, cargo deny and cargo vet in CI, plus Dependabot.
@@ -957,14 +1033,15 @@ Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every st
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Preview for me: a &quot;Release readiness&quot; panel on the preview page covering fuzzing hours and crashes found, reproducible-build hash comparison, SBOM link, signature verification command and audit-pack status.
-Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.</pre></div>
+Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
   <div class="check"><h4>How you check it</h4><ul><li>CI is green. Push a test tag such as <code>v0.1.0-alpha.1</code> and check the release workflow produces signed artifacts.</li></ul></div>
 </article></div>
 </div></section>
 
 <section id="helpers"><div class="wrap">
   <h2>Helper prompts</h2>
-  <div class="cards"><article class="phase"><header><h3>Security review (run after every phase from 2 onward)</h3></header><p>Replace &lt;START-COMMIT&gt; with the commit hash from before the phase (<code>git log --oneline</code> shows it).</p><div class="pblock"><div class="pbar"><span class="mono small">133 words</span><button type="button" class="copy" data-target="p18">Copy prompt</button></div><pre id="p18" tabindex="0">Act as a strict security reviewer, not as the author. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md. Then review all changes since commit &lt;START-COMMIT&gt;: run `git log --oneline &lt;START-COMMIT&gt;..HEAD` and `git diff &lt;START-COMMIT&gt;..HEAD`.
+  <div class="cards"><article class="phase"><header><h3>Security review (run after every phase from 2 onward)</h3></header><p>Replace &lt;START-COMMIT&gt; with the commit hash from before the phase (<code>git log --oneline</code> shows it).</p><div class="pblock"><div class="pbar"><span class="mono small">158 words</span><button type="button" class="copy" data-target="p18">Copy prompt</button></div><pre id="p18" tabindex="0">Act as a strict security reviewer, not as the author. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md. Then review all changes since commit &lt;START-COMMIT&gt;: run `git log --oneline &lt;START-COMMIT&gt;..HEAD` and `git diff &lt;START-COMMIT&gt;..HEAD`.
 
 Check for:
 1. deviations from SPEC.md
@@ -976,13 +1053,14 @@ Check for:
 7. TODOs hiding security work
 8. anything that breaks the rules in AGENTS.md
 
-Do NOT change any code. Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with &quot;Ship / Fix first&quot; and one sentence of reasoning.</pre></div></article><article class="phase"><header><h3>Show me where we are (live preview)</h3></header><p>Use any time you want to see everything: it starts the preview page and every dev server, takes fresh screenshots and tells you what to click.</p><div class="pblock"><div class="pbar"><span class="mono small">119 words</span><button type="button" class="copy" data-target="p19">Copy prompt</button></div><pre id="p19" tabindex="0">Pause and show me where we are. Do not write new features in this task.
+Do NOT change any code. Save this prompt in Notion Prompts. Record each finding in Notion &quot;Risks and findings&quot; and open a GitHub issue for each one (labels: security, severity:&lt;level&gt;). Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with &quot;Ship / Fix first&quot; and one sentence of reasoning.</pre></div></article><article class="phase"><header><h3>Show me where we are (live preview)</h3></header><p>Use any time you want to see everything: it starts the preview page and every dev server, takes fresh screenshots and tells you what to click.</p><div class="pblock"><div class="pbar"><span class="mono small">145 words</span><button type="button" class="copy" data-target="p19">Copy prompt</button></div><pre id="p19" tabindex="0">Pause and show me where we are. Do not write new features in this task.
 1. Read docs/preview/status.json, docs/PROGRESS.md and `git log --oneline -15`.
 2. Run `pnpm preview:update` and start `pnpm preview`, then give me the URL.
 3. Start every dev server that exists for the current phase (Storybook, the desktop app, the relay, the fixture site, the test relying party) and list their URLs.
 4. Take fresh light and dark screenshots of everything visible and add them to the preview gallery.
-5. Tell me in plain language: what works now, what I should click or run to see it, what is half-done, and what comes next.
-If you changed status.json or screenshots, commit and push them following AGENTS.md.</pre></div></article><article class="phase"><header><h3>Red-team attack (run after Phases 5, 9, 12 and before any release)</h3></header><p>A hostile security review that writes proof-of-concept tests. Run it in a fresh task, then use the fix prompt on what it finds.</p><div class="pblock"><div class="pbar"><span class="mono small">167 words</span><button type="button" class="copy" data-target="p20">Copy prompt</button></div><pre id="p20" tabindex="0">Act as an elite, hostile red team hired to break Studge Pass. Do NOT fix anything in this task. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md, then study the code on main.
+5. Make sure the Notion phase page and Execution log are up to date, and give me the Notion link and the GitHub phase issue link.
+6. Tell me in plain language: what works now, what I should click or run to see it, what is half-done, and what comes next.
+If you changed status.json or screenshots, commit and push them following AGENTS.md.</pre></div></article><article class="phase"><header><h3>Red-team attack (run after Phases 5, 9, 12 and before any release)</h3></header><p>A hostile security review that writes proof-of-concept tests. Run it in a fresh task, then use the fix prompt on what it finds.</p><div class="pblock"><div class="pbar"><span class="mono small">202 words</span><button type="button" class="copy" data-target="p20">Copy prompt</button></div><pre id="p20" tabindex="0">Act as an elite, hostile red team hired to break Studge Pass. Do NOT fix anything in this task. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md, then study the code on main.
 
 Attack it from every angle:
 - malicious relay server
@@ -995,9 +1073,9 @@ Attack it from every angle:
 - malicious import files (zip bombs, huge CSVs, malformed CBOR or JSON)
 - side channels (timing, logs, clipboard, crash reports, swap files)
 
-For each real weakness, write a failing test or a proof-of-concept under test-harness/redteam/ that demonstrates it. Put them on a branch named `redteam-&lt;date&gt;`, commit and push following AGENTS.md, and open a pull request titled &quot;Red team findings &lt;date&gt;&quot;.
+For each real weakness, write a failing test or a proof-of-concept under test-harness/redteam/ that demonstrates it. Put them on a branch named `redteam-&lt;date&gt;`, commit and push following AGENTS.md, and open a pull request titled &quot;Red team findings &lt;date&gt;&quot;. Open a GitHub issue for each finding (labels: security, severity:&lt;level&gt;, redteam) and record each one in Notion &quot;Risks and findings&quot;. Save this prompt in Notion Prompts first. Use any security or testing skills you have.
 
-Report a ranked list: severity, attack steps, affected file:line, proof (test name) and suggested fix. Be ruthless and specific. Never report a weakness without a proof or a precise reasoning chain.</pre></div></article><article class="phase"><header><h3>Fix the review findings</h3></header><p>Paste the review output where shown.</p><div class="pblock"><div class="pbar"><span class="mono small">50 words</span><button type="button" class="copy" data-target="p21">Copy prompt</button></div><pre id="p21" tabindex="0">Read AGENTS.md. Fix findings #&lt;NUMBERS&gt; from the review below. Keep changes minimal and add a regression test for each finding. Run every check, update docs/PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report what changed.
+Report a ranked list: severity, attack steps, affected file:line, proof (test name) and suggested fix. Be ruthless and specific. Never report a weakness without a proof or a precise reasoning chain.</pre></div></article><article class="phase"><header><h3>Fix the review findings</h3></header><p>Paste the review output where shown.</p><div class="pblock"><div class="pbar"><span class="mono small">78 words</span><button type="button" class="copy" data-target="p21">Copy prompt</button></div><pre id="p21" tabindex="0">Read AGENTS.md. Save this prompt in Notion Prompts. Fix findings #&lt;NUMBERS&gt; from the review below (GitHub issues). Reference each issue in its fix commit (&quot;Fixes #N&quot;), and set each one to Fixed in Notion &quot;Risks and findings&quot;. Keep changes minimal and add a regression test for each finding. Run every check, update docs/PROGRESS.md, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report what changed.
 
 &lt;PASTE THE REVIEW FINDINGS HERE&gt;</pre></div></article><article class="phase"><header><h3>Resume a task that stopped half-way</h3></header><p>Use this when AutoClaw runs out of context or credits mid-phase.</p><div class="pblock"><div class="pbar"><span class="mono small">48 words</span><button type="button" class="copy" data-target="p22">Copy prompt</button></div><pre id="p22" tabindex="0">Read AGENTS.md and docs/PROGRESS.md. The previous task stopped before Phase &lt;N&gt; was finished. Run `git status`, `git log --oneline -15` and the full test suite. Tell me in 5 lines what is done and what is left, then continue from where it stopped. Do not redo finished work.</pre></div></article><article class="phase"><header><h3>Split a phase that is too big</h3></header><p>Use this if a phase keeps failing or stalling.</p><div class="pblock"><div class="pbar"><span class="mono small">52 words</span><button type="button" class="copy" data-target="p23">Copy prompt</button></div><pre id="p23" tabindex="0">Read AGENTS.md and the docs. Phase &lt;N&gt; is too large for one task. Do only part 1 of it: &lt;PASTE THE FIRST HALF OF THE PHASE PROMPT&gt;. Leave the rest for the next task and list it under &quot;Next&quot; in docs/PROGRESS.md. Run every check, commit and push following AGENTS.md, stop and report.</pre></div></article><article class="phase"><header><h3>Explain it to me</h3></header><p>Use this whenever you don't understand what was built.</p><div class="pblock"><div class="pbar"><span class="mono small">40 words</span><button type="button" class="copy" data-target="p24">Copy prompt</button></div><pre id="p24" tabindex="0">Explain Phase &lt;N&gt; to me as a non-expert founder: what was built, how the parts talk to each other, how I can run and try it myself on Windows (exact commands), and what could go wrong. Make no code changes.</pre></div></article></div>
 </div></section>

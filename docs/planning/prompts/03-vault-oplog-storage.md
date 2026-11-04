@@ -27,3 +27,4 @@ Run every check, update PROGRESS.md, and commit and push following AGENTS.md, ru
 
 Preview for me: `cargo run -p studge-core --example vault_tour` creates a demo vault with fake items (including Aadhaar, PAN and UPI templates), shows the op log as a readable table (op hash, parents, device, kind), demonstrates a conflict being resolved, and imports a fake Bitwarden file with its ImportReport. Add an "Op log" view to the preview page that renders the demo log as a small graph.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

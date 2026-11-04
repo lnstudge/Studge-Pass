@@ -12,4 +12,4 @@ Check for:
 7. TODOs hiding security work
 8. anything that breaks the rules in AGENTS.md
 
-Do NOT change any code. Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with "Ship / Fix first" and one sentence of reasoning.
+Do NOT change any code. Save this prompt in Notion Prompts. Record each finding in Notion "Risks and findings" and open a GitHub issue for each one (labels: security, severity:<level>). Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with "Ship / Fix first" and one sentence of reasoning.

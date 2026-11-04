@@ -23,3 +23,4 @@ Commit and push following AGENTS.md, run the self-attack review, and open the pu
 
 Preview for me: a demo with two fake accounts sharing a vault, showing safety codes side by side, plus a key-transparency log viewer on the preview page (tree size, signed head, and a highlighted inclusion proof).
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

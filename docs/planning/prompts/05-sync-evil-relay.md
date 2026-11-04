@@ -31,3 +31,4 @@ Run every check, update PROGRESS.md, and commit and push following AGENTS.md, ru
 
 Preview for me: `cargo run -p test-harness --example evil_relay_show` runs every evil-relay attack and prints a coloured table: attack, what the server tried, what the client detected, PASS/FAIL. Show the same table on the preview page as the "Attack wall". Also show a two-device sync animation (simple SVG timeline) from the simulation tests.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.
