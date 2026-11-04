@@ -17,3 +17,6 @@ Rules:
 - Keep the unlocked session in the OS credential store (keyring crate) for a configurable number of minutes. Never write plaintext to disk.
 
 Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: record a terminal demo of the CLI (init, add, list, get, totp, generate, health) using fake data. Save the transcript to docs/preview/cli-demo.txt and show it on the preview page.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

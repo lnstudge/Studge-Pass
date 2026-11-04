@@ -58,6 +58,28 @@ The goal is the most beautiful, calm and trustworthy password manager available,
 - Security UX: never trade safety for looks. No dark patterns. Warnings are calm, clear and specific.
 - Every UI phase ends with screenshots in docs/screenshots/ (light and dark, desktop and narrow widths) and a short self-critique against this design bar.
 
+## Show your work: live preview (the founder wants to see everything)
+The founder watches the build as it happens. Never work silently.
+1. **Plan first.** At the start of a phase, post the plan in chat as a numbered checklist of steps. Write the same checklist into `docs/preview/status.json` (see below).
+2. **Narrate each step.** Before each step, say in 1–2 plain sentences what you are about to do and why. After each step, post a short "Step N done" report in chat:
+   - what changed (files, plus a 3–5 line summary of the diff)
+   - the command you ran and the key lines of its output (test summary, server response, build result)
+   - **how I can see it myself right now**: a URL, a command or a screenshot
+3. **Visual work.** Whenever you build or change anything visible (Storybook, desktop app, extension, Android, dashboard):
+   - start or keep running its dev server and give me the local URL
+   - after each UI step, take Playwright screenshots (light and dark) into `docs/screenshots/phase-NN/step-NN-<name>-<theme>.png`
+   - show the screenshot in chat if AutoClaw can display images; otherwise give the file path
+4. **Non-visual work** (crypto, storage, relay, sync): give me a runnable demo with FAKE data that prints what is happening in plain language, for example `cargo run -p studge-core --example crypto_tour`. Never print real secrets; demo keys are labelled "DEMO ONLY".
+5. **The preview page.** Keep the local dev-preview dashboard up to date (built in Phase 0, opened with `pnpm preview`, served at http://localhost:4400). After every step, update `docs/preview/status.json`, then rebuild the page. It shows:
+   - the current phase and its checklist with done, in-progress and next steps
+   - the latest check results (fmt, clippy, tests passed/failed, cargo deny)
+   - a timeline of commits pushed in this phase, with links to GitHub
+   - a screenshot gallery for the phase
+   - the demo commands and dev-server URLs to try
+   - the self-attack findings table and open risks
+   - links to Storybook, the PR and the docs
+6. **When a phase ends,** post a final "Preview summary": what I can try, exactly how, and what it should look like.
+
 ## Git workflow: commit and push after every step
 1. At the start of a phase: `git switch main`, `git pull`, then `git switch -c phase-NN-short-name`.
 2. After EVERY logical step:
@@ -83,7 +105,7 @@ The goal is the most beautiful, calm and trustworthy password manager available,
   cargo deny check
   pnpm -r lint and pnpm -r test, if TypeScript packages changed
 - Commit and push after every logical step, following the Git workflow above. Use `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data.
-- At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions.
+- At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions. Keep docs/preview/status.json current after every step, not only at the end.
 - If a security decision is unclear, stop and ask. Do not guess.
 - The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
 - Keep dependencies few. Prefer the standard library and the approved crates.

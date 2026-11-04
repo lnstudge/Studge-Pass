@@ -25,3 +25,6 @@ Targets:
 Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: keep the Android emulator running with the app installed after each step. Capture screenshots with `adb exec-out screencap` into the preview gallery, and record a short screen video of autofill and the passkey provider.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

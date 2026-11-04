@@ -35,3 +35,6 @@ Read AGENTS.md (especially the Design bar) and the docs. **Phase 6b: the Studge 
 
 Checks for me: `pnpm --filter @studge/design storybook` opens Storybook in the browser.
 Commit and push following AGENTS.md, run the self-attack review (for UI: XSS through item fields, clickjacking, leaking secrets into the DOM or logs), open the pull request, stop and report with screenshots.
+
+Preview for me: keep Storybook running and give me its URL after every component batch. Put a screenshot of every component and mockup (light and dark) in the preview gallery as you go, not only at the end.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

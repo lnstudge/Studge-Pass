@@ -21,3 +21,6 @@ Tests in core/tests/:
 
 Constraints: #![forbid(unsafe_code)]. No unwrap or expect outside tests. Errors use a thiserror enum, CryptoError, whose messages contain no secret data. Pin crate versions and justify each in DECISIONS.md.
 Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report test counts and any deviations from SPEC.
+
+Preview for me: `cargo run -p studge-core --example crypto_tour`. It walks through creating a demo account with fake data step by step: Secret Key format, KDF timing, encrypting an item, then showing that a flipped byte, a swapped AAD field and a wrong key each fail with a clear message. Add a "Crypto tour" card to the preview page with the command and its expected output.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
