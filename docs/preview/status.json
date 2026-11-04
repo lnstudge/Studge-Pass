@@ -184,7 +184,13 @@
       "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\""
     }
   ],
-  "risks": [],
+  "risks": [
+    {
+      "title": "CodeQL code scanning is skipped while the repository is private (needs GitHub Advanced Security); gitleaks, cargo-deny and clippy still run — see docs/THREAT_MODEL.md R-0001",
+      "severity": "medium",
+      "status": "open"
+    }
+  ],
   "links": [
     {
       "label": "GitHub repository",

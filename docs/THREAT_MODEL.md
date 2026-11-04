@@ -18,3 +18,15 @@
 ## Supply-chain attacks
 
 ## Open risks
+
+### R-0001 — CodeQL code scanning is unavailable while the repository is private
+
+- **Phase:** 0 · **Status:** Open
+- **What:** `codeql.yml` skips its analysis job unless the repository is public
+  or GitHub Advanced Security is enabled, because the SARIF upload is rejected on
+  private repositories without GHAS ("Resource not accessible by integration").
+- **Impact:** no automated code-scanning queries run in CI yet. gitleaks (every
+  push and PR), `cargo deny` (advisories, licences, bans, sources), `cargo audit`
+  (weekly) and clippy still run.
+- **Resolution:** make the repository public, or enable GHAS; the workflow then
+  runs unchanged on the next push.

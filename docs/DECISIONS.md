@@ -48,3 +48,17 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
 - **Reason:** AGENTS.md supply-chain bar — least privilege, and no mutable
   references in CI that a compromised upstream tag could redirect.
 - **Status:** Proposed
+
+## D-0005 — CodeQL is gated on public repositories
+
+- **Options:** run CodeQL and let it fail on the private repository; drop CodeQL
+  entirely; keep the workflow but skip the job while the repository is private.
+- **Choice:** keep `codeql.yml` in the repository, but gate the `analyze` job on
+  `!github.event.repository.private`. It starts running automatically if the
+  repository becomes public or GitHub Advanced Security is enabled.
+- **Reason:** on a private repository without GHAS the SARIF upload is rejected
+  ("Resource not accessible by integration"), so the check is permanently red
+  and trains reviewers to ignore failures. The analysis itself worked (12 Rust
+  files extracted, 0 extraction errors) — only the upload is unavailable. The
+  gap is recorded as R-0001 in docs/THREAT_MODEL.md.
+- **Status:** Proposed
