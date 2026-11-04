@@ -1,293 +1,154 @@
 {
   "phase": {
-    "id": 0,
-    "name": "Repository setup, rules and preview dashboard",
-    "branch": "phase-00-setup",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/26"
+    "id": 1,
+    "name": "Protocol specification and threat model",
+    "branch": "phase-01-spec",
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/35"
   },
   "steps": [
     {
       "n": 1,
       "title": "Branch and phase plan",
       "state": "done",
-      "summary": "Created branch phase-00-setup from main; plan posted in chat and written to docs/preview/status.json.",
-      "commit_sha": null
+      "summary": "Created branch phase-01-spec from main (Phase 0 merged as f42d833); plan posted and written to status.json. Documentation only: no product code.",
+      "commit_sha": "a6dec94b2209abdc8728aff9da91f5bd3d8addf7"
     },
     {
       "n": 2,
-      "title": "Notion Build Log",
+      "title": "SPEC §1–3: purpose, terminology, trust model",
       "state": "done",
-      "summary": "Created the Build Log page, Start here page and all six databases (Prompts, Phases, Execution log, Decisions, Risks and findings, Test runs) under the private 'Studge Pass' page. Saved IDs in docs/notion.json. Archived the founder's task message, the full 00-master-setup.md (verified word-for-word by SHA-256) and the continuation message in Prompts. Created the Phase 0 row (In progress) and the step-1 execution log row.",
-      "commit_sha": null
+      "summary": "Goals G1–G8, non-goals, 24-term glossary, parties/trust table, the precise list of what the relay can see, assumptions A-1…A-6 and the fail-closed policy. 1,769 words.",
+      "commit_sha": "86ae2c943006e3b5b4ae6b91a8c677b26390d125"
     },
     {
       "n": 3,
-      "title": "GitHub metadata",
+      "title": "SPEC §4: identities and key hierarchy",
       "state": "done",
-      "summary": "Created the 10 labels (phase, security, severity:*, follow-up, design, docs, ci), 17 milestones (one per phase, #1-#17) and 17 tracking issues (#6-#22, Phase 0 = #6). Notion Phases database now has one row per phase, each linked to its issue.",
-      "commit_sha": null
+      "summary": "Identifiers, the SP1 Secret Key (125-bit proposal D-0101 with checksum), Argon2id→HKDF→MUK, OPAQUE auth secret, AK and key bundle, identity keys (Ed25519/X25519/ML-KEM-768), device certification and revocation, VK/IK, rotation table.",
+      "commit_sha": "f03aca2e27fa872b0163752c3b18aa5643865e97"
     },
     {
       "n": 4,
-      "title": "Repo scaffold",
+      "title": "SPEC §5–6: encryption format and op log",
       "state": "done",
-      "summary": "GPL-3.0-or-later LICENSE (canonical text), relay/LICENSE (AGPL-3.0-or-later, canonical), README extended with status and build steps, SECURITY.md, CONTRIBUTING.md (DCO, no CLA), .gitignore, .editorconfig, rust-toolchain.toml, rustfmt.toml, deny.toml (licence allowlist, yanked deny, openssl ban), docs skeletons (SPEC, THREAT_MODEL, PROGRESS, DECISIONS), placeholder READMEs for desktop/extension/android/ios.",
-      "commit_sha": null
+      "summary": "XChaCha20-Poly1305 envelopes, the exact AAD map and record-type enum, the HKDF label table, field rules and failure policy; the signed op DAG, Lamport rules, conflict resolution, signed heads, head pinning with rollback/fork detection, limits.",
+      "commit_sha": "b87913f4a1ed649b886d2dedc0b6d0606e134742"
     },
     {
       "n": 5,
-      "title": "Starter crates",
+      "title": "SPEC §7: relay API and transports",
       "state": "done",
-      "summary": "Cargo workspace with five crates: studge-core (forbid unsafe, seven empty modules), studge-core-wasm (cdylib + rlib, version() via wasm-bindgen, forbid unsafe), studge-relay (axum + tokio, GET /health on 127.0.0.1:8787 returning {status, version}, unit test), studge CLI (clap --version, unit test), studge-test-harness (empty lib). Cargo.lock committed. Build 21.6s, fmt/clippy/test/wasm/deny all green.",
-      "commit_sha": null
+      "summary": "OPAQUE register/login, 256-bit tokens stored as SHA-256 with 24 h expiry, all 13 endpoints, head CAS, validation scope, quotas and rate limits, generic error model, storage tables, and the http/folder/memory transports.",
+      "commit_sha": "6f091fea9f638232a5182a876d0aaa201216f4cb"
     },
     {
       "n": 6,
-      "title": "CI workflows",
+      "title": "SPEC §8–11: scoring, sharing, recovery, inventory",
       "state": "done",
-      "summary": "ci.yml (fmt, clippy, test, wasm build on ubuntu+windows; cargo deny on ubuntu; actions pinned to full commit SHAs; contents: read), security.yml (gitleaks on every push/PR, cargo-audit weekly), codeql.yml (JS/TS + Rust), dependabot.yml (cargo, npm, github-actions weekly). All four files validated as YAML.",
-      "commit_sha": null
+      "summary": "Score formula with p/w tables and local-only breach checks; membership ops, HPKE wrapping with bound info, transparency log, safety codes, rotation on removal; recovery kit, 2-of-3 guardians, 72 h window, emergency access; crypto inventory and forward-only versioning.",
+      "commit_sha": "baa9c0ac82bce498cf3c239c1868ceba179feb06"
     },
     {
       "n": 7,
-      "title": "Full check suite",
+      "title": "THREAT_MODEL part 1: adversaries A1–A8",
       "state": "done",
-      "summary": "Full suite via .\\x.ps1 all green: fmt --check, clippy -D warnings, test --all (2 passed, 0 failed, 0 ignored), cargo deny (advisories/bans/licenses/sources ok), wasm32 build. Live checks: studge --version prints 'studge 0.1.0'; relay answers GET http://127.0.0.1:8787/health with {\"status\":\"ok\",\"version\":\"0.1.0\"} from Windows.",
-      "commit_sha": null
+      "summary": "Assets table; per-adversary tables for a malicious relay, network, sharee, malicious page, stolen device, malware (explicitly out of scope with reasoning), supply chain and hostile extensions, each with SPEC-linked mitigations and residual risk.",
+      "commit_sha": "05bfd513e568179a12e0341a266bf8537e305799"
     },
     {
       "n": 8,
-      "title": "Preview dashboard",
+      "title": "THREAT_MODEL part 2: mappings and open risks",
       "state": "done",
-      "summary": "pnpm workspace + tools/preview (Vite 8 + TypeScript, no framework, no runtime network requests): status.schema.json, strict validation on build, light/dark page with progress bar, checklist, check chips, commit timeline, screenshot gallery with lightbox, try-it cards with copy buttons and a risks table. pnpm preview / preview:update / shot / build all work; lint (tsc + eslint) and 19 Vitest tests pass.",
-      "commit_sha": null
+      "summary": "The four ETH Zurich 2026 malicious-server classes and the DEF CON 33 DOM clickjacking attack mapped to concrete controls; a 17-row open-risk register (R-0001…R-0112) with severity, status and what closes each; Phase 0 appendix restored.",
+      "commit_sha": "03c51e6f4d930ab13bc59973b47c5bb869f42b84"
     },
     {
       "n": 9,
-      "title": "Dashboard screenshots",
+      "title": "Decisions: PROPOSED entries for every gap",
       "state": "done",
-      "summary": "Dashboard served at http://localhost:4400; light and dark screenshots captured at desktop (1440 px) and narrow (390 px) widths into docs/screenshots/phase-00/ and added to the gallery; self-critique written in docs/PROGRESS.md.",
-      "commit_sha": null
+      "summary": "16 PROPOSED decisions (D-0101…D-0116) covering the Secret Key length, OPAQUE KSF, derived wrapping keys, bundle head pins, X25519-only HPKE, domain separation, enrolment proof, per-object salts, ids, limits, compaction, logout, enumeration, folder layout, the Shamir crate and scoring rules.",
+      "commit_sha": "a9ed28aaf29ff78c89f612c93a58daf7a4af37c6"
     },
     {
       "n": 10,
-      "title": "Self-attack review",
+      "title": "Diagrams: key hierarchy and trust boundary",
       "state": "done",
-      "summary": "14 concrete attack vectors against what Phase 0 ships, recorded in docs/THREAT_MODEL.md. 10 are blocked mechanically with tests that fail the build if the protection is removed (XSS sinks, path traversal, install scripts, floating action tags, pull_request_target, loopback binds, unwrap/panic bans); R-0001 (CodeQL on a private repo) is open with issue #23; R-0002..R-0004 are accepted low risks. Added relay bind-address test and a 9-test repository-policy suite.",
-      "commit_sha": null
+      "summary": "Two hand-written SVGs (key hierarchy, relay trust boundary) with dark panels that read on both themes; embedded in SPEC §3.2 and §4.11; XML validated.",
+      "commit_sha": "16db97b3a331683ddfa4e49939a599571cfd73ac"
     },
     {
       "n": 11,
-      "title": "Progress and logs",
+      "title": "Preview Docs tab with TOC, tests and screenshots",
       "state": "done",
-      "summary": "docs/PROGRESS.md now has the full Phase 0 entry: what changed, exact commands to try it, the check results table, known gaps and two open questions for the founder. Notion phase summary and test-run rows written; phase status set to In review.",
+      "summary": "Safe Markdown parser + DOM renderer (no innerHTML), docs view with contents, Status/Docs tabs with hash routing, ?scroll deep links; 43 tests pass; light/dark desktop and narrow screenshots.",
       "commit_sha": null
     },
     {
       "n": 12,
-      "title": "Final PR",
+      "title": "Self-attack review, PROGRESS entry and PR",
       "state": "done",
-      "summary": "Opened PR #26 against main (Closes #6, review requested from @lnstudge, Notion link in the body, screenshots embedded). Commented on issue #6. Not merged - the founder reviews and merges.",
+      "summary": "Attacked the design itself: 15 vectors, 10 blocked by named clauses, 5 recorded (R-0106 freeze, R-0113 read-only membership, R-0114 field labels, R-0115 enrolment intent, plus R-0104). Fixes written into SPEC §5.6, §6.9, §9.1; risks filed as issues #32–#34; PROGRESS.md entry; PR #35 closes #7.",
       "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
-    "tests": {
-      "passed": 3,
-      "failed": 0,
-      "ignored": 0
-    },
+    "tests": { "passed": 3, "failed": 0, "ignored": 0 },
     "deny": "pass",
-    "updated_at": "2026-11-04T19:00:53Z"
+    "updated_at": "2026-11-04T19:39:41Z"
   },
-  "commits": [
-    {
-      "sha": "13a26e249ccb88d7697648165a22e1059492d185",
-      "message": "chore(preview): add Phase 0 plan and status checklist",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/13a26e249ccb88d7697648165a22e1059492d185"
-    },
-    {
-      "sha": "ae7b9329bd05d9db538ecef8784885802c08e296",
-      "message": "chore(notion): create Build Log with six databases and back-fill Phase 0 log",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/ae7b9329bd05d9db538ecef8784885802c08e296"
-    },
-    {
-      "sha": "2e4332cbe300b7ce0a57526f423c6ae4b26ec1ac",
-      "message": "chore(github): record phase issue links in preview status",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/2e4332cbe300b7ce0a57526f423c6ae4b26ec1ac"
-    },
-    {
-      "sha": "b9202765974892aa77bcca4fd7dc421634abfb13",
-      "message": "chore(repo): add licences, project docs and toolchain configuration",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/b9202765974892aa77bcca4fd7dc421634abfb13"
-    },
-    {
-      "sha": "55bb359f592542ed80d73152ed407d379a533aea",
-      "message": "feat(workspace): scaffold core, core-wasm, relay, cli and test-harness",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/55bb359f592542ed80d73152ed407d379a533aea"
-    },
-    {
-      "sha": "90b6d0f3a6ce7297b41e57488c6f28b25eeb8400",
-      "message": "ci: add workflows, secret scanning, CodeQL and dependabot",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/90b6d0f3a6ce7297b41e57488c6f28b25eeb8400"
-    },
-    {
-      "sha": "f6020e1dea124f975084027ceec8c06ecf74ca72",
-      "message": "fix(ci): pass the toolchain input explicitly to dtolnay/rust-toolchain",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/f6020e1dea124f975084027ceec8c06ecf74ca72"
-    },
-    {
-      "sha": "1d0f2dbe050fdc78e9cbb54fa78195b673c65d94",
-      "message": "docs(preview): record full check suite results and try-it commands",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/1d0f2dbe050fdc78e9cbb54fa78195b673c65d94"
-    },
-    {
-      "sha": "848f4cc8ad8e1cff8cf54ce1eb6a3d5fe702e40e",
-      "message": "feat(preview): add the dev-preview dashboard package",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/848f4cc8ad8e1cff8cf54ce1eb6a3d5fe702e40e"
-    },
-    {
-      "sha": "af52c695fde71a0384c24da6dfa055026a31a1a0",
-      "message": "docs(preview): add light/dark desktop and narrow dashboard screenshots",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/af52c695fde71a0384c24da6dfa055026a31a1a0"
-    },
-    {
-      "sha": "46dbb4b1ab97250773011e15311707aa77bfad5c",
-      "message": "ci: gate CodeQL on public repositories and record the gap",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/46dbb4b1ab97250773011e15311707aa77bfad5c"
-    },
-    {
-      "sha": "daaa25a652226f4c376c0907c533bd122ebc093a",
-      "message": "security: add self-attack review, policy tests and loopback bind guard",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/daaa25a652226f4c376c0907c533bd122ebc093a"
-    },
-    {
-      "sha": "9abb74c8f7826cfc7d1fa8ba273eef4970f45bda",
-      "message": "ci(security): add pnpm audit job and record R-0005",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/9abb74c8f7826cfc7d1fa8ba273eef4970f45bda"
-    },
-    {
-      "sha": "53143f82cfae9a3dacc812a9123e06c1e0c1d01f",
-      "message": "docs(progress): write the Phase 0 entry",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/53143f82cfae9a3dacc812a9123e06c1e0c1d01f"
-    },
-    {
-      "sha": "c8baf5999873a11b04aaf1da48cf94a6f6cf3817",
-      "message": "docs(preview): refresh dashboard data, screenshots and self-critique",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/c8baf5999873a11b04aaf1da48cf94a6f6cf3817"
-    },
-    {
-      "sha": "7aade7ed97bbad8e35fb64f7e0af1a220edc384f",
-      "message": "docs(preview): record the Phase 0 pull request",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/7aade7ed97bbad8e35fb64f7e0af1a220edc384f"
-    },
-    {
-      "sha": "4771db737e9e3a7e6b3426070dbedcfc509c1b36",
-      "message": "ci(security): grant gitleaks pull-requests read so PR scans work",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/4771db737e9e3a7e6b3426070dbedcfc509c1b36"
-    }
-  ],
+  "commits": [],
   "screenshots": [
-    {
-      "path": "screenshots/phase-00/step-09-preview-light.png",
-      "caption": "Dev-preview dashboard, light theme, desktop (1440 px)"
-    },
-    {
-      "path": "screenshots/phase-00/step-09-preview-dark.png",
-      "caption": "Dev-preview dashboard, dark theme, desktop (1440 px)"
-    },
-    {
-      "path": "screenshots/phase-00/step-09-preview-narrow-light.png",
-      "caption": "Dev-preview dashboard, light theme, narrow (390 px)"
-    },
-    {
-      "path": "screenshots/phase-00/step-09-preview-narrow-dark.png",
-      "caption": "Dev-preview dashboard, dark theme, narrow (390 px)"
-    }
+    { "path": "screenshots/phase-01/step-11-docs-spec-light.png", "caption": "Docs tab — specification, light, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-spec-dark.png", "caption": "Docs tab — specification, dark, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-threat-light.png", "caption": "Docs tab — threat model, light, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-threat-dark.png", "caption": "Docs tab — threat model, dark, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-narrow-light.png", "caption": "Docs tab — narrow 390 px, light" },
+    { "path": "screenshots/phase-01/step-11-docs-narrow-dark.png", "caption": "Docs tab — narrow 390 px, dark" },
+    { "path": "screenshots/phase-01/step-11-diagram-light.png", "caption": "Trust-boundary diagram in §3.2, light" },
+    { "path": "screenshots/phase-01/step-11-diagram-dark.png", "caption": "Trust-boundary diagram in §3.2, dark" },
+    { "path": "screenshots/phase-01/step-11-table-light.png", "caption": "Adversary table rendering, light" },
+    { "path": "screenshots/phase-01/step-11-table-dark.png", "caption": "Adversary table rendering, dark" }
   ],
   "try_it": [
-    {
-      "label": "Build everything",
-      "command_or_url": ".\\x.ps1 cargo build --all"
-    },
-    {
-      "label": "Run all tests",
-      "command_or_url": ".\\x.ps1 cargo test --all"
-    },
-    {
-      "label": "Relay health endpoint",
-      "command_or_url": ".\\x.ps1 cargo run -p studge-relay   then open http://127.0.0.1:8787/health"
-    },
-    {
-      "label": "CLI version",
-      "command_or_url": ".\\x.ps1 cargo run -p studge -- --version"
-    },
-    {
-      "label": "Golden path checks",
-      "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\""
-    }
+    { "label": "Read the specification in the preview", "command_or_url": "http://localhost:4400/#docs/spec" },
+    { "label": "Read the threat model in the preview", "command_or_url": "http://localhost:4400/#docs/threat-model" },
+    { "label": "Open the dashboard", "command_or_url": ".\\x.ps1 \"pnpm install && pnpm preview\"  then http://localhost:4400" },
+    { "label": "Read the raw documents", "command_or_url": "docs/SPEC.md and docs/THREAT_MODEL.md" },
+    { "label": "Build checks (unchanged Rust)", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
+    { "label": "Preview tests", "command_or_url": ".\\x.ps1 \"pnpm -r lint && pnpm -r test\"" }
   ],
   "risks": [
-    {
-      "title": "R-0001 — CodeQL code scanning is skipped while the repository is private (needs GitHub Advanced Security); gitleaks, cargo-deny, cargo-audit and clippy still run (issue #23)",
-      "severity": "medium",
-      "status": "open"
-    },
-    {
-      "title": "R-0002 — Link targets in status.json are trusted from the repository; a malicious PR could point a card at a phishing page (mitigated by PR review)",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0003 — The local preview dev server needs style-src 'unsafe-inline' for Vite hot reload; loopback-only, no third-party data, must not be copied into product UI",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0004 — gitleaks can miss novel secret formats; mitigated by a manual staged-diff scan before every commit",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0005 — minimatch advisory (GHSA-g3hv-75wg-m249, moderate DoS) in the dev-only ESLint toolchain; never shipped, CI fails on high/critical via pnpm audit --audit-level high",
-      "severity": "low",
-      "status": "accepted"
-    }
+    { "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)", "severity": "medium", "status": "open" },
+    { "title": "R-0002 — Link targets in status.json are trusted from the repository (PR review)", "severity": "low", "status": "accepted" },
+    { "title": "R-0003 — Preview dev server needs style-src 'unsafe-inline' for Vite HMR (loopback only)", "severity": "low", "status": "accepted" },
+    { "title": "R-0004 — gitleaks can miss novel secret formats (manual diff scan)", "severity": "low", "status": "accepted" },
+    { "title": "R-0005 — minimatch advisory in dev-only ESLint tooling", "severity": "low", "status": "accepted" },
+    { "title": "R-0101 — The relay learns metadata: ids, sizes, counts, timing, IP", "severity": "low", "status": "accepted" },
+    { "title": "R-0102 — A device with no pinned head can be rolled back before first verification (TOFU)", "severity": "medium", "status": "accepted" },
+    { "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce", "severity": "low", "status": "accepted" },
+    { "title": "R-0104 — Key substitution on first contact before a safety code is verified", "severity": "medium", "status": "accepted" },
+    { "title": "R-0105 — A removed member keeps history they already saw; rotation protects future data only", "severity": "medium", "status": "accepted" },
+    { "title": "R-0106 — A malicious relay can withhold ops; clients detect but cannot obtain them", "severity": "low", "status": "accepted" },
+    { "title": "R-0107 — Device revocation is time-based; clock skew allows ops just before revoked_at", "severity": "low", "status": "accepted" },
+    { "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing", "severity": "medium", "status": "accepted" },
+    { "title": "R-0109 — The printed recovery kit can be photographed or stolen", "severity": "medium", "status": "accepted" },
+    { "title": "R-0110 — Key-transparency log is run by the untrusted relay; a split view is possible", "severity": "medium", "status": "open" },
+    { "title": "R-0111 — The 72-hour recovery window is enforced by the relay", "severity": "low", "status": "open" },
+    { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" },
+    { "title": "R-0113 — v1 membership is write-or-nothing: a 'view only' share cannot be enforced (issue #32, D-0117)", "severity": "medium", "status": "open" },
+    { "title": "R-0114 — A malicious member can use look-alike field names to phish another member (issue #33)", "severity": "low", "status": "open" },
+    { "title": "R-0115 — Device enrolment relies on user intent; show name and fingerprint (issue #34)", "severity": "medium", "status": "open" },
+    { "title": "R-0116 — Vault-key wrapping is X25519-only; Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate", "severity": "low", "status": "open" }
   ],
   "links": [
-    {
-      "label": "GitHub repository",
-      "url": "https://github.com/lnstudge/Studge-Pass"
-    },
-    {
-      "label": "AGENTS.md (rulebook)",
-      "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md"
-    },
-    {
-      "label": "Phase 0 master prompt",
-      "url": "/planning/prompts/00-master-setup.md"
-    },
-    {
-      "label": "Notion: Build Log",
-      "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
-    },
-    {
-      "label": "Notion: Start here",
-      "url": "https://app.notion.com/p/Start-here-40eadee2a71081dcb863fabad47de14d"
-    },
-    {
-      "label": "Notion: Phase 0 row",
-      "url": "https://app.notion.com/p/Phase-0-Repository-setup-rules-and-preview-dashboard-40eadee2a7108199b175c56b9c9ddf88"
-    },
-    {
-      "label": "GitHub issue #6 (Phase 0)",
-      "url": "https://github.com/lnstudge/Studge-Pass/issues/6"
-    },
-    {
-      "label": "Phase 0 pull request #26",
-      "url": "https://github.com/lnstudge/Studge-Pass/pull/26"
-    }
+    { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
+    { "label": "AGENTS.md (rulebook)", "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md" },
+    { "label": "docs/SPEC.md", "url": "/SPEC.md" },
+    { "label": "docs/THREAT_MODEL.md", "url": "/THREAT_MODEL.md" },
+    { "label": "GitHub issue #7 (Phase 1)", "url": "https://github.com/lnstudge/Studge-Pass/issues/7" },
+    { "label": "Phase 1 pull request #35", "url": "https://github.com/lnstudge/Studge-Pass/pull/35" },    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
+    { "label": "Notion: Phase 1 row", "url": "https://app.notion.com/p/40eadee2a7108149b520ff975d01de12" }
   ]
 }

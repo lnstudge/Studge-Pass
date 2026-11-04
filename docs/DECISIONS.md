@@ -14,7 +14,7 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
   machine build against, and it keeps security updates small and reviewable.
   AGENTS.md requires committed lockfiles. Exact `=` pins would make every
   transitive update a manual edit.
-- **Status:** Proposed
+- **Status:** Approved by founder
 
 ## D-0002 — Phase 0 relay scope: axum + tokio only
 
@@ -25,7 +25,7 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
 - **Reason:** Phase 0 must stay minimal. Pulling a database layer and its
   dependency tree in early adds supply-chain surface with zero behaviour behind
   it.
-- **Status:** Proposed
+- **Status:** Approved by founder
 
 ## D-0003 — Preview dashboard: Vite + TypeScript, no framework, no runtime network
 
@@ -36,7 +36,7 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
   validated against `tools/preview/status.schema.json` at build time.
 - **Reason:** the dashboard is a status page. The smallest dependency surface is
   the easiest to keep secure and fast, and the schema keeps the page honest.
-- **Status:** Proposed
+- **Status:** Approved by founder
 
 ## D-0004 — CI: pinned actions, read-only permissions, both operating systems
 
@@ -47,7 +47,7 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
   ubuntu-latest + windows-latest test matrix.
 - **Reason:** AGENTS.md supply-chain bar — least privilege, and no mutable
   references in CI that a compromised upstream tag could redirect.
-- **Status:** Proposed
+- **Status:** Approved by founder
 
 ## D-0005 — CodeQL is gated on public repositories
 
@@ -61,4 +61,187 @@ request) or **Rejected**. Mirrored in the Notion Decisions database.
   and trains reviewers to ignore failures. The analysis itself worked (12 Rust
   files extracted, 0 extraction errors) — only the upload is unavailable. The
   gap is recorded as R-0001 in docs/THREAT_MODEL.md.
-- **Status:** Proposed
+- **Status:** Approved by founder
+
+## Phase 1 proposals (D-0101 … D-0116)
+
+These fill details the Phase 1 brief left open. Each one is **PROPOSED**: the
+SPEC is written as if it were adopted, and the founder can change any of them
+before Phase 2 starts. The ten that matter most are listed at the end of the
+Phase 1 PR description.
+
+## D-0101 — The Secret Key is 128 bits with a 27-character display
+
+- **Options:** (a) 128 bits in 26 characters (130 bits, 2 pad bits) with no
+  checksum; (b) 128 bits in a 27-character display (26 data + 1 check); (c) 125
+  bits in the brief's exact 26-character format (25 data + 1 check).
+- **Choice:** **(b)** — a full 128-bit key printed as
+  `SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX`: 26 key characters (130 bits, the top
+  two fixed to zero) followed by a 5-bit check character.
+- **Reason:** the founder chose the full 128 bits. The extra character buys back
+  the missing three bits and keeps a real typo check. 125 bits would also have
+  been safe, but 128 is what the brief asked for.
+- **Affects:** SPEC §4.2, §4.3, `docs/diagrams/key-hierarchy.svg`. **Status:** Approved by founder.
+
+## D-0102 — OPAQUE uses the identity KSF
+
+- **Options:** Argon2id KSF inside OPAQUE with the §4.3 parameters; identity KSF.
+- **Choice:** identity KSF.
+- **Reason:** the OPAQUE password input is already a uniform 256-bit HKDF output
+  (`auth_secret`); stretching it again costs unlock time without adding entropy.
+  The one place stretching matters — a human password — is §4.3.
+- **Affects:** SPEC §4.4. **Status:** Approved by founder.
+
+## D-0103 — The Account Key is wrapped under a derived key, not the MUK itself
+
+- **Options:** `AEAD(MUK, AK)` literally as the brief writes it; derive
+  `k_ak = HKDF(MUK, "studge/v1/ak-wrap")` first.
+- **Choice:** derived key.
+- **Reason:** AGENTS.md rule 3 requires purpose-specific sub-keys, and using one
+  key for both OPAQUE derivation and AEAD is key reuse. The brief's notation
+  reads as shorthand.
+- **Affects:** SPEC §4.5. **Status:** Approved by founder.
+
+## D-0104 — Head pins are stored in the encrypted key bundle as a hint
+
+- **Options:** pins only on the device that verified them; also in the bundle.
+- **Choice:** both; the bundle copy is a hint, never the sole anchor.
+- **Reason:** a brand-new device otherwise has no anchor at all. The bundle copy
+  narrows the rollback window to the first fetch. It does not remove trust on
+  first use (R-0102).
+- **Affects:** SPEC §4.5, §6.9. **Status:** Approved by founder.
+
+## D-0105 — Sharing uses X25519-only HPKE in v1; the ML-KEM key is stored now
+
+- **Options:** wait for a maintained hybrid X25519+ML-KEM-768 HPKE crate; ship
+  X25519 now with the post-quantum identity key already in the account.
+- **Choice:** X25519 now; generate and store the ML-KEM-768 identity key;
+  **Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate and
+  switch if one exists.**
+- **Reason:** no maintained crate offers the hybrid KEM cleanly today, and
+  composing it by hand is forbidden. Storing the PQ key now avoids a key
+  directory migration for every account later. The founder approved the X25519
+  v1 on the Phase 11 re-check condition.
+- **Affects:** SPEC §4.6, §9.2; THREAT_MODEL R-0116. **Status:** Approved by founder.
+
+## D-0106 — Certificates and revocations carry `suite` and `type`
+
+- **Options:** sign exactly the brief's field list; add `suite` and `type`.
+- **Choice:** add both fields before signing.
+- **Reason:** the same identity key signs certificates, revocations and
+  transparency entries; without a type field a signature could be replayed in
+  another role.
+- **Affects:** SPEC §4.7, §4.8. **Status:** Approved by founder.
+
+## D-0107 — Device enrolment requires a possession proof
+
+- **Options:** certify whatever public key the approving device is shown;
+  require the new device to sign a single-use nonce.
+- **Choice:** signed nonce proof.
+- **Reason:** a swapped QR code or a typo must not be enough to enrol a key the
+  new device does not hold — that would create either a dead device or one an
+  attacker controls.
+- **Affects:** SPEC §4.7. **Status:** Approved by founder.
+
+## D-0108 — Wrapping keys are salted with the object id
+
+- **Options:** one `vk-wrap`/`ik-wrap` key for every object; salt with `vault_id`
+  and `item_id`.
+- **Choice:** per-object salt.
+- **Reason:** every vault and item gets an independent wrapping key, so a nonce
+  collision or a leaked key in one object cannot spread. It costs nothing.
+- **Affects:** SPEC §4.9, §4.10. **Status:** Approved by founder.
+
+## D-0109 — Vaults and items use random UUIDv4 identifiers
+
+- **Options:** derive ids from content; random UUIDv4.
+- **Choice:** random UUIDv4 (`vault_id`, `item_id`, `op_id`).
+- **Reason:** the brief fixes account and device ids only. Random ids avoid
+  leaking structure (a content hash would reveal equality across vaults) and
+  avoid collisions between devices creating items offline.
+- **Affects:** SPEC §4.1. **Status:** Approved by founder.
+
+## D-0110 — Concrete size limits and quotas
+
+- **Options:** leave them to each implementation; fix numbers in the spec.
+- **Choice:** the table in SPEC §7.7 (1 MiB payload, 100 vaults, 250k ops per
+  vault, **100 MiB of vault data per account on the free hosted relay**, 1 GiB
+  once attachments ship, self-hosters may raise it, 8 MiB request, rate limits).
+- **Reason:** every limit is a DoS and cost control; concrete numbers make Phase
+  4 testable and can be raised later without a protocol change, because they are
+  server policy, not cryptography.
+- **Affects:** SPEC §5.6, §7.7. **Status:** Approved by founder.
+
+## D-0111 — No snapshots or compaction in v1
+
+- **Options:** add a snapshot op kind now; keep every op forever.
+- **Choice:** full history; compaction deferred to a later schema version.
+- **Reason:** snapshots add a second way to reconstruct state and a second way
+  to get it wrong. Quotas bound growth, and clients may cache materialised
+  state locally.
+- **Affects:** SPEC §6.10. **Status:** Approved by founder.
+
+## D-0112 — Add `DELETE /v1/sessions/current`
+
+- **Options:** rely on 24-hour expiry; add an explicit logout endpoint.
+- **Choice:** add the endpoint.
+- **Reason:** “log out this device” is a user expectation, and a bearer token is
+  otherwise valid until it expires.
+- **Affects:** SPEC §7.3, §7.4. **Status:** Approved by founder.
+
+## D-0113 — Dummy OPAQUE flow for unknown accounts
+
+- **Options:** answer early for an unknown `account_id`; run a dummy exchange.
+- **Choice:** dummy exchange with a random secret.
+- **Reason:** it removes an account-enumeration timing oracle, and it is cheap
+  because the KSF is the identity function (D-0102).
+- **Affects:** SPEC §7.3. **Status:** Approved by founder.
+
+## D-0114 — Folder transport layout
+
+- **Options:** one file per vault; one file per op.
+- **Choice:** one file per op named by hash, plus `account.cbor`, `devices.cbor`,
+  `head.cbor` and a lock file; atomic rename on write.
+- **Reason:** append-only even on a synced folder, and a truncated write is
+  detectable by hash. One file per op avoids whole-vault rewrites and sync
+  conflicts between devices.
+- **Affects:** SPEC §7.10. **Status:** Approved by founder.
+
+## D-0115 — Recovery uses replicated 2-of-3 XOR sharing, no new crate
+
+- **Options:** `sharks`; `vsss-rs`; a 2-of-3 XOR construction from approved
+  primitives.
+- **Choice:** **(c)** — replicated XOR sharing. Two random 32-byte pads `R1` and
+  `R2`; `R3 = R1 ⊕ R2 ⊕ S`; guardian *i* holds pads *i* and *i+1*; any two
+  guardians therefore hold all three pads. Each 64-byte share is HPKE-sealed
+  with AAD binding `account_id`, `guardian_id` and `share_index`.
+- **Reason:** the founder chose a textbook construction from `OsRng` and XOR. It
+  is information-theoretically 2-of-3, needs no third-party crate, and is fully
+  specified in SPEC §10.2. Phase 12 writes the test vectors (fixed `S`, `R1`,
+  `R2`, the expected shares and all three reconstruction pairs).
+- **Affects:** SPEC §10.2. **Status:** Approved by founder.
+
+## D-0116 — Scoring: one class per item, explicit empty-vault state
+
+- **Options:** let an item count in several classes; decide what an empty vault
+  scores.
+- **Choice:** highest weight wins; an empty vault shows “nothing to score yet”
+  with value 100 rather than a bare perfect score.
+- **Reason:** deterministic and explainable to a non-expert; a 0 for an empty
+  vault would look like a failure and a bare 100 like a claim.
+- **Affects:** SPEC §8. **Status:** Approved by founder.
+
+## D-0117 — v1 membership is write-or-nothing
+
+- **Options:** add signed capabilities now so a member can hold read-only
+  access; ship sharing where every member can write, and say so; postpone
+  sharing entirely.
+- **Choice:** write-or-nothing in v1, **and Phase 11 must add owner-signed
+  capabilities so view-only sharing can be enforced** (issue #18). The UI must
+  not offer “view only” until then.
+- **Reason:** the relay cannot enforce roles, and peers accept any op signed by a
+  certified member device. Without a capability the owner signs, “read-only” is
+  a promise the protocol cannot keep — exactly the kind of unbacked security
+  claim AGENTS.md forbids. Approved on the condition that Phase 11 adds the
+  capabilities. Recorded as R-0113.
+- **Affects:** SPEC §9.1; THREAT_MODEL R-0113; issue #18. **Status:** Approved by founder.

@@ -117,3 +117,85 @@ Against the AGENTS.md design bar, honestly:
    secret scanning at no cost, and the project is meant to be open source.
 2. Phase 1 (spec + threat model) writes `docs/SPEC.md` in full; the current
    headings are placeholders.
+
+## Phase 1 — Protocol specification and threat model
+
+- **Status:** In review
+- **Branch:** `phase-01-spec` · **Issue:** #7 · **Milestone:** Phase 1
+- **Dates:** 2026-11-05
+
+### What changed
+
+- **docs/SPEC.md** (new, ~8,600 words — roughly 17 printed pages) — eleven
+  sections: purpose and goals, terminology, trust model, identities and key
+  hierarchy, encryption format, operation log, relay API, health scoring,
+  sharing, recovery, and the crypto inventory. Every detail the brief left open
+  is written as **PROPOSED** and listed as D-0101…D-0117.
+- **docs/THREAT_MODEL.md** — adversaries A1–A8 (assets, attacks, mitigations with
+  SPEC links, residual risk), the ETH Zurich 2026 malicious-server classes, the
+  DEF CON 33 DOM clickjacking mapping, a risk register (R-0001…R-0115) and the
+  Phase 1 design self-attack table.
+- **docs/DECISIONS.md** — D-0101…D-0117, all **Approved by founder**. The five
+  that changed on review: D-0101 (full 128-bit key, 27-character display),
+  D-0105 (X25519 now, Phase 11 re-checks for hybrid HPKE/X-Wing), D-0110
+  (100 MiB free vault quota), D-0115 (replicated 2-of-3 XOR sharing, no crate),
+  D-0117 (write-or-nothing now; Phase 11 must add owner-signed capabilities).
+- **docs/diagrams/** — `key-hierarchy.svg` and `relay-trust-boundary.svg`,
+  embedded in SPEC §3.2 and §4.11.
+- **tools/preview** — a Docs tab: strict Markdown parser plus DOM renderer (no
+  `innerHTML`), table of contents, Status/Docs tabs with hash routing,
+  `?scroll=` deep links, 15 new tests (43 total).
+- **Notion / GitHub** — both Phase 1 prompts archived word for word
+  (SHA-verified), one execution row per step, 16 decisions mirrored, findings
+  filed as issues #32–#34.
+
+### How to try it
+
+```powershell
+.\x.ps1 "pnpm install && pnpm preview"
+# then http://localhost:4400/#docs/spec and http://localhost:4400/#docs/threat-model
+```
+
+Or read `docs/SPEC.md` and `docs/THREAT_MODEL.md` directly; the diagrams render
+in both files and in the preview.
+
+### Test results (2026-11-04, through `.\x.ps1`)
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt` / `clippy` / `test --all` / `deny check` | pass; 3 tests; advisories, bans, licenses, sources ok |
+| `pnpm -r lint` | pass |
+| `pnpm -r test` | 43 passed (16 lib, 15 markdown, 3 static scan, 9 repo policy) |
+| Renderer security | `javascript:`, `data:`, `file:` and `mailto:` links rejected; remote images rejected; no HTML sinks (static scan) |
+
+No product code changed in this phase.
+
+### Known gaps and open questions
+
+- Open risks: R-0113 read-only membership (D-0117), R-0114 look-alike field
+  names, R-0115 enrolment intent, R-0110 transparency split view, R-0111
+  recovery window. Each has an issue or a decision reference.
+- 17 decisions need the founder's review; the ten most important are in the PR.
+- D-0115 is resolved: recovery uses replicated 2-of-3 XOR sharing built from
+  `OsRng` and XOR only; Phase 12 writes the known-answer vectors.
+- Two Phase 11 obligations are now recorded: owner-signed capabilities for
+  view-only sharing (#18), and a re-check for a maintained hybrid HPKE / X-Wing
+  crate (R-0116).
+- The preview server caches its static file list at startup: after adding files
+  under `docs/` (screenshots, diagrams), restart `pnpm preview`.
+- SPEC is ~17 printed pages against the 8–15 target; the tables and normative
+  lists account for the difference. Happy to trim if you prefer.
+
+### Open questions for the founder
+
+None blocking. All 22 decisions are approved; Phase 1 is ready to merge and
+Phase 2 can start on merge.
+
+### Follow-ups (outside this phase's scope)
+
+- **CI does not run the preview's TypeScript checks yet.** `ci.yml` covers Rust
+  only, so `pnpm -r lint` and `pnpm -r test` ran locally. Add a `preview` job
+  (`pnpm install --frozen-lockfile`, lint, test) at the start of Phase 2.
+- `tools/preview` still needs a restart after files are added under `docs/`
+  (the static file list is cached at startup).
+- A Storybook and the design-token package arrive in Phase 6b, per the plan.

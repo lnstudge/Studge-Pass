@@ -1,4 +1,5 @@
 import statusJson from "../../../docs/preview/status.json";
+import { buildDocView, isDocKey, type DocKey } from "./docs";
 import "./styles.css";
 import {
   checkLabel,
@@ -362,6 +363,96 @@ function createLightbox(): { open: (shot: Screenshot, trigger: HTMLElement) => v
   };
 }
 
+type TabKey = "status" | "docs";
+
+function buildTabs(onSelect: (tab: TabKey) => void): {
+  root: HTMLElement;
+  buttons: Record<TabKey, HTMLButtonElement>;
+} {
+  const root = el("div", "tabs");
+  root.setAttribute("role", "tablist");
+  root.setAttribute("aria-label", "Views");
+
+  const create = (key: TabKey, label: string): HTMLButtonElement => {
+    const button = el("button", "tab", label);
+    button.type = "button";
+    button.id = `tab-${key}`;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", `panel-${key}`);
+    button.setAttribute("aria-selected", "false");
+    button.tabIndex = -1;
+    button.addEventListener("click", () => onSelect(key));
+    return button;
+  };
+
+  const statusTab = create("status", "Status");
+  const docsTab = create("docs", "Docs");
+  root.append(statusTab, docsTab);
+
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const next = document.activeElement === statusTab ? docsTab : statusTab;
+    next.focus();
+    event.preventDefault();
+  });
+
+  return { root, buttons: { status: statusTab, docs: docsTab } };
+}
+
+function buildDocsPanel(): { root: HTMLElement; select: (key: DocKey) => void } {
+  const root = el("section", "panel docs-panel");
+  root.id = "panel-docs";
+  root.setAttribute("role", "tabpanel");
+  root.setAttribute("aria-labelledby", "tab-docs");
+  root.hidden = true;
+
+  const switcher = el("div", "doc-switch");
+  switcher.setAttribute("role", "group");
+  switcher.setAttribute("aria-label", "Documents");
+
+  const container = el("div", "doc-container");
+  const buttons: HTMLButtonElement[] = [];
+  let current: DocKey | null = null;
+
+  const make = (key: DocKey, label: string): HTMLButtonElement => {
+    const button = el("button", "btn doc-choice", label);
+    button.type = "button";
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => select(key));
+    buttons.push(button);
+    return button;
+  };
+
+  const specButton = make("spec", "Specification");
+  const threatButton = make("threat-model", "Threat model");
+  switcher.append(specButton, threatButton);
+
+  const select = (key: DocKey): void => {
+    if (current !== key) {
+      current = key;
+      container.replaceChildren(buildDocView(key, document));
+    }
+    for (const button of buttons) {
+      const active = button === (key === "spec" ? specButton : threatButton);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.classList.toggle("active", active);
+    }
+  };
+
+  root.append(switcher, container);
+  return { root, select };
+}
+
+function parseHash(hash: string): { tab: TabKey; doc: DocKey } {
+  const value = hash.replace(/^#/, "");
+  if (value === "docs") return { tab: "docs", doc: "spec" };
+  if (value.startsWith("docs/")) {
+    const key = value.slice("docs/".length);
+    return { tab: "docs", doc: isDocKey(key) ? key : "spec" };
+  }
+  return { tab: "status", doc: "spec" };
+}
+
 function main(): void {
   const stored = localStorage.getItem(THEME_KEY);
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -380,8 +471,11 @@ function main(): void {
   main.id = "main";
   const lightbox = createLightbox();
 
-  main.append(
-    buildHero(),
+  const statusPanel = el("div", "panel");
+  statusPanel.id = "panel-status";
+  statusPanel.setAttribute("role", "tabpanel");
+  statusPanel.setAttribute("aria-labelledby", "tab-status");
+  statusPanel.append(
     buildSteps(),
     buildChecks(),
     buildCommits(),
@@ -391,16 +485,57 @@ function main(): void {
     buildLinks()
   );
 
+  const docsPanel = buildDocsPanel();
+
+  let select: (tab: TabKey, doc?: DocKey) => void = () => undefined;
+  const tabs = buildTabs((tab) => select(tab));
+
+  select = (tab: TabKey, doc: DocKey = "spec"): void => {
+    const isStatus = tab === "status";
+    tabs.buttons.status.setAttribute("aria-selected", String(isStatus));
+    tabs.buttons.docs.setAttribute("aria-selected", String(!isStatus));
+    tabs.buttons.status.tabIndex = isStatus ? 0 : -1;
+    tabs.buttons.docs.tabIndex = isStatus ? -1 : 0;
+    statusPanel.hidden = !isStatus;
+    docsPanel.root.hidden = isStatus;
+    if (!isStatus) docsPanel.select(doc);
+    const hash = isStatus
+      ? ""
+      : doc === "threat-model"
+        ? "#docs/threat-model"
+        : "#docs/spec";
+    history.replaceState(null, "", `${location.pathname}${location.search}${hash}`);
+  };
+
+  const applyHash = (): void => {
+    const parsed = parseHash(location.hash);
+    select(parsed.tab, parsed.doc);
+  };
+
+  window.addEventListener("hashchange", applyHash);
+
+  main.append(buildHero(), tabs.root, statusPanel, docsPanel.root);
+
   const footer = el("footer", "footer");
   footer.append(
     el(
       "p",
       "muted small",
-      `Generated from docs/preview/status.json · checks last run ${status.checks.updated_at}`
+      `Generated from docs/preview/status.json · documents from docs/SPEC.md and docs/THREAT_MODEL.md · checks last run ${status.checks.updated_at}`
     )
   );
 
   app.append(main, footer);
+  applyHash();
+
+  // ?scroll=<heading-id> deep-links into a document section (used by the
+  // screenshot helper and handy when sharing a link).
+  const scrollTarget = new URLSearchParams(location.search).get("scroll");
+  if (scrollTarget !== null) {
+    window.setTimeout(() => {
+      document.getElementById(scrollTarget)?.scrollIntoView({ block: "start" });
+    }, 80);
+  }
 }
 
 main();
