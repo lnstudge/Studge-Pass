@@ -44,14 +44,14 @@
     {
       "n": 6,
       "title": "CI workflows",
-      "state": "doing",
-      "summary": "ci.yml (fmt, clippy, test, deny on ubuntu, wasm build; ubuntu+windows matrix; actions pinned to full commit SHAs; contents: read), security.yml (gitleaks + weekly cargo audit), dependabot.yml, CodeQL.",
+      "state": "done",
+      "summary": "ci.yml (fmt, clippy, test, wasm build on ubuntu+windows; cargo deny on ubuntu; actions pinned to full commit SHAs; contents: read), security.yml (gitleaks on every push/PR, cargo-audit weekly), codeql.yml (JS/TS + Rust), dependabot.yml (cargo, npm, github-actions weekly). All four files validated as YAML.",
       "commit_sha": null
     },
     {
       "n": 7,
       "title": "Full check suite",
-      "state": "next",
+      "state": "doing",
       "summary": "Through .\\x.ps1: cargo fmt --check, clippy -D warnings, test --all, deny check, wasm build; live checks of relay /health and studge --version; results recorded here.",
       "commit_sha": null
     },
