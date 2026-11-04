@@ -699,4 +699,222 @@ add a second way to reconstruct history and a second way to get it wrong
 | Head size | 16 KiB |
 | `created_at` skew accepted | ±5 minutes |
 
+## 7. Relay API
+
+### 7.1 Transport profile
+
+- HTTPS (TLS 1.3 preferred, 1.2 minimum) for the hosted relay; a self-hosted
+  relay MAY run behind a reverse proxy that terminates TLS. Correctness never
+  depends on TLS (§3.1).
+- Control messages are JSON (`application/json; charset=utf-8`), parsed strictly
+  with unknown fields rejected. Ops and heads are CBOR
+  (`application/cbor`).
+- Authentication is a bearer token in `Authorization`; there are no cookies and
+  no CSRF surface.
+- Everything lives under `/v1`. A request to an unknown path, method or media
+  type is rejected with the generic error shape (§7.8).
+- Request bodies are capped at 8 MiB and every array has an explicit maximum
+  (§7.7).
+
+### 7.2 Registration (OPAQUE)
+
+Registration is a two-message OPAQUE flow (`opaque-ke`, ristretto255). The
+client generates `account_id`, `account_salt`, the AK and the identity keys
+before it starts; the relay never sees any of them in the clear.
+
+1. `POST /v1/register/start` with the OPAQUE `RegistrationRequest` for
+   `auth_secret` (§4.4). Response: the server's `RegistrationResponse`.
+2. `POST /v1/register/finish` with the OPAQUE `RegistrationUpload` and the
+   account record: `account_salt`, `kdf` parameters, AK envelope, key bundle,
+   identity public keys, the first device's certificate.
+
+The relay creates the account atomically and answers `201`. A duplicate
+`account_id` is `409`. Registration is rate-limited per IP; there is no account
+enumeration because the response shape is identical for “created” and “could
+not be created”.
+
+### 7.3 Login and session tokens
+
+1. `POST /v1/login/start` with `account_id`, `device_id` and the OPAQUE
+   `CredentialRequest`. Response: `CredentialResponse`.
+2. `POST /v1/login/finish` with the `CredentialFinalization`. Response:
+   `{token, expires_at}`.
+
+Token rules:
+
+- 256 random bits from `OsRng`, returned exactly once, never logged.
+- The relay stores only `SHA-256(token)` and compares in constant time.
+- Lifetime 24 hours; a new login replaces the previous token for that device.
+- Bound to `device_id`; a token for a revoked device is rejected and deleted.
+- `DELETE /v1/sessions/current` ends a session early. **PROPOSED** endpoint
+  (D-0112); without it, logout is only client-side.
+- Failed logins are counted per account and per IP; after the limits in §7.7 the
+  relay answers `429` or the generic `401`, never a message that distinguishes
+  “wrong password” from “no such account”. For an unknown account the relay runs
+  a dummy OPAQUE exchange with a random secret so timing does not reveal
+  existence. **PROPOSED** (D-0113).
+
+### 7.4 Endpoints
+
+| Method & path | Auth | Request | Response |
+| --- | --- | --- | --- |
+| `POST /v1/register/start` | — | `{account_id, registration_request}` | `{registration_response}` |
+| `POST /v1/register/finish` | — | `{account_id, registration_upload, account_record}` | `201 {account_id}` |
+| `POST /v1/login/start` | — | `{account_id, device_id, credential_request}` | `{credential_response}` |
+| `POST /v1/login/finish` | — | `{account_id, device_id, credential_finalization}` | `{token, expires_at}` |
+| `GET /v1/account` | token | — | account record (§7.5) |
+| `PUT /v1/account` | token | full account record + `If-Match: version` | `200` or `409` |
+| `POST /v1/devices` | token | `{certificate, device_pubkey, enrolment_proof}` | `201` |
+| `DELETE /v1/devices/:device_id` | token | `{revocation_record}` | `200` |
+| `POST /v1/vaults/:vault_id/ops` | token | CBOR array of ops (≤ 100) | `{accepted, rejected:[{op_id, reason}], head}` |
+| `GET /v1/vaults/:vault_id/ops?since=<cursor>&limit=<n>` | token | — | CBOR array + `next_cursor` header |
+| `GET /v1/vaults/:vault_id/head` | token | — | `{head, head_hash}` |
+| `PUT /v1/vaults/:vault_id/head` | token | head + `If-Match: <head_hash>` | `200` or `409` |
+| `DELETE /v1/account` | token | `{confirmation: "delete"}` | `202` |
+
+Semantics that matter:
+
+- **Ops are append-only.** The relay never updates or deletes an op except when
+  the whole account is deleted. `(vault_id, op_id)` is unique; re-sending the
+  same bytes is idempotent (`accepted`), re-sending different bytes under the
+  same `op_id` is `409`.
+- **Ordering.** `GET ops` returns ops in an order where every parent precedes its
+  children. The cursor is the last returned `op_hash`; a client that loses its
+  cursor re-fetches from the beginning and re-verifies — correctness never
+  depends on the cursor.
+- **Head compare-and-swap.** `PUT head` requires `If-Match` with the hash of the
+  head it replaces (`*` only for the first head). A mismatch is `409` and the
+  client re-reads the head. This is a lost-update guard, not a security control.
+- **Device removal** requires a signed revocation record (§4.8); the relay
+  verifies the record's structure and that the signer is the account identity
+  key, then marks the device revoked and deletes its sessions.
+- **Account deletion** is a two-step, async wipe: the account is tombstoned
+  immediately and all rows are deleted within 24 hours. Backups age out on the
+  operator's schedule.
+- Phase 11 adds the key-directory endpoints (`GET /v1/keys/:account_id`,
+  `POST /v1/keys`); they are not part of v1.
+
+### 7.5 Account record shape
+
+```cddl
+account_record = { "account_id": bstr .size 16,
+                   "account_salt": bstr .size 16,
+                   "kdf": { "version": 1, "m": uint, "t": uint, "p": uint },
+                   "ak_envelope": bstr,
+                   "bundle_envelope": bstr,
+                   "identity_keys": { "ed25519": bstr .size 32,
+                                      "x25519": bstr .size 32,
+                                      "mlkem768": bstr .size 1184 },
+                   "version": uint }
+```
+
+The relay stores this as opaque bytes with the JSON envelope around it. It MUST
+reject a record whose `account_salt` or `kdf` are outside the allowed ranges
+(§4.3) and whose `version` it does not implement.
+
+### 7.6 What the relay validates
+
+The relay validates **structure, sizes, authentication, quotas and rate limits**
+and nothing else:
+
+- media type, JSON/CBOR well-formedness, exact field sets, id lengths, enum
+  values, array bounds, integer ranges;
+- `parents` ≤ 16, sorted, no duplicates; `lamport` ≥ 1 and ≤ 2^63−1;
+- `created_at` parseable RFC 3339, within ±24 h of server time (clients apply the
+  stricter ±5 min rule where it matters, §6.11);
+- op bytes are stored exactly as received; the relay MUST NOT re-encode them;
+- token validity, device binding, revocation status;
+- quotas and rate limits.
+
+The relay does **not** verify op signatures, decrypt anything, or interpret
+payloads. Signature checking is the client's job and the client never trusts the
+relay's word for it.
+
+### 7.7 Quotas and rate limits
+
+| Limit | Value (PROPOSED, D-0110) |
+| --- | --- |
+| Vaults per account | 100 |
+| Ops per vault | 250,000 |
+| Op payload | 1 MiB |
+| Ops per push | 100 |
+| Stored bytes per account | 10 GiB |
+| Request body | 8 MiB |
+| Login attempts | 10/hour/account, 60/hour/IP |
+| Registrations | 5/hour/IP |
+| Op pushes | 60/minute/account |
+| Reads | 300/minute/account |
+
+Exceeding a quota is `413`/`429` with `Retry-After` where meaningful. Limits are
+enforced before any expensive work, and every limit is logged (without content)
+for abuse analysis.
+
+### 7.8 Error model
+
+```json
+{ "error": "invalid_request" }
+```
+
+Closed set of codes: `invalid_request`, `unauthorized`, `forbidden`,
+`not_found`, `conflict`, `too_large`, `quota_exceeded`, `rate_limited`,
+`unavailable`. No field explains *why* authentication failed, no account
+identifiers are echoed, no stack traces, no internal ids. `401` for both “bad
+token” and “unknown account”; `404` for both “no such vault” and “not yours”.
+
+### 7.9 Relay storage
+
+SQLite by default (Postgres optional), WAL mode, foreign keys on.
+
+| Table | Contents |
+| --- | --- |
+| `accounts` | account record bytes, version, created_at, quotas |
+| `devices` | account_id, device_id, public key, certificate bytes, created_at, revoked_at |
+| `vaults` | account_id, vault_id, head bytes, head_hash, op_count, lamport_max |
+| `ops` | vault_id, op_hash, op_id, lamport, parents, kind, item_id, device_id, created_at, raw bytes; unique `(vault_id, op_id)` |
+| `sessions` | token_hash, account_id, device_id, expires_at |
+| `kt_log` | key-transparency entries (Phase 11) |
+| `audit` | rate-limit and abuse counters, no content |
+
+Ops are never updated. Account deletion cascades. Every byte stored is either
+public metadata or ciphertext; a database dump reveals no secret (§3.2).
+
+### 7.10 Transports
+
+Core talks to storage through one trait; every implementation must pass the same
+contract tests (Phase 3 and Phase 5).
+
+| Transport | Where data lives | Notes |
+| --- | --- | --- |
+| `http` | the relay | §7.1–7.9; token auth; server-enforced quotas |
+| `folder` | any directory the OS syncs (OneDrive, iCloud Drive, Syncthing, a USB stick) | one file per op named by hash, atomic write (temp file + rename), advisory lock; no authentication — the folder's ACLs are the user's responsibility |
+| `memory` | process memory | tests and demos only |
+
+The folder layout (PROPOSED, D-0114):
+
+```
+<root>/account.cbor
+<root>/devices.cbor
+<root>/vaults/<vault_id>/ops/<op_hash>.cbor
+<root>/vaults/<vault_id>/head.cbor
+<root>/lock
+```
+
+A folder transport MUST detect edits the same way the HTTP client does:
+hashes, signatures and head descent. It MUST NOT trust file mtimes or names.
+
+### 7.11 What the relay must never receive
+
+The relay MUST NOT receive, store, log or derive: the master password, any
+password-equivalent hash, the Secret Key, the MUK, the auth secret, the Account
+Key in clear, any vault or item key, plaintext item data, or plaintext URLs.
+Any relay code path that would accept such a value is a defect (AGENTS.md rule 8).
+
+### 7.12 Relay threat notes
+
+A relay that follows this API can still: withhold ops (detected as a missing
+parent or a head that does not advance), serve an old head (detected by §6.9),
+correlate timing and sizes (R-0101), and deny service. It cannot read, forge,
+swap, reorder undetectably, or roll back a client that has a pin. The threat
+model (A1) works through the list.
+
 <!-- SPEC-END -->
