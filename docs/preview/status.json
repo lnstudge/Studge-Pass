@@ -86,8 +86,8 @@
     {
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "doing",
-      "summary": "Design-level attack review, GitHub issues, Notion risks, PROGRESS.md entry, final checks, PR closing #7, then the 10 decisions summary.",
+      "state": "done",
+      "summary": "Attacked the design itself: 15 vectors, 10 blocked by named clauses, 5 recorded (R-0106 freeze, R-0113 read-only membership, R-0114 field labels, R-0115 enrolment intent, plus R-0104). Fixes written into SPEC §5.6, §6.9, §9.1; risks filed as issues #32–#34; PROGRESS.md entry; PR closing #7.",
       "commit_sha": null
     }
   ],
@@ -96,7 +96,7 @@
     "clippy": "pass",
     "tests": { "passed": 3, "failed": 0, "ignored": 0 },
     "deny": "pass",
-    "updated_at": "2026-11-04T19:20:21Z"
+    "updated_at": "2026-11-04T19:39:41Z"
   },
   "commits": [],
   "screenshots": [
@@ -136,7 +136,10 @@
     { "title": "R-0109 — The printed recovery kit can be photographed or stolen", "severity": "medium", "status": "accepted" },
     { "title": "R-0110 — Key-transparency log is run by the untrusted relay; a split view is possible", "severity": "medium", "status": "open" },
     { "title": "R-0111 — The 72-hour recovery window is enforced by the relay", "severity": "low", "status": "open" },
-    { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" }
+    { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" },
+    { "title": "R-0113 — v1 membership is write-or-nothing: a 'view only' share cannot be enforced (issue #32, D-0117)", "severity": "medium", "status": "open" },
+    { "title": "R-0114 — A malicious member can use look-alike field names to phish another member (issue #33)", "severity": "low", "status": "open" },
+    { "title": "R-0115 — Device enrolment relies on user intent; show name and fingerprint (issue #34)", "severity": "medium", "status": "open" }
   ],
   "links": [
     { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
