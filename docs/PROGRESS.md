@@ -4,7 +4,7 @@ One entry per phase, newest last. The Notion Build Log mirrors this file.
 
 ## Phase 0 — Repository setup, rules and preview dashboard
 
-- **Status:** In review
+- **Status:** Merged (PR #26)
 - **Branch:** `phase-00-setup` · **Issue:** #6 · **Milestone:** Phase 0
 - **Dates:** 2026-11-04 → 2026-11-05
 
@@ -120,7 +120,7 @@ Against the AGENTS.md design bar, honestly:
 
 ## Phase 1 — Protocol specification and threat model
 
-- **Status:** In review
+- **Status:** Merged (PR #35)
 - **Branch:** `phase-01-spec` · **Issue:** #7 · **Milestone:** Phase 1
 - **Dates:** 2026-11-05
 
@@ -250,6 +250,26 @@ Phase 2 can start on merge.
 | real-parameter Argon2 test | pass (3.5 s) |
 | `cargo deny check` | advisories, bans, licenses, sources ok |
 | `pnpm -r lint` / `pnpm -r test` | pass; 43 tests |
+
+### Review fixes (PR #38)
+
+Founder review of PR #38, applied on the branch before merge:
+
+- **Fix 1 (`bdc06e1`)** — every signature (certificate, revocation, enrolment
+  proof) now covers `BLAKE3(canonical body)`, matching the op hash in §6.3;
+  SPEC §4.7 updated; D-0207 recorded; vectors regenerated with digest fields;
+  new tests prove a raw-body signature does not verify.
+- **Fix 2 (`40d9171`)** — `Timestamp::parse` round-trips through Unix seconds, so
+  impossible dates (29 February in a non-leap year, 31 April) and leap second
+  60 are rejected; the revocation cut-off compares numerically.
+- **Fix 3 (`21990c6`)** — the NFKC password, the Secret-Key decode buffers, the
+  HPKE secret copy and the signing seed are zeroizing.
+- **Fix 4 (`7d4931f`)** — the `hpke` and `ak_wrap` vectors are marked
+  `kind: "decrypt-only"`; the generator writes only with
+  `STUDGE_WRITE_VECTORS=1` and otherwise fails on any drift in the five
+  deterministic sections.
+- **Fix 5** — documentation: merged statuses, this section, the PR description
+  and the dashboard.
 
 ### Known gaps and open questions
 

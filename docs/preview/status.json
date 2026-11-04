@@ -89,23 +89,155 @@
       "state": "done",
       "summary": "18 crypto attack vectors reviewed: 15 blocked by named tests, 3 accepted (R-0117..R-0119, issues #36/#37). PROGRESS.md entry written, THREAT_MODEL section 16 added, PR #38 closes #8.",
       "commit_sha": "fed55b8"
+    },
+    {
+      "n": 13,
+      "title": "Review fix 1: signatures cover the BLAKE3 digest",
+      "state": "done",
+      "summary": "signing_digest() added; certificates, revocations and enrolment proofs sign and verify the digest (SPEC 4.7 updated, D-0207); vectors regenerated with cert_digest_hex and the revocation fields; tests prove a raw-body signature fails.",
+      "commit_sha": "bdc06e1"
+    },
+    {
+      "n": 14,
+      "title": "Review fix 2: timestamps are real calendar dates",
+      "state": "done",
+      "summary": "Timestamp::parse round-trips through Unix seconds, rejecting impossible dates and second 60; the revocation cut-off compares numerically.",
+      "commit_sha": "40d9171"
+    },
+    {
+      "n": 15,
+      "title": "Review fix 3: zeroize working buffers",
+      "state": "done",
+      "summary": "NFKC password, Secret-Key decode buffers, HPKE secret copy and signing seed are all zeroizing (AGENTS rule 4).",
+      "commit_sha": "21990c6"
+    },
+    {
+      "n": 16,
+      "title": "Review fix 4: reproducible vectors",
+      "state": "done",
+      "summary": "hpke and ak_wrap marked kind=decrypt-only; the generator writes only with STUDGE_WRITE_VECTORS=1 and otherwise fails on drift in the deterministic sections.",
+      "commit_sha": "7d4931f"
+    },
+    {
+      "n": 17,
+      "title": "Review fix 5: documentation",
+      "state": "done",
+      "summary": "PROGRESS.md shows Phase 0 and Phase 1 merged and records the review fixes; PR #38 description and this dashboard updated.",
+      "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 3,
+      "passed": 79,
       "failed": 0,
-      "ignored": 0
+      "ignored": 1
     },
     "deny": "pass",
-    "updated_at": "2026-11-04T20:39:56Z"
+    "updated_at": "2026-11-04T23:00:02Z"
   },
-  "commits": [],
+  "commits": [
+    {
+      "sha": "62a765e1d81a31317ec846d20b2cf4d50e6636d7",
+      "message": "feat(crypto): scaffold the crypto module and pin its dependencies",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/62a765e1d81a31317ec846d20b2cf4d50e6636d7"
+    },
+    {
+      "sha": "2807a08e54cd6132e73ef833bda8ea6ca0e1af77",
+      "message": "feat(crypto): add CryptoError, the single RNG and all HKDF labels",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/2807a08e54cd6132e73ef833bda8ea6ca0e1af77"
+    },
+    {
+      "sha": "af8bde51d1ba352647852ed6d48c4687f26b4acb",
+      "message": "feat(crypto): implement the SP1 Secret Key format with checksum",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/af8bde51d1ba352647852ed6d48c4687f26b4acb"
+    },
+    {
+      "sha": "c3c4d246beaff0346aa31526e07c43d25f8fdf20",
+      "message": "feat(crypto): add the typed AAD builder and canonical CBOR helpers",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/c3c4d246beaff0346aa31526e07c43d25f8fdf20"
+    },
+    {
+      "sha": "9574aa9d9b235847f94848320df2e75d450020a3",
+      "message": "feat(crypto): add the KDF and the key hierarchy with wrap/unwrap",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/9574aa9d9b235847f94848320df2e75d450020a3"
+    },
+    {
+      "sha": "688238759d21f006d775287193b8811c8c7ed2e3",
+      "message": "feat(crypto): add device keys, certificates, revocations and enrolment proofs",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/688238759d21f006d775287193b8811c8c7ed2e3"
+    },
+    {
+      "sha": "33d8cf5985f16df31375656fcb84ba08b2c695a2",
+      "message": "feat(crypto): add HPKE X25519 sealing with a KEM seam for Phase 11",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/33d8cf5985f16df31375656fcb84ba08b2c695a2"
+    },
+    {
+      "sha": "4e09215218c5cc617bc3a39e85c5b4dcf4a77ec9",
+      "message": "test(crypto): add tamper matrix, property tests, vectors and the slow KDF test",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/4e09215218c5cc617bc3a39e85c5b4dcf4a77ec9"
+    },
+    {
+      "sha": "e690e8c2d96db4be8a78b5185c87901ada675162",
+      "message": "fix(crypto): remove the superseded module file and tidy the AAD test",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/e690e8c2d96db4be8a78b5185c87901ada675162"
+    },
+    {
+      "sha": "62c6cc2f4576c624c2c88786e2b7706d6f299c78",
+      "message": "feat(core): add the crypto tour example and the preview card",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/62c6cc2f4576c624c2c88786e2b7706d6f299c78"
+    },
+    {
+      "sha": "fed55b8fe3dda1e675968c356120843a3d37cbcc",
+      "message": "docs(security): record the Phase 2 self-attack review and risks",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/fed55b8fe3dda1e675968c356120843a3d37cbcc"
+    },
+    {
+      "sha": "7e23d997ae8722e7ecd0f5564c8da0f611b1951d",
+      "message": "docs(preview): record the Phase 2 pull request",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/7e23d997ae8722e7ecd0f5564c8da0f611b1951d"
+    },
+    {
+      "sha": "74f3b05c77aab5d8ad6fd1f949e865449acb173b",
+      "message": "fix(wasm): enable the browser RNG backend for the wasm32 build",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/74f3b05c77aab5d8ad6fd1f949e865449acb173b"
+    },
+    {
+      "sha": "e5aad0b4a41861bb683f33a96b6ac1caf1fdf502",
+      "message": "docs(progress): note the wasm fix found by CI",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/e5aad0b4a41861bb683f33a96b6ac1caf1fdf502"
+    },
+    {
+      "sha": "bdc06e134dd46ae7d20ad2698b9b60a2d0a294af",
+      "message": "fix(crypto): sign the BLAKE3 digest for certificates, revocations and enrolment",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/bdc06e134dd46ae7d20ad2698b9b60a2d0a294af"
+    },
+    {
+      "sha": "40d9171a17e0f7f914316a899bcbd931f9ce8d18",
+      "message": "fix(crypto): reject impossible dates and compare revocation times numerically",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/40d9171a17e0f7f914316a899bcbd931f9ce8d18"
+    },
+    {
+      "sha": "21990c6f1676b34430da9573136ab630be529459",
+      "message": "fix(crypto): zeroize password and decode working buffers",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/21990c6f1676b34430da9573136ab630be529459"
+    },
+    {
+      "sha": "7d4931f98ec555e3453e1d7f22b0ecad86b9b70b",
+      "message": "test(vectors): mark randomised entries and guard against silent drift",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/7d4931f98ec555e3453e1d7f22b0ecad86b9b70b"
+    }
+  ],
   "screenshots": [
-    { "path": "screenshots/phase-02/step-11-crypto-tour-light.png", "caption": "Crypto tour card with its expected output, light" },
-    { "path": "screenshots/phase-02/step-11-crypto-tour-dark.png", "caption": "Crypto tour card with its expected output, dark" }
+    {
+      "path": "screenshots/phase-02/step-11-crypto-tour-light.png",
+      "caption": "Crypto tour card with its expected output, light"
+    },
+    {
+      "path": "screenshots/phase-02/step-11-crypto-tour-dark.png",
+      "caption": "Crypto tour card with its expected output, dark"
+    }
   ],
   "try_it": [
     {
