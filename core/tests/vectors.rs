@@ -1,10 +1,21 @@
-//! Known-answer vectors (SPEC Â§5, `core/tests/vectors/v1.json`).
+//! Known-answer vectors (SPEC §5, `core/tests/vectors/v1.json`).
 //!
-//! The file is checked in so another language can verify the same bytes. The
-//! normal test run checks everything that does not need freshly generated
-//! randomness (encodings, decryption, signature verification). With
-//! `--features test-vectors` it also re-encrypts with the stored nonce and
-//! compares the ciphertext byte for byte.
+//! The file is checked in so another language can verify the same bytes.
+//!
+//! Two kinds of entry live here:
+//!
+//! - **Deterministic** (`secret_key`, `aad_item_field`, `aead`, `muk`,
+//!   `signing`): fixed inputs produce fixed bytes, so the tests compare them
+//!   byte for byte. `aead` uses a fixed nonce through the `test-vectors`
+//!   feature; `muk` uses the real Argon2id parameters.
+//! - **`kind: "decrypt-only"`** (`hpke`, `ak_wrap`): these depend on freshly
+//!   generated randomness (an ephemeral HPKE key, a random nonce), so they
+//!   cannot be reproduced. The tests check that the stored bytes still decrypt
+//!   and authenticate; they never compare ciphertext.
+//!
+//! The ignored `generate_vectors` test writes the file only when
+//! `STUDGE_WRITE_VECTORS=1`; otherwise it recomputes the deterministic entries
+//! and fails if any of them differs from the file.
 
 #[cfg(feature = "test-vectors")]
 use serde_json::json;
@@ -358,6 +369,7 @@ fn generate_vectors() {
             "muk_hex": hex(muk.as_bytes()),
         },
         "hpke": {
+            "kind": "decrypt-only",
             "recipient_secret_hex": hex(&[0x5Bu8; 32]),
             "recipient_public_hex": hex(&recipient.public_bytes()),
             "info_utf8": "studge/v1/vk-share demo",
@@ -383,6 +395,7 @@ fn generate_vectors() {
             "revocation_sig_hex": hex(revocation.signature_bytes()),
         },
         "ak_wrap": {
+            "kind": "decrypt-only",
             "muk_hex": hex(ak_muk.as_bytes()),
             "ak_hex": hex(ak.as_bytes()),
             "envelope_cbor_hex": hex(&ak_envelope.to_cbor().expect("encode")),
@@ -390,6 +403,29 @@ fn generate_vectors() {
     });
 
     let text = serde_json::to_string_pretty(&document).expect("serialise");
-    std::fs::write(vectors_path(), format!("{text}\n")).expect("write v1.json");
-    println!("wrote {}", vectors_path().display());
+    let path = vectors_path();
+
+    if std::env::var("STUDGE_WRITE_VECTORS").as_deref() == Ok("1") {
+        std::fs::write(&path, format!("{text}\n")).expect("write v1.json");
+        println!("wrote {}", path.display());
+        return;
+    }
+
+    // Verification mode: every deterministic entry must match the file. The
+    // decrypt-only entries (hpke, ak_wrap) use fresh randomness and are checked
+    // by the decryption tests instead.
+    let existing: Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("read existing v1.json"))
+            .expect("parse existing v1.json");
+    let mut mismatches: Vec<&str> = Vec::new();
+    for section in ["secret_key", "aad_item_field", "aead", "muk", "signing"] {
+        if existing.get(section) != document.get(section) {
+            mismatches.push(section);
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "v1.json differs in {mismatches:?}; set STUDGE_WRITE_VECTORS=1 to regenerate"
+    );
+    println!("v1.json matches the generator output");
 }
