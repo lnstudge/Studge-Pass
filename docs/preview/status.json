@@ -3,7 +3,7 @@
     "id": 2,
     "name": "Core cryptography",
     "branch": "phase-02-core-crypto",
-    "pr_url": null
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/38"
   },
   "steps": [
     {
@@ -86,9 +86,9 @@
     {
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "doing",
-      "summary": "At least 10 concrete attacks on the crypto module, each blocked by a test or recorded as a risk; GitHub issues; PROGRESS.md; final checks; PR closing #8.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "18 crypto attack vectors reviewed: 15 blocked by named tests, 3 accepted (R-0117..R-0119, issues #36/#37). PROGRESS.md entry written, THREAT_MODEL section 16 added, PR #38 closes #8.",
+      "commit_sha": "fed55b8"
     }
   ],
   "checks": {
@@ -183,6 +183,10 @@
     {
       "label": "GitHub issue #8 (Phase 2)",
       "url": "https://github.com/lnstudge/Studge-Pass/issues/8"
+    },
+    {
+      "label": "Phase 2 pull request #38",
+      "url": "https://github.com/lnstudge/Studge-Pass/pull/38"
     },
     {
       "label": "Notion: Build Log",
