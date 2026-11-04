@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studge Pass Build Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: a field manual. Numbered steps, then one card per build phase with its prompt and its checks. */
+  --paper: #f6f8f9; --surface: #ffffff; --ink: #14212b; --muted: #55636e; --line: #d6dee3;
+  --accent: #0b6466; --accent-soft: #e2f0ef; --warn: #9a5b00; --warn-bg: #fbf0dc; --code-bg: #eef2f4;
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-body: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f171d; --surface: #16212a; --ink: #e4ecef; --muted: #9fb0ba; --line: #2a3a45;
+    --accent: #5cc4c0; --accent-soft: #173335; --warn: #f0bd6a; --warn-bg: #3a2c14; --code-bg: #0c1318;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f171d; --surface: #16212a; --ink: #e4ecef; --muted: #9fb0ba; --line: #2a3a45;
+  --accent: #5cc4c0; --accent-soft: #173335; --warn: #f0bd6a; --warn-bg: #3a2c14; --code-bg: #0c1318;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16.5px; line-height: 1.6; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+header.top .wrap { padding: 36px 20px 28px; display: grid; gap: 12px; }
+.kicker { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 650; line-height: 1.2; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(28px, 4.6vw, 42px); }
+h2 { font-size: 26px; }
+h3 { font-size: 19px; }
+h4 { margin: 0 0 6px; font-size: 14.5px; }
+p { margin: 0; max-width: 72ch; }
+section { padding: 40px 0 6px; }
+section > .wrap { display: grid; gap: 14px; }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 76ch; }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.small { font-size: 13px; color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14.5px; }
+.callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 16px 18px; border-radius: 4px; display: grid; gap: 8px; }
+.callout.warn { background: var(--warn-bg); border-left-color: var(--warn); }
+.step { display: grid; grid-template-columns: 56px 1fr; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+.step .n { font-family: var(--font-display); font-size: 30px; color: var(--accent); line-height: 1; }
+.step > div { display: grid; gap: 10px; min-width: 0; }
+@media (max-width: 560px) { .step { grid-template-columns: 1fr; gap: 6px; } }
+pre { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.cmd { white-space: pre; overflow-wrap: normal; }
+.pblock { display: grid; gap: 0; }
+.pblock pre { max-height: 420px; overflow-y: auto; border-top-left-radius: 0; border-top-right-radius: 0; }
+.pbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; padding: 6px 8px 6px 12px; }
+button.copy { font: inherit; font-size: 13.5px; font-weight: 600; padding: 5px 12px; border-radius: 5px; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); cursor: pointer; }
+button.copy.done { background: transparent; color: var(--accent); }
+.phase { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; scroll-margin-top: 12px; }
+.phase > header { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.badge { font-family: var(--font-mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+.check { border-top: 1px dashed var(--line); padding-top: 10px; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+thead th { font-size: 13px; }
+.cards { display: grid; gap: 14px; }
+footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="kicker">Studge Pass · step-by-step build plan for AutoClaw (GLM-5.3) · Nov 2026</div>
+  <h1>Build Studge Pass with AutoClaw, one phase at a time</h1>
+  <p>Repo: <a href="https://github.com/lnstudge/Studge-Pass">github.com/lnstudge/Studge-Pass</a>. Product brief: the Studge Pass Brief artifact. This page gives you a master prompt, one prompt per build phase, and what to check after each. Copy a prompt, paste it into a new AutoClaw task, then verify before moving on.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#first">Read first</a><a href="#map">The 16 phases</a><a href="#step-1">Step 1 · PC setup</a><a href="#step-2">Step 2 · Repo</a><a href="#step-3">Step 3 · AutoClaw</a><a href="#step-4">Step 4 · Master prompt</a><a href="#step-5">Step 5 · The loop</a><a href="#phases">All phase prompts</a><a href="#helpers">Helper prompts</a><a href="#alongside">Alongside the code</a><a href="#trouble">When things go wrong</a>
+  </nav>
+</div></header>
+
+<section id="first"><div class="wrap">
+  <div class="callout warn">
+    <h3>Read this first: five honest rules</h3>
+    <ol>
+      <li><strong>The AI writes the code; you are the maintainer.</strong> Read every phase report, run the checks yourself, and never skip the security review on Phases 2, 3, 5, 8, 9, 11 and 12.</li>
+      <li><strong>Never store your real passwords in Studge Pass</strong> until two independent security audits are done (Phase 15 prepares the audit pack). Crypto bugs are silent: everything works until someone steals your data. Keep using your current manager meanwhile.</li>
+      <li><strong>One phase per task, in order.</strong> Each phase depends on the previous one. If a phase is too big for one task, split it with the helper prompt instead of skipping ahead.</li>
+      <li><strong>Commit and push after every green phase.</strong> Git is your undo button when the AI breaks something.</li>
+      <li><strong>Realistic pace:</strong> Phases 0–6 (a working, tested CLI manager) take a few weeks part-time. Desktop plus extension with passkeys (to Phase 10) takes a few months. Mobile comes after that. iOS needs a Mac.</li>
+    </ol>
+  </div>
+</div></section>
+
+<section id="map"><div class="wrap">
+  <h2>The 16 phases</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>#</th><th>Phase</th><th>What you get</th></tr></thead>
+    <tbody><tr><td class="mono">0</td><td><a href="#phase-0">Repository setup and rules</a></td><td>Master prompt. Creates the repo skeleton, AGENTS.md (the rulebook every later task follows), licences and CI.</td></tr><tr><td class="mono">1</td><td><a href="#phase-1">Protocol spec and threat model</a></td><td>Documents only. This is where security is decided, so take your time reviewing.</td></tr><tr><td class="mono">2</td><td><a href="#phase-2">Core cryptography</a></td><td>Key derivation, encryption, signatures and the Secret Key. The most important code in the project.</td></tr><tr><td class="mono">3</td><td><a href="#phase-3">Vault, op log, storage, import/export</a></td><td>Item types (including the India templates), the signed change log, local encrypted database, importers, generator and TOTP.</td></tr><tr><td class="mono">4</td><td><a href="#phase-4">Relay server</a></td><td>The sync server. It only ever sees ciphertext.</td></tr><tr><td class="mono">5</td><td><a href="#phase-5">Sync engine and evil-relay harness</a></td><td>Proves the server can&#x27;t cheat. This is your strongest public selling point.</td></tr><tr><td class="mono">6</td><td><a href="#phase-6">Command-line client</a></td><td>Your first real, usable Studge Pass. Test it with fake accounts.</td></tr><tr><td class="mono">7</td><td><a href="#phase-7">Desktop app</a></td><td>Windows, macOS and Linux app with the full vault UI.</td></tr><tr><td class="mono">8</td><td><a href="#phase-8">Browser extension: passwords</a></td><td>Autofill and save in Chrome, Edge, Brave and Firefox, hardened against clickjacking.</td></tr><tr><td class="mono">9</td><td><a href="#phase-9">Passkeys in the extension + CXF</a></td><td>Create and use passkeys, plus import and export in the FIDO format.</td></tr><tr><td class="mono">10</td><td><a href="#phase-10">Passkey-aware dashboard</a></td><td>The phishing-resistance score, blast-radius view and next-best-action list.</td></tr><tr><td class="mono">11</td><td><a href="#phase-11">Sharing and families</a></td><td>Shared vaults, key-transparency log and safety codes.</td></tr><tr><td class="mono">12</td><td><a href="#phase-12">Recovery and emergency access</a></td><td>Recovery kit, 2-of-3 guardians and emergency access.</td></tr><tr><td class="mono">13</td><td><a href="#phase-13">Android app</a></td><td>Native Android with autofill and passkey provider.</td></tr><tr><td class="mono">14</td><td><a href="#phase-14">iOS app (needs a Mac)</a></td><td>Skip until you have a Mac and an Apple Developer account ($99/yr).</td></tr><tr><td class="mono">15</td><td><a href="#phase-15">Hardening and release</a></td><td>Fuzzing, reproducible builds, signed releases and the audit pack.</td></tr></tbody>
+  </table></div>
+  <p class="small">Milestones: after Phase 6 you have a working command-line password manager. After Phase 9 you have a desktop + browser alpha with passkeys. After Phase 10 you have the demo that shows off your differentiator.</p>
+</div></section>
+
+<section id="step-1"><div class="wrap">
+  <div class="step"><span class="n">1</span><div>
+    <h2>Set up your Windows PC (once, about 30 minutes)</h2>
+    <p>Open <strong>PowerShell as Administrator</strong> and run these one at a time. Close and reopen PowerShell after installing Rust so <code>cargo</code> is found.</p>
+    <pre class="cmd">winget install --id Git.Git -e</pre>
+    <pre class="cmd">winget install --id GitHub.cli -e</pre>
+    <pre class="cmd">winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override &quot;--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended&quot;</pre>
+    <pre class="cmd">winget install --id Rustlang.Rustup -e</pre>
+    <pre class="cmd">winget install --id OpenJS.NodeJS.LTS -e</pre>
+    <p>Then, in a <strong>new normal</strong> PowerShell window:</p>
+    <pre class="cmd">rustup default stable</pre>
+    <pre class="cmd">rustup target add wasm32-unknown-unknown</pre>
+    <pre class="cmd">npm install -g pnpm</pre>
+    <pre class="cmd">cargo install cargo-deny wasm-bindgen-cli --locked</pre>
+    <pre class="cmd">gh auth login</pre>
+    <p class="small">Later phases: Docker Desktop for Phase 4 (optional, <code>winget install --id Docker.DockerDesktop -e</code>) and Android Studio for Phase 13 (<code>winget install --id Google.AndroidStudio -e</code>). Windows 11 already has WebView2, which Tauri needs.</p>
+  </div></div>
+</div></section>
+
+<section id="step-2"><div class="wrap">
+  <div class="step"><span class="n">2</span><div>
+    <h2>Your repository: move it out of OneDrive</h2>
+    <p>You already created <code>lnstudge/Studge-Pass</code> and cloned it to <code>Documents\GitHub\Studge Pass</code> inside <strong>OneDrive</strong>. Rust's <code>target</code> folder and <code>node_modules</code> will hold hundreds of thousands of files. OneDrive will try to upload them all, lock files mid-build, and cause random "access denied" errors. Clone a second copy outside OneDrive, with no spaces in the path, and work only there:</p>
+    <pre class="cmd">mkdir C:\dev</pre>
+    <pre class="cmd">cd C:\dev</pre>
+    <pre class="cmd">gh repo clone lnstudge/Studge-Pass</pre>
+    <pre class="cmd">cd C:\dev\Studge-Pass</pre>
+    <p>Once you are working in <code>C:\dev\Studge-Pass</code>, you can delete the OneDrive copy. Nothing is lost, because GitHub has everything. Then turn on protection for <code>main</code> so only passing code is merged: GitHub → repo → Settings → Branches → Add rule → require a pull request and status checks.</p>
+    <p class="small">Keep the repo private until you have reviewed Phase 1, then make it public. Being open from day one is part of the pitch.</p>
+  </div></div>
+</div></section>
+
+<section id="step-3"><div class="wrap">
+  <div class="step"><span class="n">3</span><div>
+    <h2>Set up AutoClaw</h2>
+    <ol>
+      <li><strong>Model:</strong> in Settings → Models &amp; API, keep <code>ZAICODING_GLM-5.3</code> enabled. It is the coding model, and it is what your screenshot shows as enabled. In the task box, keep <strong>GLM-5.3</strong> selected.</li>
+      <li><strong>Project:</strong> in the sidebar, Projects → create a project named <strong>Studge Pass</strong> and point it at <code>C:\dev\Studge-Pass</code> if AutoClaw offers a folder setting. Choose it in the "Default project" dropdown under the task box for every task.</li>
+      <li><strong>Mode:</strong> pick the <strong>Coding</strong> tab above the task box.</li>
+      <li><strong>Permissions:</strong> keep <strong>Default permissions</strong>, so AutoClaw asks before risky commands. Approve builds, tests and <code>git commit</code>. Refuse <code>git push</code>, anything that deletes outside the repo, and global installs you don't recognise.</li>
+      <li><strong>Agent cluster:</strong> leave it off for Phases 0–6. A single agent is easier to follow. Try it on the big UI phases (7, 8, 13) if a single agent is slow.</li>
+      <li><strong>Memory:</strong> if AutoClaw lets you save a memory, add: <em>"For Studge Pass: always read AGENTS.md and docs/PROGRESS.md before starting, follow AGENTS.md strictly, and stop at the end of the phase."</em></li>
+      <li><strong>Credits:</strong> you have 24,000. Note your balance before and after Phase 0 to learn what one phase costs, then plan the rest.</li>
+    </ol>
+  </div></div>
+</div></section>
+
+<section id="step-4"><div class="wrap">
+  <div class="step"><span class="n">4</span><div>
+    <h2>Run the master prompt (Phase 0)</h2>
+    <p>Start a <strong>New task</strong> (Ctrl+N) in the Studge Pass project with the Coding tab and GLM-5.3. Copy the <a href="#phase-0">Phase 0 prompt</a> below, paste it in, and send. It carries the whole product context and writes <code>AGENTS.md</code>, the rulebook that keeps later tasks consistent even though each task starts fresh.</p>
+    <p>When it stops, run the Phase 0 checks, then publish the result:</p>
+    <pre class="cmd">git push origin main</pre>
+  </div></div>
+</div></section>
+
+<section id="step-5"><div class="wrap">
+  <div class="step"><span class="n">5</span><div>
+    <h2>The loop for every phase after that</h2>
+    <ol>
+      <li>Make a branch: <code>git switch -c phase-02-core-crypto</code> (use the phase's number and name). Note the current commit with <code>git log --oneline -1</code>.</li>
+      <li>New AutoClaw task → paste that phase's prompt → send. Approve safe commands as it works.</li>
+      <li>When it stops, read its report and <code>docs/PROGRESS.md</code>, then run the "How you check it" steps yourself.</li>
+      <li>New task → paste the <a href="#helpers">security review prompt</a> with the commit you noted. If it finds anything critical or high, run the fix prompt and review again.</li>
+      <li>Push and open a pull request: <code>git push -u origin HEAD</code> then <code>gh pr create --fill</code>. Wait for CI to go green, then <code>gh pr merge --squash --delete-branch</code>.</li>
+      <li>Back on main: <code>git switch main</code> and <code>git pull</code>. Then start the next phase.</li>
+    </ol>
+    <p class="small">If you don't understand what was built, use the "Explain it to me" prompt before moving on. A maintainer who understands the code catches the AI's mistakes.</p>
+  </div></div>
+</div></section>
+
+<section id="phases"><div class="wrap">
+  <h2>All phase prompts</h2>
+  <p>Each prompt is self-contained. Copy it whole, and replace nothing unless it says &lt;LIKE-THIS&gt;.</p>
+  <div class="cards">
+<article class="phase" id="phase-0">
+  <header><span class="badge">Phase 0</span><h3>Repository setup and rules</h3></header>
+  <p>Master prompt. Creates the repo skeleton, AGENTS.md (the rulebook every later task follows), licences and CI.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">1,224 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
+
+## Product context (remember it for all future work)
+Studge Pass is a password + passkey manager in which every feature is free forever.
+Its five differentiators:
+1. Free forever, by charter. The code cannot be relicensed (DCO, no CLA).
+2. Safe even if our own sync server is hacked. Every byte is authenticated, vault history is a signed hash chain, and there is no legacy crypto.
+3. A passkey-aware security dashboard with a phishing-resistance score and a &quot;blast radius&quot; view of the accounts that can reset other accounts.
+4. Recovery without the vendor: 2-of-3 guardians plus emergency access.
+5. Bring-your-own storage: a hosted relay, a self-hosted relay, or any synced folder.
+First market: India. That means low-end Android, Indian languages later, and item templates for Aadhaar, PAN, UPI and netbanking.
+
+## Fixed tech stack (do not change without asking me)
+- Rust stable (edition 2021), Cargo workspace.
+- Relay: axum + tokio + sqlx (SQLite default, Postgres optional) + tracing.
+- Desktop: Tauri 2 + React + TypeScript + Vite.
+- Browser extension: Manifest V3 + TypeScript + Vite, with core compiled to WebAssembly.
+- Android (later): Kotlin + Jetpack Compose via UniFFI. iOS (later): SwiftUI via UniFFI.
+- JavaScript tooling: pnpm workspaces.
+
+## Create this repository layout
+The repository already exists and is cloned (GitHub: lnstudge/Studge-Pass). It contains only README.md and .gitattributes from GitHub; replace or extend both. The repository root IS the `studge-pass/` folder shown below.
+```
+studge-pass/
+  AGENTS.md                 (exact content below)
+  README.md                 (what Studge Pass is, status &quot;pre-alpha, do not store real passwords&quot;, how to build)
+  LICENSE                   (full GPL-3.0-or-later text)
+  relay/LICENSE             (full AGPL-3.0-or-later text)
+  SECURITY.md               (report vulnerabilities via GitHub private security advisories)
+  CONTRIBUTING.md           (DCO sign-off required with `git commit -s`; no CLA)
+  Cargo.toml                (workspace members: core, core-wasm, relay, cli, test-harness)
+  rust-toolchain.toml       (channel = &quot;stable&quot;, components rustfmt + clippy, target wasm32-unknown-unknown)
+  rustfmt.toml, deny.toml   (cargo-deny: GPL/AGPL-compatible licence allowlist, deny yanked crates, ban openssl)
+  .gitignore                (target/, node_modules/, dist/, .env*, *.studgevault, *.log)
+  .gitattributes            (* text=auto eol=lf)
+  .editorconfig
+  core/        lib crate `studge-core`; src/lib.rs has #![forbid(unsafe_code)] and empty modules: crypto, vault, oplog, sync, import, health, error
+  core-wasm/   cdylib crate `studge-core-wasm`; exports `version()` via wasm-bindgen
+  relay/       bin crate `studge-relay`; GET /health returns {&quot;status&quot;:&quot;ok&quot;,&quot;version&quot;:&quot;&lt;crate version&gt;&quot;} on 127.0.0.1:8787
+  cli/         bin crate `studge`; `studge --version` (clap)
+  test-harness/ lib crate, empty for now
+  desktop/  extension/  android/  ios/   (README.md placeholders saying which phase builds them)
+  docs/SPEC.md, docs/THREAT_MODEL.md   (headings only; Phase 1 fills them)
+  docs/PROGRESS.md, docs/DECISIONS.md
+  .github/workflows/ci.yml
+```
+
+## Write AGENTS.md with exactly this content
+-----BEGIN AGENTS.md-----
+# Studge Pass: rules for AI coding agents
+
+## What this project is
+Studge Pass is a free, fully open-source password and passkey manager. Every feature is free forever, with no paid tiers. Clients and core are GPL-3.0-or-later. The sync server (&quot;relay&quot;) is AGPL-3.0-or-later.
+Security promise: the relay is treated as an attacker. It stores only ciphertext. It must not be able to read, modify, reorder, roll back or substitute data without clients detecting it.
+
+## Repository layout
+- /core: Rust lib `studge-core`. Crypto, vault model, op log, sync engine, import/export, health scoring. No direct I/O; uses injected traits.
+- /core-wasm: wasm-bindgen wrapper of core for the browser extension.
+- /core-ffi: UniFFI wrapper of core for Android/iOS (added later).
+- /relay: Rust bin `studge-relay` (axum, sqlx, SQLite by default).
+- /cli: Rust bin `studge`.
+- /test-harness: the evil relay and adversarial integration tests.
+- /desktop: Tauri 2 + React + TypeScript.
+- /extension: MV3 browser extension (TypeScript).
+- /android, /ios: native apps (later).
+- /docs: SPEC.md, THREAT_MODEL.md, PROGRESS.md, DECISIONS.md.
+
+## Non-negotiable security rules
+1. Never invent cryptography. Use only well-known, maintained crates. Pin versions and justify each in docs/DECISIONS.md. Approved list:
+   argon2, chacha20poly1305 (XChaCha20Poly1305), hkdf, sha2, blake3, ed25519-dalek, x25519-dalek, p256, hpke, ml-kem, opaque-ke, rand_core/getrandom (OsRng only), zeroize, secrecy, subtle, ciborium, unicode-normalization, totp-rs, zxcvbn.
+   Ask before adding any other crypto crate.
+2. Every ciphertext is AEAD. Its AAD binds the suite version, account or vault id, item id, record type and field name. Any decryption failure is a hard error. Never skip or &quot;repair&quot; it silently.
+3. XChaCha20-Poly1305 nonces are 24 random bytes from OsRng. Derive purpose-specific sub-keys with HKDF using labels &quot;studge/v1/&lt;purpose&gt;&quot;, defined as constants in one file.
+4. Secrets live in Zeroizing/SecretBox types. Never log, print, Debug-format, serialise into errors, or send secrets or plaintext anywhere. Implement Debug manually with redaction.
+5. Compare MACs, tokens and hashes in constant time (subtle).
+6. `#![forbid(unsafe_code)]` in core, relay and cli.
+7. No legacy or downgrade paths. There is one cipher suite id, &quot;v1&quot;. Reject unknown versions.
+8. The relay must never receive the master password, a password-equivalent hash, the Secret Key, the account key, vault keys, item keys, plaintext item data or plaintext URLs.
+9. Core makes no network calls except through the injected Transport trait. No analytics. No telemetry.
+10. No unwrap(), expect() or panic! on any input that comes from the network, files or users. These are allowed in tests only.
+11. Browser extension: never render fill or save prompts inside page-controlled DOM. Always take the origin from the browser&#x27;s sender information, never from page-provided data.
+
+## Working rules
+- Before starting, read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md.
+- Do only the phase or task you were asked for. Write anything outside scope under &quot;Follow-ups&quot; in PROGRESS.md.
+- Write tests alongside code: unit tests, property tests (proptest) for crypto and parsing, tamper tests and integration tests.
+- Before you finish, all of these must pass:
+  cargo fmt --all -- --check
+  cargo clippy --all-targets --all-features -- -D warnings
+  cargo test --all
+  cargo deny check
+  pnpm -r lint and pnpm -r test, if TypeScript packages changed
+- Commit in small logical steps with `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data. Never force-push. Never push unless I ask.
+- At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions.
+- If a security decision is unclear, stop and ask. Do not guess.
+- The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
+- Keep dependencies few. Prefer the standard library and the approved crates.
+-----END AGENTS.md-----
+
+## CI (.github/workflows/ci.yml)
+Run on push and pull_request, on ubuntu-latest and windows-latest:
+- cargo fmt --all -- --check
+- cargo clippy --all-targets --all-features -- -D warnings
+- cargo test --all
+- cargo deny check (ubuntu only)
+- cargo build -p studge-core-wasm --target wasm32-unknown-unknown
+Use dtolnay/rust-toolchain and Swatinem/rust-cache, pinned to full commit SHAs.
+
+## Acceptance criteria
+- `cargo build --all` and `cargo test --all` succeed on my Windows machine.
+- `cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health.
+- `cargo run -p studge -- --version` prints the version.
+- `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
+- docs/PROGRESS.md has a &quot;Phase 0&quot; entry.
+- Commit in small logical steps with `git commit -s`. Do not push.
+
+When you finish, stop and give me:
+1. the file tree
+2. the exact commands I should run to verify
+3. anything that failed or needs my decision</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>In PowerShell, in the repo folder: <code>cargo build --all</code> then <code>cargo test --all</code>. Both should end without errors.</li><li><code>cargo run -p studge-relay</code>, then open <code>http://127.0.0.1:8787/health</code> in a browser. You should see <code>{"status":"ok",...}</code>. Press Ctrl+C to stop it.</li><li><code>cargo run -p studge -- --version</code> prints a version.</li><li>Open <code>AGENTS.md</code> and read it once. It is your project's constitution.</li></ul></div>
+</article>
+<article class="phase" id="phase-1">
+  <header><span class="badge">Phase 1</span><h3>Protocol spec and threat model</h3></header>
+  <p>Documents only. This is where security is decided, so take your time reviewing.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">915 words</span><button type="button" class="copy" data-target="p2">Copy prompt</button></div><pre id="p2" tabindex="0">Read AGENTS.md first. **Phase 1: protocol specification and threat model.** This phase is documentation only. Do not write code.
+
+Write docs/SPEC.md (8–15 pages) and docs/THREAT_MODEL.md using the decisions below. Where a detail is missing, propose one, mark it **PROPOSED**, and list it in docs/DECISIONS.md for my review.
+
+### 1. Identities and keys
+- account_id and device_id: random UUIDv4.
+- Secret Key: 128 random bits, generated on the first device. It is shown once in the format `SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-X` (Crockford base32, final checksum group). It is stored on devices and in the printable recovery kit, and NEVER sent to the relay.
+- Master Unlock Key: MUK = HKDF-SHA256(ikm = Argon2id(NFKC(master_password), salt = account_salt [16 random bytes, stored on relay], m = 64 MiB, t = 3, p = 1) || secret_key, info = &quot;studge/v1/muk&quot;, L = 32). The KDF parameters are versioned and upgradable, never downgradable.
+- Auth secret = HKDF(MUK, &quot;studge/v1/opaque-password&quot;). It is used as the OPAQUE password, so an attacker who steals relay data cannot brute-force the master password without the Secret Key.
+- Account Key (AK): random 256-bit. The relay stores AEAD(MUK, AK, aad = canonical{suite, &quot;ak&quot;, account_id}).
+- Account identity keys (encrypted under AK): an Ed25519 signing key, plus X25519 and ML-KEM-768 encryption keys for hybrid sharing.
+- Device keys: one Ed25519 key per device, certified by an account-identity signature over (account_id, device_id, device_pubkey, created_at). Revocation is a signed record.
+- Vault Key (VK): random 256-bit per vault. For the owner it is wrapped by AK; for shared vaults it is wrapped by HPKE to each member.
+- Item Key (IK): random 256-bit per item, wrapped by VK.
+
+### 2. Encryption format
+- AEAD: XChaCha20-Poly1305 with a random 24-byte nonce. Envelope = {suite: &quot;v1&quot;, nonce, ciphertext}.
+- AAD = deterministic CBOR of {suite, scope id (account_id or vault_id), item_id, record_type, field_name (if per-field), schema_version}.
+- Content hashes: BLAKE3. Use SHA-256 only where an external standard requires it.
+- Everything signed or hashed uses deterministic CBOR (RFC 8949 §4.2.1).
+
+### 3. Vault operation log
+- Op = {vault_id, op_id, parents: [op_hash], lamport, device_id, created_at, kind (create | update | delete | move | membership | key_rotation), item_id, payload_ciphertext}.
+- op_hash = BLAKE3(canonical(Op without signature)). sig = Ed25519(device key, op_hash).
+- Vault state is a DAG of ops. For item conflicts, the highest (lamport, device_id) wins, and losing versions are kept in item history.
+- VaultHead = {vault_id, heads: [op_hash], op_count, lamport_max}, signed by a device. Clients remember the last verified head for each vault. They reject any relay response that does not descend from it, which detects both rollbacks and forks.
+
+### 4. Relay API (HTTP; JSON for control messages, CBOR for ops)
+- OPAQUE registration and login (opaque-ke, ristretto255, Argon2id KSF) produce a session token. The token is 256 random bits; the relay stores only its SHA-256. Tokens expire after 24 h and are bound to a device_id.
+- Endpoints: POST /v1/register/start and /finish, POST /v1/login/start and /finish, GET and PUT /v1/account (encrypted key bundle), POST and DELETE /v1/devices, POST /v1/vaults/:id/ops (append-only), GET /v1/vaults/:id/ops?since=cursor, GET and PUT /v1/vaults/:id/head (compare-and-swap), DELETE /v1/account. Phase 11 adds a key-directory API.
+- The relay validates only structure, sizes, authentication, quotas and rate limits. It never interprets ciphertext.
+- Storage backends sit behind a Transport trait: http relay, folder (files in any synced directory) and memory (for tests).
+
+### 5. Dashboard scoring (details in Phase 10)
+score = 100 × Σ(w × p) / Σw
+- p = 1.0 for a passkey or security key with no password left
+- p = 0.8 for a passkey plus a strong unique fallback password
+- p = 0.6 for a password plus TOTP or security-key 2FA
+- p = 0.3 for a password plus SMS or email OTP
+- p = 0.1 for a strong unique password only
+- p = 0.0 for a weak, reused or breached password
+- w = 5 for recovery roots (email, phone carrier, Apple/Google/Microsoft accounts)
+- w = 3 for money (banks, UPI, cards, brokers, crypto)
+- w = 1 for everything else
+
+### 6. Sharing and recovery (summary; full design in Phases 11–12)
+- Sharing: HPKE (RFC 9180) with hybrid X25519 + ML-KEM-768, if a maintained crate supports it cleanly. Otherwise use X25519 now and document the upgrade path. Public keys go in an append-only key-transparency log with Merkle consistency proofs. Contacts can be verified with safety codes.
+- Recovery: a printable recovery kit. Guardian recovery uses a Recovery Key split by Shamir 2-of-3, with each share HPKE-encrypted to a guardian. The owner&#x27;s devices can cancel within 72 h. Emergency access has an owner-defined waiting period.
+
+### THREAT_MODEL.md
+Write a table for each adversary covering: assets at risk, attacks, mitigations (with SPEC section links) and residual risk.
+- A1: fully malicious relay
+- A2: network attacker
+- A3: malicious sharee or removed member
+- A4: malicious web page attacking the extension (phishing look-alikes, DOM clickjacking with opacity 0, iframe tricks, fake WebAuthn requests)
+- A5: stolen locked device
+- A6: malware on an unlocked device (out of scope; explain why)
+- A7: supply-chain attacker
+- A8: hostile browser extension
+
+Add two mapping sections:
+1. The ETH Zurich 2026 malicious-server attack classes (unauthenticated metadata and field swapping, key substitution during sharing and org joining, legacy-crypto downgrade, rollback) mapped to our mitigations.
+2. The DEF CON 33 DOM-based extension clickjacking attack mapped to our mitigation.
+
+### Finish
+Commit with -s. Stop and list the 10 decisions I most need to review, each with your recommendation.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Read <code>docs/SPEC.md</code> and <code>docs/DECISIONS.md</code>. You don't need to understand every line, but every PROPOSED item needs a yes or no from you.</li><li>Start a new task: <em>"Read AGENTS.md. Apply my decisions to SPEC.md and DECISIONS.md: 1) … 2) …. Commit with -s."</em></li><li>Optional but valuable: paste SPEC.md into a second AI (or ask a security-minded friend) and ask "what is wrong with this design?"</li><li>When you are happy with the spec, make the GitHub repo public if it isn't already. Openness is part of the brand.</li></ul></div>
+</article>
+<article class="phase" id="phase-2">
+  <header><span class="badge">Phase 2</span><h3>Core cryptography</h3></header>
+  <p>Key derivation, encryption, signatures and the Secret Key. The most important code in the project.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">338 words</span><button type="button" class="copy" data-target="p3">Copy prompt</button></div><pre id="p3" tabindex="0">Read AGENTS.md, docs/SPEC.md, docs/THREAT_MODEL.md and docs/PROGRESS.md. **Phase 2: the cryptography module in core/src/crypto, implemented exactly as SPEC.md says.** No networking and no storage.
+
+Implement:
+1. `secret_key`: generate, encode and decode the SP1 format with its checksum. Reject bad checksums and wrong lengths.
+2. `kdf`: derive_muk(password, salt, secret_key, params) with NFKC normalisation; derive_subkey(key, label) with HKDF-SHA256. Keep every label as a constant in one file.
+3. `aead`: seal and open with XChaCha20-Poly1305 using the Envelope type. open() returns an error on any failure, including an unknown suite or the wrong AAD.
+4. `aad`: a typed builder that produces deterministic CBOR. The API must make it impossible to encrypt without AAD.
+5. `keys`: newtypes MasterUnlockKey, AccountKey, VaultKey and ItemKey wrapping Zeroizing&lt;[u8; 32]&gt;. Redact Debug, avoid Clone where possible, and provide wrap/unwrap functions.
+6. `signing`: Ed25519 device keys, device certificates (create and verify) and revocation records.
+7. `hpke`: seal_to and open_from with the `hpke` crate (X25519-HKDF-SHA256 + ChaCha20Poly1305). Add the ML-KEM-768 hybrid only if a maintained crate supports it cleanly. Otherwise create the trait, leave a TODO(security), and record the decision in DECISIONS.md.
+8. `random`: one function backed by OsRng. Nothing else may produce randomness.
+
+Tests in core/tests/:
+- Round-trip tests for every public function.
+- Tamper tests: flipping any byte of the nonce, ciphertext or tag fails. Changing any AAD field (vault_id, item_id, field_name, record_type) fails. A wrong suite fails. Unwrapping with the wrong key fails.
+- proptest properties for seal/open and wrap/unwrap.
+- Known-answer vectors: use fixed inputs and a deterministic RNG behind a test-only feature, and save them to core/tests/vectors/v1.json so other languages can be checked against them later.
+- Use small Argon2 parameters in normal tests, plus one #[ignore] test with the real parameters.
+
+Constraints: #![forbid(unsafe_code)]. No unwrap or expect outside tests. Errors use a thiserror enum, CryptoError, whose messages contain no secret data. Pin crate versions and justify each in DECISIONS.md.
+Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit with -s. Stop and report test counts and any deviations from SPEC.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p studge-core</code>. All tests pass, and the report lists the tamper tests.</li><li>Always run the <a href="#helpers">review prompt</a> after this phase, then the fix prompt for anything critical or high.</li><li>Check <code>docs/DECISIONS.md</code> names every crypto crate and its version.</li></ul></div>
+</article>
+<article class="phase" id="phase-3">
+  <header><span class="badge">Phase 3</span><h3>Vault, op log, storage, import/export</h3></header>
+  <p>Item types (including the India templates), the signed change log, local encrypted database, importers, generator and TOTP.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">367 words</span><button type="button" class="copy" data-target="p4">Copy prompt</button></div><pre id="p4" tabindex="0">Read AGENTS.md and the docs. **Phase 3: vault data model, operation log, local encrypted storage, import/export, generator and TOTP, all in core.**
+
+1. Item types (core/src/vault/items.rs):
+   - Login: title, username, password, urls with a match rule (exact-host default | base-domain | starts-with), totp secret, notes, custom fields and linked passkeys.
+   - Passkey: credential_id, rp_id, user_handle, user_name, display_name, P-256 private key (PKCS#8, secret), sign_count, backup flags, created_at.
+   - SecureNote, Card, Identity, SshKey (storage only).
+   - India templates: Aadhaar, PAN, UPI ID, Netbanking (customer id, login password, MPIN, transaction password), DigiLocker, Passport, Voter ID.
+   - Common fields on every item: id, vault_id, created_at, updated_at, favourite, tags, and history (the last 10 values of each secret field).
+2. Op log (core/src/oplog): the Op struct, canonical CBOR, op_hash, sign and verify, and materialising the DAG into current item state using the SPEC conflict rule. Also VaultHead sign and verify, and verify_descends(last_trusted_head, new_head, ops) for detecting rollbacks and forks.
+3. Storage: a LocalStore trait. Implement it on SQLite (rusqlite, bundled feature), storing only encrypted ops, encrypted key bundles and non-secret metadata. Add an in-memory implementation for tests. Encrypted backups use the .studgevault file format.
+4. Account API: create_account(password) -&gt; (AccountBundle, SecretKey, RecoveryKitData). unlock(password, secret_key, bundle) -&gt; UnlockedAccount. lock() zeroizes everything.
+5. Importers (each returns ImportReport {imported, skipped_with_reason}, and none may log item contents): Bitwarden JSON and CSV, Chrome/Google CSV, Apple Passwords CSV, 1Password 1PUX, Proton Pass export, Dashlane CSV, KeePass XML, and generic CSV with column mapping.
+6. Exporters: encrypted .studgevault, plain JSON and CSV (each requires an explicit `allow_plaintext` flag), and KeePass XML.
+7. Generator: passwords (length, character sets, exclude-ambiguous option) and passphrases (bundled EFF large wordlist, separator, capitalisation, number), with an entropy estimate. Use OsRng only.
+8. TOTP: RFC 6238 (SHA-1/256/512, 6 or 8 digits, 30 or 60 s) and otpauth:// URI parsing.
+
+Tests:
+- Op-log tamper tests: a modified payload, a bad signature, a dropped op, reordered ops, a replayed old head and a forked head must all be detected.
+- Conflict-resolution tests.
+- Importer tests with fixture files containing FAKE data only.
+- RFC 6238 test vectors for TOTP.
+- Basic statistics tests for the generator.
+
+Run every check, update PROGRESS.md, and commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test --all</code>.</li><li>Look in <code>core/tests/fixtures</code>: the fixture files must contain fake data only.</li><li>Run the review prompt.</li></ul></div>
+</article>
+<article class="phase" id="phase-4">
+  <header><span class="badge">Phase 4</span><h3>Relay server</h3></header>
+  <p>The sync server. It only ever sees ciphertext.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">276 words</span><button type="button" class="copy" data-target="p5">Copy prompt</button></div><pre id="p5" tabindex="0">Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
+
+- axum + tokio. sqlx with SQLite, with migrations in relay/migrations. An optional `postgres` feature.
+- OPAQUE registration and login with opaque-ke (ristretto255, Argon2id KSF). Create the OPAQUE ServerSetup key file on first run, at a path set in config. Never store it in the database.
+- Sessions: 256-bit random tokens, stored as SHA-256 only. They expire after 24 h, are bound to a device and can be revoked.
+- Implement every endpoint in SPEC §4. Vault head updates use compare-and-swap on the previous head hash.
+- Limits:
+  - maximum body size (1 MiB for ops)
+  - maximum ops per request
+  - per-IP and per-account rate limiting (tower_governor)
+  - per-account storage quota (default 100 MiB, configurable)
+- Configuration: a TOML file plus STUDGE_RELAY_* environment variables. Default listen address 127.0.0.1:8787.
+- Logging: tracing, never with bodies or tokens. IP logging can be turned off in config. JSON log output is optional.
+- Security headers. CORS allows only configured origins (the desktop app and extension IDs). TLS terminates at a reverse proxy; document a Caddy example.
+- A multi-stage Dockerfile running as a non-root user, and a docker-compose.yml with Caddy.
+- docs/relay-api.md describing every endpoint, request and response.
+
+Integration tests (reqwest against a relay spawned on a random port):
+- register, login, wrong password
+- token expiry and revocation
+- append and fetch ops with cursors
+- head compare-and-swap conflict
+- quota exceeded
+- rate limit hit
+- another account&#x27;s vault returns 404
+
+Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge-relay</code> starts it. <code>cargo test -p studge-relay</code> runs the integration tests.</li><li>Optional: install Docker Desktop and run <code>docker compose up</code> from the relay folder.</li></ul></div>
+</article>
+<article class="phase" id="phase-5">
+  <header><span class="badge">Phase 5</span><h3>Sync engine and evil-relay harness</h3></header>
+  <p>Proves the server can&#x27;t cheat. This is your strongest public selling point.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">286 words</span><button type="button" class="copy" data-target="p6">Copy prompt</button></div><pre id="p6" tabindex="0">Read AGENTS.md and the docs. **Phase 5: the sync engine and the evil-relay test harness.** This harness is a public selling point, so make it thorough and readable.
+
+1. core/src/sync: an async Transport trait with three implementations:
+   - HttpRelayTransport (reqwest, rustls only)
+   - FolderTransport: writes each op to a file named by its op_hash, plus a head file, into any folder (Google Drive, Dropbox, OneDrive, Syncthing, WebDAV mount). It must tolerate duplicate files and the &quot;conflicted copy&quot; files that sync tools create.
+   - MemoryTransport
+2. SyncEngine:
+   1. Pull.
+   2. Verify every op: signature, device certificate, AAD binding, parents present.
+   3. Merge.
+   4. Check that the new head descends from the last trusted head.
+   5. Push local ops.
+   6. Update the signed head, retrying the compare-and-swap if needed.
+   It works offline-first: local changes queue and sync later.
+3. test-harness: an EvilRelay wrapper around any Transport. Each test can configure it to:
+   - drop ops, reorder ops or replay old ops
+   - return an old head (rollback)
+   - show different histories to two devices (fork)
+   - swap ciphertext between items or between vaults
+   - flip bytes or strip signatures
+   - substitute a device certificate or public key
+   - serve another account&#x27;s key bundle
+   - downgrade the suite id
+4. For each attack, write a test proving that the client detects it, returns a specific SyncError variant, and leaves local data unchanged. Use test names like `evil_relay_rollback_is_detected`.
+5. Two-device and three-device simulations: concurrent edits converge, deletes follow the rule, and an offline device catches up.
+6. Add a table to THREAT_MODEL.md mapping every evil-relay test to the threat it covers.
+
+Run every check, update PROGRESS.md, and commit with -s. Stop and report the attack list with pass/fail for each.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p test-harness -- --nocapture</code>. Every <code>evil_relay_*</code> test passes.</li><li>Copy the attack table from <code>docs/THREAT_MODEL.md</code> into your README later. It's great marketing.</li></ul></div>
+</article>
+<article class="phase" id="phase-6">
+  <header><span class="badge">Phase 6</span><h3>Command-line client</h3></header>
+  <p>Your first real, usable Studge Pass. Test it with fake accounts.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">172 words</span><button type="button" class="copy" data-target="p7">Copy prompt</button></div><pre id="p7" tabindex="0">Read AGENTS.md and the docs. **Phase 6: the `studge` command-line client** (clap).
+
+Commands:
+- `init`: create an account on a relay URL or in a folder. Print the Secret Key once and write a recovery-kit text file.
+- `login`, `unlock`, `lock`, `status`, `sync`
+- `list [--vault]`
+- `get &lt;query&gt; [--field password|username|totp]`: copies to the clipboard with arboard and clears it after 30 s. Printing to stdout needs an explicit `--print` flag.
+- `add login`, `edit`, `rm`, `generate`, `totp &lt;query&gt;`
+- `import &lt;format&gt; &lt;file&gt;`
+- `export &lt;format&gt; &lt;file&gt;`: plaintext formats need `--i-understand-this-is-plaintext`.
+- `health` (summary), `devices list|revoke`, `config`
+
+Rules:
+- Never accept the master password as an argument. Read it with rpassword. STUDGE_PASSWORD is allowed only with a printed warning.
+- Keep the unlocked session in the OS credential store (keyring crate) for a configurable number of minutes. Never write plaintext to disk.
+
+Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge -- init</code> with a test folder such as <code>C:\dev\studge-test-vault</code>, then <code>add login</code>, <code>list</code> and <code>get</code>.</li><li>Sync the same folder from a second <code>init</code> to see two devices merge.</li></ul></div>
+</article>
+<article class="phase" id="phase-7">
+  <header><span class="badge">Phase 7</span><h3>Desktop app</h3></header>
+  <p>Windows, macOS and Linux app with the full vault UI.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">277 words</span><button type="button" class="copy" data-target="p8">Copy prompt</button></div><pre id="p8" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
+
+Screens:
+- Onboarding: create account → show the Secret Key and save or print the recovery kit → choose sync (Studge relay URL, self-hosted URL or local folder). Import from another manager.
+- Unlock: master password. Leave a hook for Windows Hello quick unlock in a later phase.
+- Vault list: search, filters (type, vault, favourites, tags) and keyboard navigation.
+- Item detail: copy buttons (clipboard clears after 30 s), reveal toggles, TOTP with a countdown.
+- Item editor for every item type, including the India templates.
+- Password and passphrase generator, an import/export wizard and a devices list.
+- Settings: auto-lock (default 10 min, plus lock on OS sleep or screen lock), clipboard timer, theme, language. Use i18next with English and Hindi string files to start.
+
+Design:
+- The name is &quot;Studge Pass&quot;, with its own identity: a deep teal accent and calm neutrals. Avoid purple and anything that looks like Proton Pass.
+- WCAG AA contrast, visible focus states, light and dark themes.
+
+Security:
+- Strict Tauri CSP and no remote content.
+- Capability allowlist with only the commands the app needs.
+- Devtools disabled in release builds.
+
+Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit with -s. Stop and tell me exactly how to run it.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>cd desktop</code>, <code>pnpm install</code>, <code>pnpm tauri dev</code>. A window opens.</li><li>Walk through onboarding, add items, lock and unlock, and check that the clipboard clears after 30 s.</li></ul></div>
+</article>
+<article class="phase" id="phase-8">
+  <header><span class="badge">Phase 8</span><h3>Browser extension: passwords</h3></header>
+  <p>Autofill and save in Chrome, Edge, Brave and Firefox, hardened against clickjacking.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">293 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 8: the browser extension for passwords** (Chrome, Edge, Brave and Firefox; MV3, TypeScript, Vite, webextension-polyfill). Use studge-core through core-wasm.
+
+Architecture:
+- Background service worker: holds the unlocked session (core-wasm) and locks on a timer and on browser idle. Keys never go to content scripts.
+- Content script (isolated world): detects login, signup, password-change and multi-step (email first, then password) forms using autocomplete attributes and heuristics. Origin matching runs in Rust core using the public suffix list. The default rule is exact host.
+- Anti-clickjacking (DEF CON 33):
+  - NEVER render interactive fill or save UI in page-controlled DOM.
+  - Fill happens from the toolbar popup, the keyboard shortcut or the context menu.
+  - An optional inline menu may be shown only inside an extension-origin iframe. It accepts clicks only when IntersectionObserver v2 (trackVisibility) reports it fully visible for at least 500 ms. It is off by default on Firefox.
+  - Never auto-fill on page load.
+  - Filling a cross-origin iframe requires a confirmation that names the iframe&#x27;s origin.
+- Save and update prompts appear in extension UI after form submission.
+- Messaging: validate sender.id, sender.tab, sender.frameId and sender.origin on every message. A frame can only ever receive secrets for its own origin.
+- Popup (React): unlock, matches for the current site first, search, fill/copy, generator and TOTP.
+- Minimal permissions, no remote code and a strict CSP.
+
+Tests:
+- Unit tests for form detection on fixture HTML pages: login, signup, multi-step, iframes, shadow DOM.
+- Playwright E2E with the extension loaded against local fixture pages, including a clickjacking fixture (opacity 0 overlay). That test must prove that no fill happens.
+
+Build to dist/chrome and dist/firefox, and document loading the unpacked extension. Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Build it, then go to <code>chrome://extensions</code>, turn on Developer mode, choose Load unpacked and pick <code>extension/dist/chrome</code>.</li><li>Try it on the fixture pages, then on a throwaway account on a real site (never your real accounts yet).</li></ul></div>
+</article>
+<article class="phase" id="phase-9">
+  <header><span class="badge">Phase 9</span><h3>Passkeys in the extension + CXF</h3></header>
+  <p>Create and use passkeys, plus import and export in the FIDO format.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">305 words</span><button type="button" class="copy" data-target="p10">Copy prompt</button></div><pre id="p10" tabindex="0">Read AGENTS.md and the docs. **Phase 9: passkeys in the extension, plus FIDO CXF import/export.**
+
+1. Authenticator in Rust core:
+   - ES256 (p256) keys and 32-byte random credential IDs.
+   - authenticatorData: rpIdHash, flags UP, UV, BE, BS and AT, signCount 0 for synced keys, and an AAGUID constant documented in DECISIONS.md.
+   - COSE public-key encoding and a &quot;none&quot; attestationObject (CBOR).
+   - Assertions sign authenticatorData || SHA-256(clientDataJSON).
+2. Interception:
+   - A MAIN-world script wraps navigator.credentials.create and .get for publicKey requests and forwards them through the isolated content script to the background.
+   - The background builds clientDataJSON ITSELF, using the origin from the browser&#x27;s sender information, never from the page.
+   - Validate that rpId equals the origin&#x27;s host or a registrable suffix of it (public suffix list). Reject http: except localhost.
+   - Honour allowCredentials, excludeCredentials, residentKey and userVerification. Always require the vault to be unlocked plus user approval.
+   - Support conditional mediation (passkey autofill) where feasible.
+3. UX: an extension-owned popup window lists matching passkeys. &quot;Use another device&quot; falls back to the browser&#x27;s native implementation by calling the original function.
+4. Store passkeys as encrypted vault items, linked to the Login item for the same site.
+5. PRF / hmac-secret: support sites that request the PRF extension, using a per-credential secret. Document the design.
+6. CXF: import and export passkeys, logins, TOTP and notes in the FIDO CXF v1.0 format (read the spec at fidoalliance.org/specs/cx/). Encrypt the exported file with HPKE as an interim measure, because CXP is still a draft.
+
+Tests:
+- Unit tests for authenticatorData, attestation and assertion encoding against known vectors.
+- Playwright E2E against a local test relying party built with @simplewebauthn/server: register and sign in work; a wrong origin and a mismatched rpId are rejected.
+- Add a manual checklist for webauthn.io and passkeys.io to PROGRESS.md.
+
+Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Go to <code>webauthn.io</code>, register with a made-up username, then sign in. Studge Pass should handle both.</li><li>Repeat on <code>passkeys.io</code>. Run the review prompt; this code handles origins, so it is security-critical.</li></ul></div>
+</article>
+<article class="phase" id="phase-10">
+  <header><span class="badge">Phase 10</span><h3>Passkey-aware dashboard</h3></header>
+  <p>The phishing-resistance score, blast-radius view and next-best-action list.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">311 words</span><button type="button" class="copy" data-target="p11">Copy prompt</button></div><pre id="p11" tabindex="0">Read AGENTS.md and the docs. **Phase 10: the passkey-aware security dashboard.** The logic lives in Rust core. The UI goes in the desktop app and in a &quot;Health&quot; tab of the extension popup.
+
+Core (core/src/health):
+- Findings for each account:
+  - weak (zxcvbn score ≤ 2)
+  - reused (compare local hashes)
+  - breached: use the HIBP Pwned Passwords range API with k-anonymity. Send only the first 5 hex characters of the SHA-1 and set the `Add-Padding: true` header. Call it from the client and cache results encrypted.
+  - old (unchanged for more than 2 years)
+  - 2FA available but not used
+  - passkey-capable site but password only
+  - has a passkey but the password still works (&quot;fallback&quot;)
+  - passkey only stored in another manager (from import metadata)
+- Site capability dataset: write tools/build-sites, which compiles a compact JSON list (domain → passkey support, 2FA methods, change-password URL) from the public 2factorauth/twofactorauth data. Check its licence and schema first and record them in DECISIONS.md. Sign the list with a project key, ship it inside the app and verify it on load. Make no per-site network lookups.
+- Recovery roots: group accounts by the email or phone number they use, and detect major email providers and carriers. The user can override the result.
+- Score: implement exactly the SPEC §5 formula and expose its breakdown per account.
+- Next-best-action queue, ranked by w × (1 − p).
+
+UI:
+- Score ring with the trend.
+- Tiles: passkeys, fallback passwords, upgradeable sites, breached, missing 2FA.
+- An action list with Fix, Upgrade and Retire buttons that open the item editor and the site&#x27;s change-password or passkey page.
+- A blast-radius panel and a passkey portability bar.
+- Everything is computed on the device.
+
+Tests: scoring fixtures, an HIBP client tested against a mock server, and dataset signature verification. Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Import a fake test vault with weak, reused and breached passwords (for example <code>password123</code>), then open the Health tab.</li><li>Check that the score's breakdown matches the formula.</li></ul></div>
+</article>
+<article class="phase" id="phase-11">
+  <header><span class="badge">Phase 11</span><h3>Sharing and families</h3></header>
+  <p>Shared vaults, key-transparency log and safety codes.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">199 words</span><button type="button" class="copy" data-target="p12">Copy prompt</button></div><pre id="p12" tabindex="0">Read AGENTS.md and the docs. **Phase 11: sharing and families.**
+
+- Shared vaults: the owner HPKE-wraps the VK to each member&#x27;s encryption key. Roles are owner, editor and viewer. Membership lives as signed ops in the vault log, and clients reject ops from non-members or from viewers.
+- Removing a member rotates the VK (re-wrapping item keys) and records a key_rotation op.
+- Key directory with transparency on the relay:
+  - an append-only Merkle log (RFC 6962 style) of account identity keys, device certificates and revocations
+  - endpoints for inclusion proofs and consistency proofs
+  - clients store the last signed tree head and verify consistency on every lookup
+  - a user&#x27;s own devices cross-check tree heads
+- Safety codes: a 60-digit (or 12-word) code derived from both identity keys, shown for in-person verification. Contacts can be marked verified.
+- Invites: a link plus a one-time code exchanged out of band.
+- A &quot;Family caretaker&quot; vault template with short guidance in the UI.
+
+Evil-relay tests:
+- key substitution during lookup is detected
+- a removed member cannot decrypt new items
+- the relay cannot add a member
+- a forked key log is detected
+
+Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Create two test accounts, share a vault, remove the member, and confirm they can't read new items.</li></ul></div>
+</article>
+<article class="phase" id="phase-12">
+  <header><span class="badge">Phase 12</span><h3>Recovery and emergency access</h3></header>
+  <p>Recovery kit, 2-of-3 guardians and emergency access.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">243 words</span><button type="button" class="copy" data-target="p13">Copy prompt</button></div><pre id="p13" tabindex="0">Read AGENTS.md and the docs. **Phase 12: recovery and emergency access.**
+
+- Recovery kit: generated locally as a printable HTML (and PDF if practical). It contains the account id, Secret Key, a QR code, the relay URL and plain instructions.
+- Guardians (social recovery):
+  - The user picks 3 Studge Pass contacts, preferably verified with safety codes.
+  - Generate a Recovery Key that wraps the AK; the relay stores this as a separate envelope.
+  - Split the Recovery Key with Shamir 2-of-3 using a maintained crate such as vsss-rs (record the choice), and HPKE-encrypt each share to a guardian.
+  - Recovery flow:
+    1. A new device creates a recovery request.
+    2. Guardians approve in their app and re-encrypt their share to the new device&#x27;s key.
+    3. The requester combines 2 shares, unwraps the AK, and sets a new master password and a new Secret Key.
+    4. The owner&#x27;s existing devices are notified and can cancel within 72 h (configurable).
+- Emergency access: a trusted contact requests access to chosen vaults. If the owner does not reject the request within the waiting period (1–30 days), the vault keys are released. Document the trade-offs of pre-wrapping.
+- Lockout guard: warn when an account has only one way to unlock.
+
+Tests:
+- the happy path works
+- 1 approval is not enough
+- the owner cancels
+- the relay replays an old approval
+- the relay swaps a guardian&#x27;s key
+
+Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Use four test accounts (you plus 3 guardians). Recover with 2 approvals, then confirm 1 approval is not enough.</li></ul></div>
+</article>
+<article class="phase" id="phase-13">
+  <header><span class="badge">Phase 13</span><h3>Android app</h3></header>
+  <p>Native Android with autofill and passkey provider.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">186 words</span><button type="button" class="copy" data-target="p14">Copy prompt</button></div><pre id="p14" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
+
+Features:
+- Onboarding and unlock: BiometricPrompt, with the unlock key wrapped by Android Keystore (StrongBox when available).
+- Vault list, search, detail and editor for all item types, including the India templates.
+- Generator, TOTP and the Health tab.
+- Sync via the relay, or a folder chosen through the Storage Access Framework.
+- Passwords: an AutofillService with inline suggestions on Android 11+ keyboards, plus save prompts.
+- Passkeys: a CredentialProviderService (androidx.credentials) for create and get, using the core authenticator. Verify callingAppInfo origins against Google&#x27;s published privileged-browser allowlist.
+- Passkey import/export through Credential Manager where the APIs exist.
+
+Targets:
+- APK at most 20 MB.
+- Cold start under 1.5 s on a 3 GB RAM phone.
+- Hindi strings included.
+
+Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows. Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Install Android Studio, open <code>/android</code>, run it on an emulator, then on your own phone over USB.</li><li>Settings → Passwords &amp; accounts → choose Studge Pass as the provider.</li></ul></div>
+</article>
+<article class="phase" id="phase-14">
+  <header><span class="badge">Phase 14</span><h3>iOS app (needs a Mac)</h3></header>
+  <p>Skip until you have a Mac and an Apple Developer account ($99/yr).</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">79 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 14: the iOS app** in /ios (SwiftUI, iOS 17+). This needs a Mac with Xcode and an Apple Developer account.
+
+- Build core as an XCFramework with UniFFI.
+- Credential Provider Extension (ASCredentialProviderViewController) for passwords, one-time codes and passkeys.
+- Unlock key wrapped by the Secure Enclave, with Face ID.
+- ASCredentialImportManager and ASCredentialExportManager for passkey transfer on iOS 26.
+- The same feature set as Android.
+
+Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>Can only be built and tested on a Mac with Xcode.</li></ul></div>
+</article>
+<article class="phase" id="phase-15">
+  <header><span class="badge">Phase 15</span><h3>Hardening and release</h3></header>
+  <p>Fuzzing, reproducible builds, signed releases and the audit pack.</p>
+  <div class="pblock"><div class="pbar"><span class="mono small">165 words</span><button type="button" class="copy" data-target="p16">Copy prompt</button></div><pre id="p16" tabindex="0">Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
+
+- Fuzzing with cargo-fuzz for the envelope parser, op CBOR decoding, every importer, the CXF parser and relay request parsing. Add a short CI fuzz smoke run.
+- Dependency hygiene: cargo audit, cargo deny and cargo vet in CI, plus Dependabot.
+- Reproducible builds: pin toolchains and lockfiles, set SOURCE_DATE_EPOCH, and script deterministic builds for the relay (Docker), the CLI and the extension zip. A CI job builds twice and compares hashes.
+- Release workflow:
+  1. A version tag triggers builds for Windows, macOS and Linux, the extension zips and the Android AAB.
+  2. Sign artifacts with Sigstore cosign.
+  3. Publish SBOMs (CycloneDX for Rust and JS) and checksums.
+- docs/AUDIT_PACK.md: an architecture overview, links to SPEC and THREAT_MODEL, evil-relay test results, the crypto crates with versions, and known limitations, ready to send to an audit firm.
+- Update SECURITY.md with a disclosure policy and a bug-bounty placeholder.
+
+Commit with -s. Stop and report.</pre></div>
+  <div class="check"><h4>How you check it</h4><ul><li>CI is green. Push a test tag such as <code>v0.1.0-alpha.1</code> and check the release workflow produces signed artifacts.</li></ul></div>
+</article></div>
+</div></section>
+
+<section id="helpers"><div class="wrap">
+  <h2>Helper prompts</h2>
+  <div class="cards"><article class="phase"><header><h3>Security review (run after every phase from 2 onward)</h3></header><p>Replace &lt;START-COMMIT&gt; with the commit hash from before the phase (<code>git log --oneline</code> shows it).</p><div class="pblock"><div class="pbar"><span class="mono small">133 words</span><button type="button" class="copy" data-target="p17">Copy prompt</button></div><pre id="p17" tabindex="0">Act as a strict security reviewer, not as the author. Read AGENTS.md, docs/SPEC.md and docs/THREAT_MODEL.md. Then review all changes since commit &lt;START-COMMIT&gt;: run `git log --oneline &lt;START-COMMIT&gt;..HEAD` and `git diff &lt;START-COMMIT&gt;..HEAD`.
+
+Check for:
+1. deviations from SPEC.md
+2. secrets that could be logged, printed, serialised, stored or left in memory
+3. missing AAD bindings, unchecked signatures, or trusting relay or page data
+4. unwrap, expect or panic on untrusted input
+5. missing tamper or negative tests
+6. new dependencies not justified in DECISIONS.md
+7. TODOs hiding security work
+8. anything that breaks the rules in AGENTS.md
+
+Do NOT change any code. Output a numbered list of findings. For each, give: severity (critical/high/medium/low), file:line, what is wrong, why it matters, and the fix. End with &quot;Ship / Fix first&quot; and one sentence of reasoning.</pre></div></article><article class="phase"><header><h3>Fix the review findings</h3></header><p>Paste the review output where shown.</p><div class="pblock"><div class="pbar"><span class="mono small">39 words</span><button type="button" class="copy" data-target="p18">Copy prompt</button></div><pre id="p18" tabindex="0">Read AGENTS.md. Fix findings #&lt;NUMBERS&gt; from the review below. Keep changes minimal and add a regression test for each finding. Run every check, update docs/PROGRESS.md, and commit with -s. Stop and report what changed.
+
+&lt;PASTE THE REVIEW FINDINGS HERE&gt;</pre></div></article><article class="phase"><header><h3>Resume a task that stopped half-way</h3></header><p>Use this when AutoClaw runs out of context or credits mid-phase.</p><div class="pblock"><div class="pbar"><span class="mono small">48 words</span><button type="button" class="copy" data-target="p19">Copy prompt</button></div><pre id="p19" tabindex="0">Read AGENTS.md and docs/PROGRESS.md. The previous task stopped before Phase &lt;N&gt; was finished. Run `git status`, `git log --oneline -15` and the full test suite. Tell me in 5 lines what is done and what is left, then continue from where it stopped. Do not redo finished work.</pre></div></article><article class="phase"><header><h3>Split a phase that is too big</h3></header><p>Use this if a phase keeps failing or stalling.</p><div class="pblock"><div class="pbar"><span class="mono small">50 words</span><button type="button" class="copy" data-target="p20">Copy prompt</button></div><pre id="p20" tabindex="0">Read AGENTS.md and the docs. Phase &lt;N&gt; is too large for one task. Do only part 1 of it: &lt;PASTE THE FIRST HALF OF THE PHASE PROMPT&gt;. Leave the rest for the next task and list it under &quot;Next&quot; in docs/PROGRESS.md. Run every check, commit with -s, stop and report.</pre></div></article><article class="phase"><header><h3>Explain it to me</h3></header><p>Use this whenever you don't understand what was built.</p><div class="pblock"><div class="pbar"><span class="mono small">40 words</span><button type="button" class="copy" data-target="p21">Copy prompt</button></div><pre id="p21" tabindex="0">Explain Phase &lt;N&gt; to me as a non-expert founder: what was built, how the parts talk to each other, how I can run and try it myself on Windows (exact commands), and what could go wrong. Make no code changes.</pre></div></article></div>
+</div></section>
+
+<section id="alongside"><div class="wrap">
+  <h2>Do these alongside the code</h2>
+  <ul>
+    <li><strong>Funding (start in Phase 1):</strong> apply to NLnet's NGI Zero fund at nlnet.nl/propose. They fund open-source security work and can arrange a free security audit. Also look at the Sovereign Tech Agency and the Open Technology Fund.</li>
+    <li><strong>Name:</strong> run a trademark search for "Studge Pass" (India IP office classes 9 and 42, plus EUIPO and USPTO), and register the domain and social handles.</li>
+    <li><strong>Supporters:</strong> put a simple page on GitHub Pages explaining the five promises, and collect pledges via GitHub Sponsors or Open Collective. The brief's go/no-go target is 2,000 pledged supporters plus one grant.</li>
+    <li><strong>Store accounts when you need them:</strong> Chrome Web Store (one-time $5 fee, Phase 9), Firefox Add-ons and Edge Add-ons (free), Google Play Console (one-time $25, Phase 13), Apple Developer ($99/yr, Phase 14).</li>
+    <li><strong>Community:</strong> post the evil-relay test results (Phase 5) on Hacker News, r/privacy and r/selfhosted. Security people will try to break it, which is exactly what you want before 1.0.</li>
+  </ul>
+</div></section>
+
+<section id="trouble"><div class="wrap">
+  <h2>When things go wrong</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Symptom</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>"linker link.exe not found" during cargo build</td><td>The Visual Studio Build Tools C++ workload is missing. Rerun the BuildTools command from Step 1 and restart PowerShell.</td></tr>
+      <tr><td>Access denied or file-in-use errors during builds</td><td>The repo is probably still inside OneDrive, or antivirus is scanning <code>target</code>. Work from <code>C:\dev\Studge-Pass</code>, and add it as a Windows Defender exclusion if builds stay slow.</td></tr>
+      <tr><td>The task stopped half-way (context or credits)</td><td>Use the "Resume" helper prompt in a new task. It reads PROGRESS.md and git history.</td></tr>
+      <tr><td>The AI keeps failing the same test or going in circles</td><td>Stop the task. Use the "Split a phase" prompt with a smaller piece, or paste the exact error and ask only for that fix.</td></tr>
+      <tr><td>The AI wants to change the tech stack or add a new crypto library</td><td>Say no unless you understand why. AGENTS.md tells it to ask first.</td></tr>
+      <tr><td>CI is red on GitHub but green locally</td><td>New task: <em>"Read AGENTS.md. CI fails with this log: &lt;paste&gt;. Fix it, run the checks, commit -s."</em></td></tr>
+      <tr><td>You broke something and want to go back</td><td><code>git log --oneline</code>, then <code>git switch -c rescue &lt;good-commit&gt;</code>. Nothing is lost while it is committed.</td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<footer><div class="wrap">Studge Pass build guide · prompts written for AutoClaw with GLM-5.3, but they work with any coding agent · keep AGENTS.md as the single source of rules.</div></footer>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var pre = document.getElementById(btn.dataset.target);
+    var text = pre.textContent;
+    function flag(msg) { btn.textContent = msg; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Copy prompt'; btn.classList.remove('done'); }, 2200); }
+    function selectIt() { var r = document.createRange(); r.selectNodeContents(pre); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); flag('Selected: press Ctrl+C'); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { flag('Copied'); }, selectIt);
+    } catch (e) { selectIt(); }
+  });
+});
+</script>
+</body>
+</html>
