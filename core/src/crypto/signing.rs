@@ -261,6 +261,11 @@ impl DeviceCertificate {
         &self.device_id
     }
 
+    /// The certificate signature (storage, vectors).
+    pub fn signature_bytes(&self) -> &[u8; SIGNATURE_BYTES] {
+        &self.signature
+    }
+
     /// The account the device belongs to.
     pub fn account_id(&self) -> &[u8; 16] {
         &self.account_id
