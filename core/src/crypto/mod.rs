@@ -21,3 +21,5 @@ pub mod labels;
 pub mod random;
 pub mod secret_key;
 pub mod signing;
+
+pub use error::{CryptoError, CryptoResult};
