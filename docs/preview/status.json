@@ -72,14 +72,14 @@
     {
       "n": 10,
       "title": "Self-attack review",
-      "state": "next",
-      "summary": "List at least 10 concrete ways an attacker could break Phase 0's work; block each with a test where possible; record the rest as open risks in docs/THREAT_MODEL.md, Notion and GitHub security issues.",
+      "state": "done",
+      "summary": "14 concrete attack vectors against what Phase 0 ships, recorded in docs/THREAT_MODEL.md. 10 are blocked mechanically with tests that fail the build if the protection is removed (XSS sinks, path traversal, install scripts, floating action tags, pull_request_target, loopback binds, unwrap/panic bans); R-0001 (CodeQL on a private repo) is open with issue #23; R-0002..R-0004 are accepted low risks. Added relay bind-address test and a 9-test repository-policy suite.",
       "commit_sha": null
     },
     {
       "n": 11,
       "title": "Progress and logs",
-      "state": "next",
+      "state": "doing",
       "summary": "Phase 0 entry in docs/PROGRESS.md (what changed, how to run, test results, known gaps), Notion phase summary and test-run row, phase status In review.",
       "commit_sha": null
     },
@@ -186,9 +186,24 @@
   ],
   "risks": [
     {
-      "title": "CodeQL code scanning is skipped while the repository is private (needs GitHub Advanced Security); gitleaks, cargo-deny and clippy still run — see docs/THREAT_MODEL.md R-0001",
+      "title": "R-0001 — CodeQL code scanning is skipped while the repository is private (needs GitHub Advanced Security); gitleaks, cargo-deny, cargo-audit and clippy still run (issue #23)",
       "severity": "medium",
       "status": "open"
+    },
+    {
+      "title": "R-0002 — Link targets in status.json are trusted from the repository; a malicious PR could point a card at a phishing page (mitigated by PR review)",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0003 — The local preview dev server needs style-src 'unsafe-inline' for Vite hot reload; loopback-only, no third-party data, must not be copied into product UI",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0004 — gitleaks can miss novel secret formats; mitigated by a manual staged-diff scan before every commit",
+      "severity": "low",
+      "status": "accepted"
     }
   ],
   "links": [
