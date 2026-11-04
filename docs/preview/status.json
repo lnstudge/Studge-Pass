@@ -23,8 +23,8 @@
     {
       "n": 3,
       "title": "GitHub metadata",
-      "state": "doing",
-      "summary": "Create the labels (phase, security, severity:*, follow-up, design, docs, ci), one milestone per phase (0, 1-6, 6b, 7-15) and one tracking issue per phase. gh works from Windows PowerShell once APPDATA is set (my shell was missing it; the founder's sign-in is intact).",
+      "state": "done",
+      "summary": "Created the 10 labels (phase, security, severity:*, follow-up, design, docs, ci), 17 milestones (one per phase, #1-#17) and 17 tracking issues (#6-#22, Phase 0 = #6). Notion Phases database now has one row per phase, each linked to its issue.",
       "commit_sha": null
     },
     {
@@ -108,6 +108,7 @@
     { "label": "Phase 0 master prompt", "url": "/planning/prompts/00-master-setup.md" },
     { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
     { "label": "Notion: Start here", "url": "https://app.notion.com/p/Start-here-40eadee2a71081dcb863fabad47de14d" },
-    { "label": "Notion: Phase 0 row", "url": "https://app.notion.com/p/Phase-0-Repository-setup-rules-and-preview-dashboard-40eadee2a7108199b175c56b9c9ddf88" }
+    { "label": "Notion: Phase 0 row", "url": "https://app.notion.com/p/Phase-0-Repository-setup-rules-and-preview-dashboard-40eadee2a7108199b175c56b9c9ddf88" },
+    { "label": "GitHub issue #6 (Phase 0)", "url": "https://github.com/lnstudge/Studge-Pass/issues/6" }
   ]
 }
