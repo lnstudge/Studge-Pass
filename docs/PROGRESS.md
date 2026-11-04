@@ -135,8 +135,11 @@ Against the AGENTS.md design bar, honestly:
   SPEC links, residual risk), the ETH Zurich 2026 malicious-server classes, the
   DEF CON 33 DOM clickjacking mapping, a risk register (R-0001…R-0115) and the
   Phase 1 design self-attack table.
-- **docs/DECISIONS.md** — D-0101…D-0117; D-0115 (a Shamir crate) needs a decision
-  before Phase 12.
+- **docs/DECISIONS.md** — D-0101…D-0117, all **Approved by founder**. The five
+  that changed on review: D-0101 (full 128-bit key, 27-character display),
+  D-0105 (X25519 now, Phase 11 re-checks for hybrid HPKE/X-Wing), D-0110
+  (100 MiB free vault quota), D-0115 (replicated 2-of-3 XOR sharing, no crate),
+  D-0117 (write-or-nothing now; Phase 11 must add owner-signed capabilities).
 - **docs/diagrams/** — `key-hierarchy.svg` and `relay-trust-boundary.svg`,
   embedded in SPEC §3.2 and §4.11.
 - **tools/preview** — a Docs tab: strict Markdown parser plus DOM renderer (no
@@ -173,7 +176,11 @@ No product code changed in this phase.
   names, R-0115 enrolment intent, R-0110 transparency split view, R-0111
   recovery window. Each has an issue or a decision reference.
 - 17 decisions need the founder's review; the ten most important are in the PR.
-- Shamir crate approval blocks Phase 12 (D-0115).
+- D-0115 is resolved: recovery uses replicated 2-of-3 XOR sharing built from
+  `OsRng` and XOR only; Phase 12 writes the known-answer vectors.
+- Two Phase 11 obligations are now recorded: owner-signed capabilities for
+  view-only sharing (#18), and a re-check for a maintained hybrid HPKE / X-Wing
+  crate (R-0116).
 - The preview server caches its static file list at startup: after adding files
   under `docs/` (screenshots, diagrams), restart `pnpm preview`.
 - SPEC is ~17 printed pages against the 8–15 target; the tables and normative
@@ -181,10 +188,8 @@ No product code changed in this phase.
 
 ### Open questions for the founder
 
-1. Approve or change the ten decisions listed in the PR — especially D-0101
-   (Secret Key length) and D-0115 (Shamir crate).
-2. Should v1 ship sharing as write-or-nothing (D-0117), or wait for signed
-   capabilities in Phase 11?
+None blocking. All 22 decisions are approved; Phase 1 is ready to merge and
+Phase 2 can start on merge.
 
 ### Follow-ups (outside this phase's scope)
 

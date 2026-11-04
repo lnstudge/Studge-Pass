@@ -139,7 +139,8 @@
     { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" },
     { "title": "R-0113 — v1 membership is write-or-nothing: a 'view only' share cannot be enforced (issue #32, D-0117)", "severity": "medium", "status": "open" },
     { "title": "R-0114 — A malicious member can use look-alike field names to phish another member (issue #33)", "severity": "low", "status": "open" },
-    { "title": "R-0115 — Device enrolment relies on user intent; show name and fingerprint (issue #34)", "severity": "medium", "status": "open" }
+    { "title": "R-0115 — Device enrolment relies on user intent; show name and fingerprint (issue #34)", "severity": "medium", "status": "open" },
+    { "title": "R-0116 — Vault-key wrapping is X25519-only; Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate", "severity": "low", "status": "open" }
   ],
   "links": [
     { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
