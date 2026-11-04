@@ -3,7 +3,7 @@
     "id": 1,
     "name": "Protocol specification and threat model",
     "branch": "phase-01-spec",
-    "pr_url": null
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/35"
   },
   "steps": [
     {
@@ -87,7 +87,7 @@
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
       "state": "done",
-      "summary": "Attacked the design itself: 15 vectors, 10 blocked by named clauses, 5 recorded (R-0106 freeze, R-0113 read-only membership, R-0114 field labels, R-0115 enrolment intent, plus R-0104). Fixes written into SPEC §5.6, §6.9, §9.1; risks filed as issues #32–#34; PROGRESS.md entry; PR closing #7.",
+      "summary": "Attacked the design itself: 15 vectors, 10 blocked by named clauses, 5 recorded (R-0106 freeze, R-0113 read-only membership, R-0114 field labels, R-0115 enrolment intent, plus R-0104). Fixes written into SPEC §5.6, §6.9, §9.1; risks filed as issues #32–#34; PROGRESS.md entry; PR #35 closes #7.",
       "commit_sha": null
     }
   ],
@@ -147,7 +147,7 @@
     { "label": "docs/SPEC.md", "url": "/SPEC.md" },
     { "label": "docs/THREAT_MODEL.md", "url": "/THREAT_MODEL.md" },
     { "label": "GitHub issue #7 (Phase 1)", "url": "https://github.com/lnstudge/Studge-Pass/issues/7" },
-    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
+    { "label": "Phase 1 pull request #35", "url": "https://github.com/lnstudge/Studge-Pass/pull/35" },    { "label": "Notion: Build Log", "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80" },
     { "label": "Notion: Phase 1 row", "url": "https://app.notion.com/p/40eadee2a7108149b520ff975d01de12" }
   ]
 }
