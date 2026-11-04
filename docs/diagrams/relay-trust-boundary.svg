@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" role="img" aria-labelledby="title desc">
+  <title id="title">Studge Pass relay trust boundary</title>
+  <desc id="desc">Your devices hold the master password, the Secret Key and every unwrapped key. They sign operations and pin vault heads. The relay is untrusted: it stores ciphertext, wrapped keys and metadata, and can withhold or reorder data, which clients detect. The line between them carries only ciphertext, signatures and authentication messages.</desc>
+
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf"/>
+    </marker>
+    <style>
+      .bg { fill: #0d1715; }
+      .trusted { fill: #0f2a24; stroke: #2dd4bf; stroke-width: 1.8; }
+      .untrusted { fill: #2a1614; stroke: #f87171; stroke-width: 1.8; }
+      .item { fill: #13241f; stroke: #2c4a41; stroke-width: 1.2; }
+      .t { fill: #e8f2ef; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 15px; font-weight: 600; }
+      .s { fill: #9fb8b1; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 12px; }
+      .bad { fill: #fca5a5; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 12px; }
+      .h { fill: #e8f2ef; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 20px; font-weight: 650; }
+      .l { stroke: #2dd4bf; stroke-width: 1.6; fill: none; marker-end: url(#arrow2); }
+      .lr { stroke: #f87171; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1000" height="560" rx="18"/>
+  <text class="h" x="40" y="46">Relay trust boundary</text>
+  <text class="s" x="40" y="68">The relay is treated as an attacker. Correctness never depends on it being honest.</text>
+
+  <!-- Trusted side -->
+  <rect class="trusted" x="40" y="96" width="380" height="330" rx="14"/>
+  <text class="t" x="60" y="126">Your devices — trusted</text>
+  <rect class="item" x="60" y="144" width="340" height="44" rx="8"/>
+  <text class="s" x="74" y="164">Master password + Secret Key</text>
+  <text class="s" x="74" y="180">→ MUK → AK → VK → IK (memory only)</text>
+  <rect class="item" x="60" y="198" width="340" height="44" rx="8"/>
+  <text class="s" x="74" y="218">Signs every op and every head</text>
+  <text class="s" x="74" y="234">Ed25519 device keys, certified by the account identity</text>
+  <rect class="item" x="60" y="252" width="340" height="44" rx="8"/>
+  <text class="s" x="74" y="272">Pins the last verified vault head</text>
+  <text class="s" x="74" y="288">detects rollback, fork and missing history</text>
+  <rect class="item" x="60" y="306" width="340" height="44" rx="8"/>
+  <text class="s" x="74" y="326">Decrypts and authenticates locally</text>
+  <text class="s" x="74" y="342">any tag or AAD mismatch is a hard error</text>
+  <text class="s" x="60" y="380">Also on this side: the printed recovery kit and the guardians.</text>
+  <text class="s" x="60" y="398">Nothing here is ever sent to the relay.</text>
+
+  <!-- Untrusted side -->
+  <rect class="untrusted" x="580" y="96" width="380" height="330" rx="14"/>
+  <text class="t" x="600" y="126">Relay — untrusted</text>
+  <rect class="item" x="600" y="144" width="340" height="44" rx="8"/>
+  <text class="s" x="614" y="164">Stores only: account_salt, wrapped AK,</text>
+  <text class="s" x="614" y="180">wrapped vault/item keys, op ciphertext, heads</text>
+  <rect class="item" x="600" y="198" width="340" height="44" rx="8"/>
+  <text class="s" x="614" y="218">Sees metadata: ids, sizes, counts, timing, IP</text>
+  <text class="s" x="614" y="234">cannot avoid it; see R-0101</text>
+  <rect class="item" x="600" y="252" width="340" height="44" rx="8"/>
+  <text class="bad" x="614" y="272">Can withhold, delay, or refuse service</text>
+  <text class="s" x="614" y="288">detected as a missing parent or a stalled head</text>
+  <rect class="item" x="600" y="306" width="340" height="44" rx="8"/>
+  <text class="bad" x="614" y="326">Cannot read, forge, swap, reorder undetectably,</text>
+  <text class="bad" x="614" y="342">roll back a client that has a pinned head</text>
+  <text class="s" x="600" y="380">OPAQUE means even a full database dump cannot be</text>
+  <text class="s" x="600" y="398">used to guess passwords without the Secret Key.</text>
+
+  <!-- Boundary -->
+  <line x1="470" y1="96" x2="470" y2="426" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="8 6"/>
+  <text class="s" x="478" y="120">HTTPS</text>
+  <path class="l" d="M 420 190 L 580 190"/>
+  <path class="l" d="M 580 330 L 420 330"/>
+  <text class="s" x="478" y="182">requests</text>
+  <text class="s" x="478" y="352">responses</text>
+  <text class="s" x="478" y="240">only ciphertext,</text>
+  <text class="s" x="478" y="256">signatures and</text>
+  <text class="s" x="478" y="272">OPAQUE messages</text>
+  <text class="s" x="478" y="288">cross the line</text>
+
+  <!-- Footer -->
+  <rect class="item" x="40" y="452" width="920" height="76" rx="10"/>
+  <text class="t" x="58" y="480">What never crosses the boundary</text>
+  <text class="s" x="58" y="502">master password · password-equivalent hash · Secret Key · MUK · auth secret · AK · vault keys · item keys · plaintext item data · plaintext URLs</text>
+  <text class="s" x="58" y="520">AGENTS.md rule 8 makes this a defect, not a trade-off, if any code path ever sends one of them.</text>
+</svg>
