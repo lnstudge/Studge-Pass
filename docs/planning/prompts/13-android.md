@@ -22,7 +22,12 @@ Targets:
 - Cold start under 1.5 s on a 3 GB RAM phone.
 - Hindi strings included.
 
-Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+Build split (Smart App Control is on, see AGENTS.md):
+- Compile the Rust core-ffi libraries inside WSL with cargo-ndk and the Linux Android NDK, and copy the .so files into the app's jniLibs through a script.
+- Android Studio, Gradle and the emulator run on Windows.
+- If the NDK or SDK command-line tools need installing in WSL, put them under the user's home directory (no sudo) and document it.
+
+Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows and the WSL build script. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 

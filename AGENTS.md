@@ -16,6 +16,21 @@ Security promise: the relay is treated as an attacker. It stores only ciphertext
 - /android, /ios: native apps (later).
 - /docs: SPEC.md, THREAT_MODEL.md, PROGRESS.md, DECISIONS.md.
 
+## Development environment: Windows + WSL (read before running any command)
+The founder's PC runs Windows 11 with **Smart App Control on**. It blocks the unsigned helper programs that Rust compiles on Windows ("An Application Control policy has blocked this file", os error 4551). So:
+- **Never run cargo, rustc, rustup, pnpm, npm, npx, node or playwright directly in PowerShell.** Run them through the wrapper in the repo root:
+  `.\x.ps1 cargo build --all`
+  `.\x.ps1 cargo test -p studge-core`
+  `.\x.ps1 "pnpm install && pnpm preview"`
+  The wrapper runs the command inside WSL Ubuntu in /mnt/c/dev/Studge-Pass, with Rust build output on the Linux disk (~/.cache/studge-pass/target). Wherever a prompt or this file says `cargo …` or `pnpm …`, it means `.\x.ps1 cargo …` or `.\x.ps1 pnpm …`.
+- **Git and gh run on Windows directly** (already signed in). Never run git inside WSL.
+- WSL Ubuntu already has: Rust stable with rustfmt, clippy and the wasm32 target; cargo-deny; wasm-bindgen-cli; Node 24; pnpm; gh; build-essential; Playwright's Chromium system libraries; and Noto fonts for Indian scripts. Install project-level tools (crates, npm packages, Playwright browsers) through the wrapper as normal.
+- **Never use sudo** and never change the system. If a Linux system package is missing, stop and give me the exact `wsl -u root apt-get install …` command to run.
+- **Dev servers** started through the wrapper are reachable from Windows at http://localhost:<port>. Bind to localhost. Edits made from Windows do not raise Linux file events on /mnt/c, so Vite, Storybook and other watchers must use polling when `STUDGE_WSL=1` (for example Vite `server.watch.usePolling: true`). The wrapper also sets `CHOKIDAR_USEPOLLING=1`.
+- Long-running servers (preview, Storybook, relay) block the terminal. Start them in a separate terminal or as a background process, and tell me the URL.
+- Keep `x.ps1`, `scripts/wsl-run.sh` and the `.gitattributes` rule `*.sh text eol=lf`. Shell scripts must use LF line endings.
+- Windows-only steps (the Windows desktop installer, the Android emulator) are handled in their phases. GitHub's CI runs on both ubuntu-latest and windows-latest, and Smart App Control does not affect CI.
+
 ## Non-negotiable security rules
 1. Never invent cryptography. Use only well-known, maintained crates. Pin versions and justify each in docs/DECISIONS.md. Approved list:
    argon2, chacha20poly1305 (XChaCha20Poly1305), hkdf, sha2, blake3, ed25519-dalek, x25519-dalek, p256, hpke, ml-kem, opaque-ke, rand_core/getrandom (OsRng only), zeroize, secrecy, subtle, ciborium, unicode-normalization, totp-rs, zxcvbn.
@@ -147,5 +162,5 @@ The founder watches the build as it happens. Never work silently.
 - Commit and push after every logical step, following the Git workflow above. Use `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data.
 - At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions. Keep docs/preview/status.json current after every step, not only at the end.
 - If a security decision is unclear, stop and ask. Do not guess.
-- The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
+- The development machine is Windows 11 with builds running in WSL through `.\x.ps1` (see "Development environment"). Repo scripts must work through the wrapper, and paths must be cross-platform.
 - Keep dependencies few. Prefer the standard library and the approved crates.

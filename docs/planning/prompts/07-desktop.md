@@ -21,7 +21,10 @@ Security:
 - Capability allowlist with only the commands the app needs.
 - Devtools disabled in release builds.
 
-Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
+Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Builds run in WSL (see AGENTS.md):
+- **Live preview:** run `.\x.ps1 pnpm tauri dev`. The app opens as a Linux window on the Windows desktop through WSLg. Tauri needs Linux GUI libraries (webkit2gtk-4.1 and friends). Check first, and if they are missing, stop and give me the exact `wsl -u root apt-get install …` command.
+- **The real Windows installer** (.msi or NSIS) is built by a GitHub Actions job on windows-latest. Add that job and upload the installer as a CI artifact so I can download and try it.
+Write both sets of instructions in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 

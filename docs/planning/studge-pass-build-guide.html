@@ -124,6 +124,10 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
     <pre class="cmd">npm install -g pnpm</pre>
     <pre class="cmd">cargo install cargo-deny wasm-bindgen-cli --locked</pre>
     <pre class="cmd">gh auth login</pre>
+    <div class="callout warn">
+      <h3>Your PC: builds run in WSL</h3>
+      <p>Windows <strong>Smart App Control</strong> is on and blocks the programs Rust compiles on Windows, so every build runs inside <strong>WSL Ubuntu</strong>, which is already set up with Rust, Node 24, pnpm, cargo-deny, wasm-bindgen, Playwright's libraries and Indian-script fonts. The repo has a wrapper, <code>x.ps1</code>: put <code>.\x.ps1</code> in front of any <code>cargo</code>, <code>pnpm</code> or <code>node</code> command, for example <code>.\x.ps1 cargo test --all</code>. Git and gh run on Windows as normal. Dev servers still open at <code>http://localhost:&lt;port&gt;</code> in your Windows browser.</p>
+    </div>
     <p class="small">Later phases: Docker Desktop for Phase 4 (optional, <code>winget install --id Docker.DockerDesktop -e</code>) and Android Studio for Phase 13 (<code>winget install --id Google.AndroidStudio -e</code>). Windows 11 already has WebView2, which Tauri needs.</p>
   </div></div>
 </div></section>
@@ -188,10 +192,10 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
       <li><strong>The dev-preview dashboard:</strong> built in Phase 0. Run it in a second PowerShell window and leave it open in your browser. It shows the phase checklist, test results, pushed commits, a screenshot gallery, "Try it" commands and open security risks, and updates after every step.</li>
     </ul>
     <pre class="cmd">cd C:\dev\Studge-Pass</pre>
-    <pre class="cmd">pnpm preview</pre>
+    <pre class="cmd">.\x.ps1 pnpm preview</pre>
     <p>Then open <code>http://localhost:4400</code>.</p>
     <ul>
-      <li><strong>Phases with no screens yet</strong> (crypto, vault, relay, sync) ship runnable demos with fake data, for example <code>cargo run -p studge-core --example crypto_tour</code>, and get their own views on the preview page (op-log graph, relay endpoint list, the evil-relay "Attack wall").</li>
+      <li><strong>Phases with no screens yet</strong> (crypto, vault, relay, sync) ship runnable demos with fake data, for example <code>.\x.ps1 cargo run -p studge-core --example crypto_tour</code>, and get their own views on the preview page (op-log graph, relay endpoint list, the evil-relay "Attack wall").</li>
       <li><strong>Phases with screens</strong> keep the dev server running (Storybook, the desktop app, the extension, the Android emulator) and add light and dark screenshots after every step.</li>
       <li><strong>On GitHub:</strong> every step is pushed, so the phase branch, its tracking issue and its pull request show progress live.</li>
       <li><strong>In Notion:</strong> the Build Log shows every prompt you gave and every step AutoClaw executed. It's the easiest place to read the whole story later.</li>
@@ -222,7 +226,7 @@ footer { padding: 40px 0 60px; color: var(--muted); font-size: 13.5px; }
 <article class="phase" id="phase-0">
   <header><span class="badge">Phase 0</span><h3>Repository setup and rules</h3></header>
   <p>Master prompt. Creates the repo skeleton, AGENTS.md (the rulebook every later task follows), licences and CI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">3,500 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
+  <div class="pblock"><div class="pbar"><span class="mono small">3,943 words</span><button type="button" class="copy" data-target="p1">Copy prompt</button></div><pre id="p1" tabindex="0">You are the lead engineer for **Studge Pass**, a free, fully open-source password and passkey manager. I am the founder and the only human on the project. I work on Windows 11 and will review everything you do. This task sets up the repository and the rules that every later task will follow. Do NOT write application logic yet.
 
 ## Product context (remember it for all future work)
 Studge Pass is a password + passkey manager in which every feature is free forever.
@@ -243,7 +247,8 @@ First market: India. That means low-end Android, Indian languages later, and ite
 - JavaScript tooling: pnpm workspaces.
 
 ## Create this repository layout
-The repository already exists and is cloned (GitHub: lnstudge/Studge-Pass). It contains only README.md and .gitattributes from GitHub; replace or extend both. The repository root IS the `studge-pass/` folder shown below.
+The repository already exists and is cloned at C:\dev\Studge-Pass (GitHub: lnstudge/Studge-Pass). It already contains AGENTS.md, README.md, .gitattributes, `x.ps1`, `scripts/wsl-run.sh` and docs/planning/. Keep x.ps1, scripts/wsl-run.sh, docs/planning/ and the .gitattributes rules, and extend README.md.
+**Run every cargo, pnpm and node command through `.\x.ps1`** (see &quot;Development environment&quot; in AGENTS.md). Git and gh run on Windows directly. The repository root IS the `studge-pass/` folder shown below.
 ```
 studge-pass/
   AGENTS.md                 (exact content below)
@@ -256,7 +261,8 @@ studge-pass/
   rust-toolchain.toml       (channel = &quot;stable&quot;, components rustfmt + clippy, target wasm32-unknown-unknown)
   rustfmt.toml, deny.toml   (cargo-deny: GPL/AGPL-compatible licence allowlist, deny yanked crates, ban openssl)
   .gitignore                (target/, node_modules/, dist/, .env*, *.studgevault, *.log)
-  .gitattributes            (* text=auto eol=lf)
+  .gitattributes            (already exists: keep * text=auto eol=lf and *.sh text eol=lf)
+  x.ps1, scripts/wsl-run.sh (already exist: the WSL build wrapper; keep them)
   .editorconfig
   core/        lib crate `studge-core`; src/lib.rs has #![forbid(unsafe_code)] and empty modules: crypto, vault, oplog, sync, import, health, error
   core-wasm/   cdylib crate `studge-core-wasm`; exports `version()` via wasm-bindgen
@@ -288,6 +294,21 @@ Security promise: the relay is treated as an attacker. It stores only ciphertext
 - /extension: MV3 browser extension (TypeScript).
 - /android, /ios: native apps (later).
 - /docs: SPEC.md, THREAT_MODEL.md, PROGRESS.md, DECISIONS.md.
+
+## Development environment: Windows + WSL (read before running any command)
+The founder&#x27;s PC runs Windows 11 with **Smart App Control on**. It blocks the unsigned helper programs that Rust compiles on Windows (&quot;An Application Control policy has blocked this file&quot;, os error 4551). So:
+- **Never run cargo, rustc, rustup, pnpm, npm, npx, node or playwright directly in PowerShell.** Run them through the wrapper in the repo root:
+  `.\x.ps1 cargo build --all`
+  `.\x.ps1 cargo test -p studge-core`
+  `.\x.ps1 &quot;pnpm install &amp;&amp; pnpm preview&quot;`
+  The wrapper runs the command inside WSL Ubuntu in /mnt/c/dev/Studge-Pass, with Rust build output on the Linux disk (~/.cache/studge-pass/target). Wherever a prompt or this file says `cargo …` or `pnpm …`, it means `.\x.ps1 cargo …` or `.\x.ps1 pnpm …`.
+- **Git and gh run on Windows directly** (already signed in). Never run git inside WSL.
+- WSL Ubuntu already has: Rust stable with rustfmt, clippy and the wasm32 target; cargo-deny; wasm-bindgen-cli; Node 24; pnpm; gh; build-essential; Playwright&#x27;s Chromium system libraries; and Noto fonts for Indian scripts. Install project-level tools (crates, npm packages, Playwright browsers) through the wrapper as normal.
+- **Never use sudo** and never change the system. If a Linux system package is missing, stop and give me the exact `wsl -u root apt-get install …` command to run.
+- **Dev servers** started through the wrapper are reachable from Windows at http://localhost:&lt;port&gt;. Bind to localhost. Edits made from Windows do not raise Linux file events on /mnt/c, so Vite, Storybook and other watchers must use polling when `STUDGE_WSL=1` (for example Vite `server.watch.usePolling: true`). The wrapper also sets `CHOKIDAR_USEPOLLING=1`.
+- Long-running servers (preview, Storybook, relay) block the terminal. Start them in a separate terminal or as a background process, and tell me the URL.
+- Keep `x.ps1`, `scripts/wsl-run.sh` and the `.gitattributes` rule `*.sh text eol=lf`. Shell scripts must use LF line endings.
+- Windows-only steps (the Windows desktop installer, the Android emulator) are handled in their phases. GitHub&#x27;s CI runs on both ubuntu-latest and windows-latest, and Smart App Control does not affect CI.
 
 ## Non-negotiable security rules
 1. Never invent cryptography. Use only well-known, maintained crates. Pin versions and justify each in docs/DECISIONS.md. Approved list:
@@ -420,7 +441,7 @@ The founder watches the build as it happens. Never work silently.
 - Commit and push after every logical step, following the Git workflow above. Use `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data.
 - At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions. Keep docs/preview/status.json current after every step, not only at the end.
 - If a security decision is unclear, stop and ask. Do not guess.
-- The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
+- The development machine is Windows 11 with builds running in WSL through `.\x.ps1` (see &quot;Development environment&quot;). Repo scripts must work through the wrapper, and paths must be cross-platform.
 - Keep dependencies few. Prefer the standard library and the approved crates.
 -----END AGENTS.md-----
 
@@ -440,7 +461,8 @@ Create a tiny pnpm workspace package `tools/preview` (Vite + TypeScript, no UI f
   - `pnpm preview` builds the page and serves it at http://localhost:4400, rebuilding automatically when status.json or screenshots change.
   - `pnpm preview:update` runs the fast checks and git log, then writes their results into status.json.
 - Root `package.json` with pnpm workspaces and `&quot;packageManager&quot;` pinned. Add `docs/preview/status.json` for Phase 0 itself and keep it updated after every step of this phase.
-- Screenshot helper: `pnpm shot &lt;url&gt; &lt;out.png&gt;` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright.
+- Screenshot helper: `pnpm shot &lt;url&gt; &lt;out.png&gt;` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright (`.\x.ps1 pnpm exec playwright install chromium`; the system libraries are already installed in WSL).
+- The preview server must use polling file watching when STUDGE_WSL=1, and must be reachable from Windows at http://localhost:4400.
 
 ## Notion and GitHub setup (do this first, before the repo scaffold)
 1. List your available skills and connectors and post which ones you will use.
@@ -467,11 +489,11 @@ Also add:
 - CodeQL analysis for JavaScript/TypeScript, and for Rust if GitHub supports it at that time.
 
 ## Acceptance criteria
-- `cargo build --all` and `cargo test --all` succeed on my Windows machine.
-- `cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health.
-- `cargo run -p studge -- --version` prints the version.
-- `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
-- `pnpm install` then `pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0&#x27;s steps, checks and commits.
+- `.\x.ps1 cargo build --all` and `.\x.ps1 cargo test --all` succeed on my Windows machine.
+- `.\x.ps1 cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health in my Windows browser.
+- `.\x.ps1 cargo run -p studge -- --version` prints the version.
+- `.\x.ps1 cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
+- `.\x.ps1 pnpm install` then `.\x.ps1 pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0&#x27;s steps, checks and commits.
 - Notion has the Build Log page with all six databases, this prompt saved in Prompts, and one Execution log row per step.
 - GitHub has the labels, the milestones and one issue per phase. The Phase 0 PR closes the Phase 0 issue.
 - docs/PROGRESS.md has a &quot;Phase 0&quot; entry.
@@ -483,7 +505,7 @@ When you finish, stop and give me:
 1. the file tree
 2. the exact commands I should run to verify
 3. anything that failed or needs my decision</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li>In PowerShell, in the repo folder: <code>cargo build --all</code> then <code>cargo test --all</code>. Both should end without errors.</li><li><code>cargo run -p studge-relay</code>, then open <code>http://127.0.0.1:8787/health</code> in a browser. You should see <code>{"status":"ok",...}</code>. Press Ctrl+C to stop it.</li><li><code>cargo run -p studge -- --version</code> prints a version.</li><li>Open <code>AGENTS.md</code> and read it once. It is your project's constitution.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li>In PowerShell, in the repo folder: <code>.\x.ps1 cargo build --all</code> then <code>.\x.ps1 cargo test --all</code>. Both should end without errors.</li><li><code>.\x.ps1 cargo run -p studge-relay</code>, then open <code>http://127.0.0.1:8787/health</code> in a browser. You should see <code>{"status":"ok",...}</code>. Press Ctrl+C to stop it.</li><li><code>.\x.ps1 cargo run -p studge -- --version</code> prints a version.</li><li>Open <code>AGENTS.md</code> and read it once. It is your project's constitution.</li></ul></div>
 </article>
 <article class="phase" id="phase-1">
   <header><span class="badge">Phase 1</span><h3>Protocol spec and threat model</h3></header>
@@ -588,7 +610,7 @@ Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit 
 Preview for me: `cargo run -p studge-core --example crypto_tour`. It walks through creating a demo account with fake data step by step: Secret Key format, KDF timing, encrypting an item, then showing that a flipped byte, a swapped AAD field and a wrong key each fail with a clear message. Add a &quot;Crypto tour&quot; card to the preview page with the command and its expected output.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p studge-core</code>. All tests pass, and the report lists the tamper tests.</li><li>Always run the <a href="#helpers">review prompt</a> after this phase, then the fix prompt for anything critical or high.</li><li>Check <code>docs/DECISIONS.md</code> names every crypto crate and its version.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 cargo test -p studge-core</code>. All tests pass, and the report lists the tamper tests.</li><li>Always run the <a href="#helpers">review prompt</a> after this phase, then the fix prompt for anything critical or high.</li><li>Check <code>docs/DECISIONS.md</code> names every crypto crate and its version.</li></ul></div>
 </article>
 <article class="phase" id="phase-3">
   <header><span class="badge">Phase 3</span><h3>Vault, op log, storage, import/export</h3></header>
@@ -621,7 +643,7 @@ Run every check, update PROGRESS.md, and commit and push following AGENTS.md, ru
 Preview for me: `cargo run -p studge-core --example vault_tour` creates a demo vault with fake items (including Aadhaar, PAN and UPI templates), shows the op log as a readable table (op hash, parents, device, kind), demonstrates a conflict being resolved, and imports a fake Bitwarden file with its ImportReport. Add an &quot;Op log&quot; view to the preview page that renders the demo log as a small graph.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test --all</code>.</li><li>Look in <code>core/tests/fixtures</code>: the fixture files must contain fake data only.</li><li>Run the review prompt.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 cargo test --all</code>.</li><li>Look in <code>core/tests/fixtures</code>: the fixture files must contain fake data only.</li><li>Run the review prompt.</li></ul></div>
 </article>
 <article class="phase" id="phase-4">
   <header><span class="badge">Phase 4</span><h3>Relay server</h3></header>
@@ -659,7 +681,7 @@ Run every check, update PROGRESS.md with how to run the relay on Windows and in 
 Preview for me: start the relay and give me the URL. Add a &quot;Relay&quot; section to the preview page that lists every endpoint with a ready-to-copy curl or PowerShell `Invoke-RestMethod` example, and shows live results from /health. Run a scripted demo (`cargo run -p studge-relay --example relay_tour`) that registers a fake account, appends ops and prints each request and response, with tokens masked.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge-relay</code> starts it. <code>cargo test -p studge-relay</code> runs the integration tests.</li><li>Optional: install Docker Desktop and run <code>docker compose up</code> from the relay folder.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 cargo run -p studge-relay</code> starts it. <code>.\x.ps1 cargo test -p studge-relay</code> runs the integration tests.</li><li>Optional: install Docker Desktop and run <code>docker compose up</code> from the relay folder.</li></ul></div>
 </article>
 <article class="phase" id="phase-5">
   <header><span class="badge">Phase 5</span><h3>Sync engine and evil-relay harness</h3></header>
@@ -696,7 +718,7 @@ Run every check, update PROGRESS.md, and commit and push following AGENTS.md, ru
 Preview for me: `cargo run -p test-harness --example evil_relay_show` runs every evil-relay attack and prints a coloured table: attack, what the server tried, what the client detected, PASS/FAIL. Show the same table on the preview page as the &quot;Attack wall&quot;. Also show a two-device sync animation (simple SVG timeline) from the simulation tests.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cargo test -p test-harness -- --nocapture</code>. Every <code>evil_relay_*</code> test passes.</li><li>Copy the attack table from <code>docs/THREAT_MODEL.md</code> into your README later. It's great marketing.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 cargo test -p test-harness -- --nocapture</code>. Every <code>evil_relay_*</code> test passes.</li><li>Copy the attack table from <code>docs/THREAT_MODEL.md</code> into your README later. It's great marketing.</li></ul></div>
 </article>
 <article class="phase" id="phase-6">
   <header><span class="badge">Phase 6</span><h3>Command-line client</h3></header>
@@ -722,7 +744,7 @@ Write integration tests (assert_cmd) against an in-process relay and against a f
 Preview for me: record a terminal demo of the CLI (init, add, list, get, totp, generate, health) using fake data. Save the transcript to docs/preview/cli-demo.txt and show it on the preview page.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cargo run -p studge -- init</code> with a test folder such as <code>C:\dev\studge-test-vault</code>, then <code>add login</code>, <code>list</code> and <code>get</code>.</li><li>Sync the same folder from a second <code>init</code> to see two devices merge.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 cargo run -p studge -- init</code> with a test folder such as <code>C:\dev\studge-test-vault</code>, then <code>add login</code>, <code>list</code> and <code>get</code>.</li><li>Sync the same folder from a second <code>init</code> to see two devices merge.</li></ul></div>
 </article>
 <article class="phase" id="phase-6b">
   <header><span class="badge">Phase 6b</span><h3>Design system and brand</h3></header>
@@ -766,12 +788,12 @@ Commit and push following AGENTS.md, run the self-attack review (for UI: XSS thr
 Preview for me: keep Storybook running and give me its URL after every component batch. Put a screenshot of every component and mockup (light and dark) in the preview gallery as you go, not only at the end.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>pnpm install</code> then <code>pnpm --filter @studge/design storybook</code>. Storybook opens in your browser.</li><li>Click through every component and the full-page mockups in light and dark mode. If you don't love it, start a new task and say exactly what to change. This is the moment to be picky.</li><li>The Accessibility tab in Storybook shows zero violations.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 pnpm install</code> then <code>.\x.ps1 pnpm --filter @studge/design storybook</code>. Storybook opens in your browser.</li><li>Click through every component and the full-page mockups in light and dark mode. If you don't love it, start a new task and say exactly what to change. This is the moment to be picky.</li><li>The Accessibility tab in Storybook shows zero violations.</li></ul></div>
 </article>
 <article class="phase" id="phase-7">
   <header><span class="badge">Phase 7</span><h3>Desktop app</h3></header>
   <p>Windows, macOS and Linux app with the full vault UI.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">468 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
+  <div class="pblock"><div class="pbar"><span class="mono small">556 words</span><button type="button" class="copy" data-target="p9">Copy prompt</button></div><pre id="p9" tabindex="0">Read AGENTS.md and the docs. **Phase 7: the desktop app** in /desktop, built with Tauri 2 + React + TypeScript + Vite. Call studge-core from Rust commands. Secrets reach JavaScript only when the user reveals or copies a field, and are cleared from React state on lock.
 
 Screens:
 - Onboarding: create account → show the Secret Key and save or print the recovery kit → choose sync (Studge relay URL, self-hosted URL or local folder). Import from another manager.
@@ -792,14 +814,17 @@ Security:
 - Capability allowlist with only the commands the app needs.
 - Devtools disabled in release builds.
 
-Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
+Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Builds run in WSL (see AGENTS.md):
+- **Live preview:** run `.\x.ps1 pnpm tauri dev`. The app opens as a Linux window on the Windows desktop through WSLg. Tauri needs Linux GUI libraries (webkit2gtk-4.1 and friends). Check first, and if they are missing, stop and give me the exact `wsl -u root apt-get install …` command.
+- **The real Windows installer** (.msi or NSIS) is built by a GitHub Actions job on windows-latest. Add that job and upload the installer as a CI artifact so I can download and try it.
+Write both sets of instructions in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
 Preview for me: keep `pnpm tauri dev` running so I can click around while you build, and tell me which screen to look at after each step. Add before/after screenshots of each screen to the preview gallery.
 Follow &quot;Show your work&quot; in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
 Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with &quot;Closes #&lt;this phase&#x27;s issue&gt;&quot;; use every skill that helps and record which ones.</pre></div>
-  <div class="check"><h4>How you check it</h4><ul><li><code>cd desktop</code>, <code>pnpm install</code>, <code>pnpm tauri dev</code>. A window opens.</li><li>Walk through onboarding, add items, lock and unlock, and check that the clipboard clears after 30 s.</li></ul></div>
+  <div class="check"><h4>How you check it</h4><ul><li><code>.\x.ps1 "cd desktop && pnpm install && pnpm tauri dev"</code>. The app opens as a window on your desktop (through WSLg). The real Windows installer comes from the GitHub Actions run on the pull request.</li><li>Walk through onboarding, add items, lock and unlock, and check that the clipboard clears after 30 s.</li></ul></div>
 </article>
 <article class="phase" id="phase-8">
   <header><span class="badge">Phase 8</span><h3>Browser extension: passwords</h3></header>
@@ -966,7 +991,7 @@ Tools (see &quot;Connected tools&quot; in AGENTS.md): save this exact prompt in 
 <article class="phase" id="phase-13">
   <header><span class="badge">Phase 13</span><h3>Android app</h3></header>
   <p>Native Android with autofill and passkey provider.</p>
-  <div class="pblock"><div class="pbar"><span class="mono small">406 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
+  <div class="pblock"><div class="pbar"><span class="mono small">481 words</span><button type="button" class="copy" data-target="p15">Copy prompt</button></div><pre id="p15" tabindex="0">Read AGENTS.md and the docs. **Phase 13: the Android app** in /android (Kotlin, Jetpack Compose, minSdk 28, targetSdk latest stable). Use core through a new core-ffi crate with UniFFI bindings, built with cargo-ndk for arm64-v8a, armeabi-v7a and x86_64.
 
 Features:
 - Onboarding and unlock: BiometricPrompt, with the unlock key wrapped by Android Keystore (StrongBox when available).
@@ -988,7 +1013,12 @@ Targets:
 - Cold start under 1.5 s on a 3 GB RAM phone.
 - Hindi strings included.
 
-Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+Build split (Smart App Control is on, see AGENTS.md):
+- Compile the Rust core-ffi libraries inside WSL with cargo-ndk and the Linux Android NDK, and copy the .so files into the app&#x27;s jniLibs through a script.
+- Android Studio, Gradle and the emulator run on Windows.
+- If the NDK or SDK command-line tools need installing in WSL, put them under the user&#x27;s home directory (no sudo) and document it.
+
+Tests: unit tests, plus instrumentation tests for autofill and the credential provider on an emulator. Document Android Studio setup on Windows and the WSL build script. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-13/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
 
