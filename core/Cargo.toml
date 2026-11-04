@@ -1,0 +1,8 @@
+[package]
+name = "studge-core"
+description = "Studge Pass core: crypto, vault model, op log, sync, import/export, health scoring."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false

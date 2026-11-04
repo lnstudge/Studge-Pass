@@ -1,0 +1,8 @@
+[package]
+name = "studge-test-harness"
+description = "Evil relay and adversarial integration tests for Studge Pass."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false

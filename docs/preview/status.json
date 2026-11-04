@@ -37,14 +37,14 @@
     {
       "n": 5,
       "title": "Starter crates",
-      "state": "doing",
-      "summary": "studge-core (lib, forbid unsafe, empty modules), studge-core-wasm (version() via wasm-bindgen), studge-relay (GET /health on 127.0.0.1:8787), studge CLI (--version via clap), studge-test-harness (empty lib).",
+      "state": "done",
+      "summary": "Cargo workspace with five crates: studge-core (forbid unsafe, seven empty modules), studge-core-wasm (cdylib + rlib, version() via wasm-bindgen, forbid unsafe), studge-relay (axum + tokio, GET /health on 127.0.0.1:8787 returning {status, version}, unit test), studge CLI (clap --version, unit test), studge-test-harness (empty lib). Cargo.lock committed. Build 21.6s, fmt/clippy/test/wasm/deny all green.",
       "commit_sha": null
     },
     {
       "n": 6,
       "title": "CI workflows",
-      "state": "next",
+      "state": "doing",
       "summary": "ci.yml (fmt, clippy, test, deny on ubuntu, wasm build; ubuntu+windows matrix; actions pinned to full commit SHAs; contents: read), security.yml (gitleaks + weekly cargo audit), dependabot.yml, CodeQL.",
       "commit_sha": null
     },
