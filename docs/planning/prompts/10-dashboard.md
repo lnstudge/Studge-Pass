@@ -30,3 +30,4 @@ Design: use the @studge/design tokens and components from Phase 6b and follow th
 
 Preview for me: seed a demo vault (about 40 fake accounts with a realistic mix of passkeys, weak, reused and breached passwords) and show the dashboard live in the desktop app and in Storybook. Add the score breakdown table to the preview page.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

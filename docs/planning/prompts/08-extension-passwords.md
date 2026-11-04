@@ -26,3 +26,4 @@ Design: use the @studge/design tokens and components from Phase 6b and follow th
 
 Preview for me: build to dist/chrome after each step and tell me to reload it in chrome://extensions. Keep a local fixture site running (login, signup, multi-step and clickjacking test pages) at a localhost URL I can open. Add short Playwright videos or GIF-like screenshot sequences of fill and save flows to the preview page.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.

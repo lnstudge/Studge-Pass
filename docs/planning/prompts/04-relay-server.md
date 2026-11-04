@@ -32,3 +32,4 @@ Run every check, update PROGRESS.md with how to run the relay on Windows and in 
 
 Preview for me: start the relay and give me the URL. Add a "Relay" section to the preview page that lists every endpoint with a ready-to-copy curl or PowerShell `Invoke-RestMethod` example, and shows live results from /health. Run a scripted demo (`cargo run -p studge-relay --example relay_tour`) that registers a fake account, appends ops and prints each request and response, with tokens masked.
 Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
+Tools (see "Connected tools" in AGENTS.md): save this exact prompt in Notion Prompts first; log every step in the Notion Execution log; commit and push every step to GitHub; file self-attack findings as GitHub issues and Notion Risks; open the PR with "Closes #<this phase's issue>"; use every skill that helps and record which ones.
