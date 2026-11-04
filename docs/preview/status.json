@@ -51,14 +51,14 @@
     {
       "n": 7,
       "title": "Full check suite",
-      "state": "doing",
-      "summary": "Through .\\x.ps1: cargo fmt --check, clippy -D warnings, test --all, deny check, wasm build; live checks of relay /health and studge --version; results recorded here.",
+      "state": "done",
+      "summary": "Full suite via .\\x.ps1 all green: fmt --check, clippy -D warnings, test --all (2 passed, 0 failed, 0 ignored), cargo deny (advisories/bans/licenses/sources ok), wasm32 build. Live checks: studge --version prints 'studge 0.1.0'; relay answers GET http://127.0.0.1:8787/health with {\"status\":\"ok\",\"version\":\"0.1.0\"} from Windows.",
       "commit_sha": null
     },
     {
       "n": 8,
       "title": "Preview dashboard",
-      "state": "next",
+      "state": "doing",
       "summary": "pnpm workspace + tools/preview package (Vite + TypeScript, no framework, no runtime network requests): status.schema.json with build-time validation, light/dark page (progress bar, checklist, check chips, commit timeline, gallery with lightbox, try-it cards with copy buttons, risks table), pnpm preview / preview:update / shot.",
       "commit_sha": null
     },
@@ -92,15 +92,21 @@
     }
   ],
   "checks": {
-    "fmt": null,
-    "clippy": null,
-    "tests": { "passed": null, "failed": null, "ignored": null },
-    "deny": null,
-    "updated_at": "2026-11-04T18:05:37Z"
+    "fmt": "pass",
+    "clippy": "pass",
+    "tests": { "passed": 2, "failed": 0, "ignored": 0 },
+    "deny": "pass",
+    "updated_at": "2026-11-04T18:33:28Z"
   },
   "commits": [],
   "screenshots": [],
-  "try_it": [],
+  "try_it": [
+    { "label": "Build everything", "command_or_url": ".\\x.ps1 cargo build --all" },
+    { "label": "Run all tests", "command_or_url": ".\\x.ps1 cargo test --all" },
+    { "label": "Relay health endpoint", "command_or_url": ".\\x.ps1 cargo run -p studge-relay   then open http://127.0.0.1:8787/health" },
+    { "label": "CLI version", "command_or_url": ".\\x.ps1 cargo run -p studge -- --version" },
+    { "label": "Golden path checks", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" }
+  ],
   "risks": [],
   "links": [
     { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
