@@ -21,7 +21,8 @@ First market: India. That means low-end Android, Indian languages later, and ite
 - JavaScript tooling: pnpm workspaces.
 
 ## Create this repository layout
-The repository already exists and is cloned (GitHub: lnstudge/Studge-Pass). It contains only README.md and .gitattributes from GitHub; replace or extend both. The repository root IS the `studge-pass/` folder shown below.
+The repository already exists and is cloned at C:\dev\Studge-Pass (GitHub: lnstudge/Studge-Pass). It already contains AGENTS.md, README.md, .gitattributes, `x.ps1`, `scripts/wsl-run.sh` and docs/planning/. Keep x.ps1, scripts/wsl-run.sh, docs/planning/ and the .gitattributes rules, and extend README.md.
+**Run every cargo, pnpm and node command through `.\x.ps1`** (see "Development environment" in AGENTS.md). Git and gh run on Windows directly. The repository root IS the `studge-pass/` folder shown below.
 ```
 studge-pass/
   AGENTS.md                 (exact content below)
@@ -34,7 +35,8 @@ studge-pass/
   rust-toolchain.toml       (channel = "stable", components rustfmt + clippy, target wasm32-unknown-unknown)
   rustfmt.toml, deny.toml   (cargo-deny: GPL/AGPL-compatible licence allowlist, deny yanked crates, ban openssl)
   .gitignore                (target/, node_modules/, dist/, .env*, *.studgevault, *.log)
-  .gitattributes            (* text=auto eol=lf)
+  .gitattributes            (already exists: keep * text=auto eol=lf and *.sh text eol=lf)
+  x.ps1, scripts/wsl-run.sh (already exist: the WSL build wrapper; keep them)
   .editorconfig
   core/        lib crate `studge-core`; src/lib.rs has #![forbid(unsafe_code)] and empty modules: crypto, vault, oplog, sync, import, health, error
   core-wasm/   cdylib crate `studge-core-wasm`; exports `version()` via wasm-bindgen
@@ -66,6 +68,21 @@ Security promise: the relay is treated as an attacker. It stores only ciphertext
 - /extension: MV3 browser extension (TypeScript).
 - /android, /ios: native apps (later).
 - /docs: SPEC.md, THREAT_MODEL.md, PROGRESS.md, DECISIONS.md.
+
+## Development environment: Windows + WSL (read before running any command)
+The founder's PC runs Windows 11 with **Smart App Control on**. It blocks the unsigned helper programs that Rust compiles on Windows ("An Application Control policy has blocked this file", os error 4551). So:
+- **Never run cargo, rustc, rustup, pnpm, npm, npx, node or playwright directly in PowerShell.** Run them through the wrapper in the repo root:
+  `.\x.ps1 cargo build --all`
+  `.\x.ps1 cargo test -p studge-core`
+  `.\x.ps1 "pnpm install && pnpm preview"`
+  The wrapper runs the command inside WSL Ubuntu in /mnt/c/dev/Studge-Pass, with Rust build output on the Linux disk (~/.cache/studge-pass/target). Wherever a prompt or this file says `cargo …` or `pnpm …`, it means `.\x.ps1 cargo …` or `.\x.ps1 pnpm …`.
+- **Git and gh run on Windows directly** (already signed in). Never run git inside WSL.
+- WSL Ubuntu already has: Rust stable with rustfmt, clippy and the wasm32 target; cargo-deny; wasm-bindgen-cli; Node 24; pnpm; gh; build-essential; Playwright's Chromium system libraries; and Noto fonts for Indian scripts. Install project-level tools (crates, npm packages, Playwright browsers) through the wrapper as normal.
+- **Never use sudo** and never change the system. If a Linux system package is missing, stop and give me the exact `wsl -u root apt-get install …` command to run.
+- **Dev servers** started through the wrapper are reachable from Windows at http://localhost:<port>. Bind to localhost. Edits made from Windows do not raise Linux file events on /mnt/c, so Vite, Storybook and other watchers must use polling when `STUDGE_WSL=1` (for example Vite `server.watch.usePolling: true`). The wrapper also sets `CHOKIDAR_USEPOLLING=1`.
+- Long-running servers (preview, Storybook, relay) block the terminal. Start them in a separate terminal or as a background process, and tell me the URL.
+- Keep `x.ps1`, `scripts/wsl-run.sh` and the `.gitattributes` rule `*.sh text eol=lf`. Shell scripts must use LF line endings.
+- Windows-only steps (the Windows desktop installer, the Android emulator) are handled in their phases. GitHub's CI runs on both ubuntu-latest and windows-latest, and Smart App Control does not affect CI.
 
 ## Non-negotiable security rules
 1. Never invent cryptography. Use only well-known, maintained crates. Pin versions and justify each in docs/DECISIONS.md. Approved list:
@@ -198,7 +215,7 @@ The founder watches the build as it happens. Never work silently.
 - Commit and push after every logical step, following the Git workflow above. Use `git commit -s` (DCO sign-off). Never commit secrets, .env files or real vault data.
 - At the end of every task, add an entry to docs/PROGRESS.md covering: what changed, how to run or try it, test results, known gaps and open questions. Keep docs/preview/status.json current after every step, not only at the end.
 - If a security decision is unclear, stop and ask. Do not guess.
-- The development machine is Windows 11. Scripts must work in PowerShell, and paths must be cross-platform.
+- The development machine is Windows 11 with builds running in WSL through `.\x.ps1` (see "Development environment"). Repo scripts must work through the wrapper, and paths must be cross-platform.
 - Keep dependencies few. Prefer the standard library and the approved crates.
 -----END AGENTS.md-----
 
@@ -218,7 +235,8 @@ Create a tiny pnpm workspace package `tools/preview` (Vite + TypeScript, no UI f
   - `pnpm preview` builds the page and serves it at http://localhost:4400, rebuilding automatically when status.json or screenshots change.
   - `pnpm preview:update` runs the fast checks and git log, then writes their results into status.json.
 - Root `package.json` with pnpm workspaces and `"packageManager"` pinned. Add `docs/preview/status.json` for Phase 0 itself and keep it updated after every step of this phase.
-- Screenshot helper: `pnpm shot <url> <out.png>` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright.
+- Screenshot helper: `pnpm shot <url> <out.png>` uses Playwright to capture light and dark screenshots. Install Chromium only for Playwright (`.\x.ps1 pnpm exec playwright install chromium`; the system libraries are already installed in WSL).
+- The preview server must use polling file watching when STUDGE_WSL=1, and must be reachable from Windows at http://localhost:4400.
 
 ## Notion and GitHub setup (do this first, before the repo scaffold)
 1. List your available skills and connectors and post which ones you will use.
@@ -245,11 +263,11 @@ Also add:
 - CodeQL analysis for JavaScript/TypeScript, and for Rust if GitHub supports it at that time.
 
 ## Acceptance criteria
-- `cargo build --all` and `cargo test --all` succeed on my Windows machine.
-- `cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health.
-- `cargo run -p studge -- --version` prints the version.
-- `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
-- `pnpm install` then `pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0's steps, checks and commits.
+- `.\x.ps1 cargo build --all` and `.\x.ps1 cargo test --all` succeed on my Windows machine.
+- `.\x.ps1 cargo run -p studge-relay` answers GET http://127.0.0.1:8787/health in my Windows browser.
+- `.\x.ps1 cargo run -p studge -- --version` prints the version.
+- `.\x.ps1 cargo build -p studge-core-wasm --target wasm32-unknown-unknown` succeeds.
+- `.\x.ps1 pnpm install` then `.\x.ps1 pnpm preview` opens the dev-preview dashboard at http://localhost:4400, showing Phase 0's steps, checks and commits.
 - Notion has the Build Log page with all six databases, this prompt saved in Prompts, and one Execution log row per step.
 - GitHub has the labels, the milestones and one issue per phase. The Phase 0 PR closes the Phase 0 issue.
 - docs/PROGRESS.md has a "Phase 0" entry.
