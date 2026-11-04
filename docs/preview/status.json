@@ -204,6 +204,11 @@
       "title": "R-0004 — gitleaks can miss novel secret formats; mitigated by a manual staged-diff scan before every commit",
       "severity": "low",
       "status": "accepted"
+    },
+    {
+      "title": "R-0005 — minimatch advisory (GHSA-g3hv-75wg-m249, moderate DoS) in the dev-only ESLint toolchain; never shipped, CI fails on high/critical via pnpm audit --audit-level high",
+      "severity": "low",
+      "status": "accepted"
     }
   ],
   "links": [

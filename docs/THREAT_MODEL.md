@@ -40,6 +40,7 @@ not blocked is recorded under Open risks below.
 | 12 | Read files outside `docs/` through the local Vite server | `server.fs.allow` is limited to the repository root, which is already public to the founder; the server is loopback-only | Reviewed in `vite.config.ts` — R-0003 (accepted, low) |
 | 13 | Point `pnpm shot` at a hostile page | The helper only renders and screenshots; it holds no credentials and stores nothing but a PNG | Reviewed in `scripts/shot.mjs` — accepted |
 | 14 | Slip past gitleaks with a secret format it does not know | Manual staged-diff review before every commit; GitHub secret scanning can be enabled later | Not blocked mechanically — R-0004 (accepted, low) |
+| 15 | Ship a high or critical npm advisory in the build tooling | CI runs `pnpm audit --audit-level high`; Dependabot tracks upgrades; moderate dev-only findings are recorded (R-0005) | `security.yml` pnpm-audit job |
 
 ## Open risks
 
@@ -81,3 +82,16 @@ not blocked is recorded under Open risks below.
 - **Why accepted:** a manual staged-diff scan runs before every commit, the
   project stores no secrets in the repository by design, and GitHub secret
   scanning can be enabled later without code changes.
+
+### R-0005 — `minimatch` advisory in the ESLint toolchain (dev-only)
+
+- **Phase:** 0 · **Status:** Accepted · **Severity:** low
+- **What:** `pnpm audit` reports GHSA-g3hv-75wg-m249 (moderate: denial of service
+  through globpart amplification, `minimatch >=7.0.0 <11.0.1`), reached through
+  `eslint -> minimatch` and `typescript-eslint -> minimatch`.
+- **Why accepted:** the whole chain is build-time tooling. It is never shipped to
+  users and never runs on untrusted input; the dashboard renders through DOM
+  text nodes with a CSP in front of it. No patched ESLint release exists yet.
+- **Mitigation:** CI runs `pnpm audit --audit-level high`, so a high or critical
+  advisory fails the build; Dependabot tracks the upgrade.
+- **Revisit:** when ESLint or typescript-eslint move to `minimatch >= 11.0.1`.
