@@ -20,4 +20,4 @@ Tests in core/tests/:
 - Use small Argon2 parameters in normal tests, plus one #[ignore] test with the real parameters.
 
 Constraints: #![forbid(unsafe_code)]. No unwrap or expect outside tests. Errors use a thiserror enum, CryptoError, whose messages contain no secret data. Pin crate versions and justify each in DECISIONS.md.
-Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit with -s. Stop and report test counts and any deviations from SPEC.
+Run fmt, clippy -D warnings, test and cargo deny. Update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report test counts and any deviations from SPEC.

@@ -14,10 +14,12 @@ Architecture:
 - Save and update prompts appear in extension UI after form submission.
 - Messaging: validate sender.id, sender.tab, sender.frameId and sender.origin on every message. A frame can only ever receive secrets for its own origin.
 - Popup (React): unlock, matches for the current site first, search, fill/copy, generator and TOTP.
-- Minimal permissions, no remote code and a strict CSP.
+- Minimal permissions, no remote code, and the extension page CSP `script-src 'self' 'wasm-unsafe-eval'; object-src 'none'`. No third-party scripts, fonts or analytics.
 
 Tests:
 - Unit tests for form detection on fixture HTML pages: login, signup, multi-step, iframes, shadow DOM.
 - Playwright E2E with the extension loaded against local fixture pages, including a clickjacking fixture (opacity 0 overlay). That test must prove that no fill happens.
 
-Build to dist/chrome and dist/firefox, and document loading the unpacked extension. Commit with -s. Stop and report.
+Build to dist/chrome and dist/firefox, and document loading the unpacked extension. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-08/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.

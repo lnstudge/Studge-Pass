@@ -16,4 +16,4 @@ Rules:
 - Never accept the master password as an argument. Read it with rpassword. STUDGE_PASSWORD is allowed only with a printed warning.
 - Keep the unlocked session in the OS credential store (keyring crate) for a configurable number of minutes. Never write plaintext to disk.
 
-Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit with -s. Stop and report.
+Write integration tests (assert_cmd) against an in-process relay and against a folder transport. Add a Quickstart to README.md. Run every check, update PROGRESS.md and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

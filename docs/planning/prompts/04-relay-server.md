@@ -16,6 +16,8 @@ Read AGENTS.md and the docs. **Phase 4: the studge-relay server, per SPEC.md.**
 - Security headers. CORS allows only configured origins (the desktop app and extension IDs). TLS terminates at a reverse proxy; document a Caddy example.
 - A multi-stage Dockerfile running as a non-root user, and a docker-compose.yml with Caddy.
 - docs/relay-api.md describing every endpoint, request and response.
+- docs/relay-asvs.md: walk the OWASP ASVS 4.0 Level 3 requirements that apply to an API server and mark each as met, not applicable or open.
+- Hardening: return generic errors (no stack traces), make account existence impossible to probe (registration and login look the same for unknown accounts), and apply strict request timeouts and connection limits.
 
 Integration tests (reqwest against a relay spawned on a random port):
 - register, login, wrong password
@@ -26,4 +28,4 @@ Integration tests (reqwest against a relay spawned on a random port):
 - rate limit hit
 - another account's vault returns 404
 
-Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit with -s. Stop and report.
+Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

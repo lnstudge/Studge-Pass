@@ -12,4 +12,4 @@ Read AGENTS.md and the docs. **Phase 15: hardening and release engineering.**
 - docs/AUDIT_PACK.md: an architecture overview, links to SPEC and THREAT_MODEL, evil-relay test results, the crypto crates with versions, and known limitations, ready to send to an audit firm.
 - Update SECURITY.md with a disclosure policy and a bug-bounty placeholder.
 
-Commit with -s. Stop and report.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

@@ -23,4 +23,4 @@ Tests:
 - Playwright E2E against a local test relying party built with @simplewebauthn/server: register and sign in work; a wrong origin and a mismatched rpId are rejected.
 - Add a manual checklist for webauthn.io and passkeys.io to PROGRESS.md.
 
-Commit with -s. Stop and report.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
