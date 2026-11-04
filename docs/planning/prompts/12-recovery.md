@@ -22,4 +22,4 @@ Tests:
 - the relay replays an old approval
 - the relay swaps a guardian's key
 
-Commit with -s. Stop and report.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

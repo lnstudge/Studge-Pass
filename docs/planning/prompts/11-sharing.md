@@ -19,4 +19,4 @@ Evil-relay tests:
 - the relay cannot add a member
 - a forked key log is detected
 
-Commit with -s. Stop and report.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.

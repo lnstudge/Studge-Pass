@@ -24,4 +24,6 @@ UI:
 - A blast-radius panel and a passkey portability bar.
 - Everything is computed on the device.
 
-Tests: scoring fixtures, an HIBP client tested against a mock server, and dataset signature verification. Commit with -s. Stop and report.
+Tests: scoring fixtures, an HIBP client tested against a mock server, and dataset signature verification. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-10/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.

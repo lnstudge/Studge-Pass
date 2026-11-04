@@ -65,4 +65,4 @@ Add two mapping sections:
 2. The DEF CON 33 DOM-based extension clickjacking attack mapped to our mitigation.
 
 ### Finish
-Commit with -s. Stop and list the 10 decisions I most need to review, each with your recommendation.
+Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and list the 10 decisions I most need to review, each with your recommendation.
