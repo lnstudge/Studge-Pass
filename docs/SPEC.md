@@ -548,6 +548,11 @@ What remains visible to the relay: ids, sizes, counts, `lamport`, `created_at`,
   as an opaque blob.)
 - A field value is at most 1 MiB; an item has at most 256 fields; an op payload
   at most 1 MiB. **PROPOSED** limits (D-0110), enforced by clients and the relay.
+- Field names come from the item template (`password`, `username`, `url`, …),
+  not from free text. Clients MUST render the template's label for a known field
+  name and MUST NOT display an unknown field name as a trusted label; an unknown
+  name is shown inside a generic “additional field” area with the name quoted
+  (R-0114).
 
 ### 5.7 Hashing
 
@@ -686,6 +691,11 @@ that is a fork: the client MUST stop, keep its pinned head, and tell the user.
 A brand-new device has no pin. It takes the `head_pins` hint from the account
 bundle (§4.5) and verifies internal consistency, but the *first* fetch is
 trust-on-first-use; see R-0102.
+
+**Freeze.** A relay can also do nothing: keep serving the pinned head forever
+while newer ops exist elsewhere. That is indistinguishable from “no changes”
+without a second channel, so it is listed as R-0106; a second device or the
+folder transport is the practical detection path.
 
 ### 6.10 Compaction (deferred)
 
@@ -976,6 +986,13 @@ never inferred from the URL by a third party (no favicon or reputation lookups).
 A vault has members. Membership changes are ordinary ops (`kind =
 membership`), signed by an authorised device, so they are as verifiable as any
 other change. Each member's access is a wrapped copy of the current vault key.
+
+**Write authorisation (PROPOSED, D-0117).** v1 membership is write-or-nothing:
+a member device that holds the vault key can publish ops, and peers accept them
+because they are signed by a certified device. Read-only membership needs
+signed capabilities that the relay cannot forge, which is Phase 11 work. Until
+then, the UI MUST NOT offer a “view only” share, and this limitation is listed
+as R-0113.
 
 ### 9.2 Key wrapping
 

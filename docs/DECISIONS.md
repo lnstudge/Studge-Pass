@@ -222,3 +222,16 @@ Phase 1 PR description.
 - **Reason:** deterministic and explainable to a non-expert; a 0 for an empty
   vault would look like a failure and a bare 100 like a claim.
 - **Affects:** SPEC §8. **Status:** Proposed.
+
+## D-0117 — v1 membership is write-or-nothing
+
+- **Options:** add signed capabilities now so a member can hold read-only
+  access; ship sharing where every member can write, and say so; postpone
+  sharing entirely.
+- **Choice:** write-or-nothing in v1. The UI must not offer a “view only”
+  share, and Phase 11 either adds signed capabilities or keeps the restriction.
+- **Reason:** the relay cannot enforce roles, and peers accept any op signed by a
+  certified member device. Without a capability the owner signs, “read-only” is
+  a promise the protocol cannot keep — exactly the kind of unbacked security
+  claim AGENTS.md forbids. Recorded as R-0113.
+- **Affects:** SPEC §9.1, THREAT_MODEL R-0113. **Status:** Proposed.

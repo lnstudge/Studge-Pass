@@ -189,15 +189,41 @@ about how interesting the bug is.
 | R-0103 | A cloned VM snapshot or broken RNG could repeat a 24-byte nonce | low | Accepted | `OsRng` only, no software fallback; nonce reuse under XChaCha20-Poly1305 is catastrophic but requires an RNG failure the OS should prevent |
 | R-0104 | Key substitution on first contact before a safety code is verified | medium | Accepted | Safety codes (§9.4) and transparency proofs (§9.3); the first contact is explicitly marked unverified in the UI |
 | R-0105 | A removed member keeps history they already saw; rotation only protects future data | medium | Accepted by design | Stated in the UI at removal time; the alternative (re-encrypting all history per member) is not affordable |
-| R-0106 | A malicious relay can withhold ops (censorship); clients detect a gap but cannot obtain the missing data elsewhere | low | Accepted | Missing-parent error (§6.4) plus a second relay or the folder transport as an escape hatch |
+| R-0106 | A malicious relay can withhold ops — or freeze a vault by serving the pinned head forever; clients detect a gap but cannot obtain missing data | low | Accepted | Missing-parent error (§6.4) catches withholding; freeze is indistinguishable from “no changes” without a second channel (a second device or the folder transport), documented in §6.9 |
 | R-0107 | Device revocation is time-based; clock skew lets a malicious device place ops just before `revoked_at` | low | Accepted | ±5 min rule (§6.11); revoke from another device immediately; history shows what happened |
 | R-0108 | A weak master password plus a stolen Secret Key allows offline guessing | medium | Accepted | Argon2id 64 MiB/t=3/p=1, zxcvbn warnings, and the Secret Key requirement; password policy is a product decision in Phase 7 |
 | R-0109 | The printed recovery kit can be photographed or stolen | medium | Accepted | It holds the Secret Key but not the password; both are required to unlock |
 | R-0110 | The key-transparency log is run by the same untrusted relay, so a split view is possible | medium | Open | Consistency proofs between devices and safety codes (§9.3–9.4); an independent log operator is a Phase 11 design question |
 | R-0111 | The 72-hour recovery window is enforced by the relay, which could shorten it | low | Open | Client-side warning to every device (§10.3); Phase 12 designs the notification path |
 | R-0112 | An approved crate or a pinned action SHA can still be compromised upstream | medium | Accepted | `cargo deny`, `cargo audit`, Dependabot, pinned SHAs, review of every diff; no auto-merge |
+| R-0113 | v1 membership is write-or-nothing: a member device holding the vault key can publish ops, so a “view only” share cannot be enforced | medium | Open | Phase 11 must add signed capabilities, or the product must not offer read-only sharing (D-0117); the UI must not claim view-only today |
+| R-0114 | A malicious member can name an extra field with a look-alike label (for example a Cyrillic “о” in “password”) to phish another member | low | Open | Clients render labels from item templates and quote unknown field names (§5.6); a test in Phase 3 covers the rendering rule |
+| R-0115 | An attacker can talk the owner into approving *their* device during enrolment; the possession proof does not stop social engineering | medium | Open | Enrolment UI must show device name, platform and key fingerprint, and require an explicit confirmation on the already-trusted device (§4.7); Phase 7/8 implement and test it |
 
-## 14. Appendix — Phase 0 self-attack review (historical)
+## 14. Phase 1 self-attack review (design level)
+
+Attacking the document rather than a running system: for each vector, either a
+named clause blocks it, or it is a recorded risk that later phases must close.
+
+| # | Attack on the design | Where it lands | Verdict |
+| --- | --- | --- | --- |
+| 1 | Swap ciphertext between two fields of the same item | AAD carries `field_name` (§5.3) | Blocked |
+| 2 | Move a field to another item that has the same field name | AAD carries `item_id` (§5.3) | Blocked |
+| 3 | Copy an op into another vault | `vault_id` is signed and inside the AAD (§6.1–6.3) | Blocked |
+| 4 | Modify an op and re-sign it | Requires the device's Ed25519 key (§6.3) | Blocked |
+| 5 | Inflate the Lamport clock to win a conflict | `lamport = 1 + max(parents)` is mandatory (§6.5); a *member* can still win last-writer-wins by chaining ops they are allowed to make (§9.1) | Partly — R-0113 context |
+| 6 | Serve an older head (rollback) | Descent from the pinned head is mandatory (§6.9) | Blocked, except first sync (R-0102) |
+| 7 | Freeze: serve the pinned head forever while newer ops exist | Indistinguishable from “no changes” without a second channel (§6.9) | R-0106 |
+| 8 | Truncate the tail of history | `op_count` and head descent (§6.8–6.9) | Blocked |
+| 9 | Substitute a contact's public key during sharing | Transparency log + safety codes (§9.3–9.4) | Blocked after verification (R-0104) |
+| 10 | Replay a recovery or emergency grant | Context binding via HPKE `info` and `key_epoch` (§9.2, §10.4) | Blocked; the relay can still shorten the wait (R-0111) |
+| 11 | Brute-force the password from a stolen relay database | Needs the Secret Key to form the MUK (§4.3) | Blocked; kit theft changes that (R-0108) |
+| 12 | Smuggle a non-canonical CBOR encoding past a signature check | Strict deterministic parsing and hashing (§1.4, §6.2) | Blocked |
+| 13 | Spoof a field label in a shared vault with a look-alike name | Template labels, quoted unknown names (§5.6) | R-0114 |
+| 14 | Talk the owner into approving the attacker's device | Possession proof only proves key possession, not intent (§4.7) | R-0115 |
+| 15 | A “view only” sharee publishes ops | No read-only roles in v1 (§9.1) | R-0113 / D-0117 |
+
+## 15. Appendix — Phase 0 self-attack review (historical)
 
 Recorded during Phase 0 against the repository, CI and the preview dashboard.
 Full detail and test names: `docs/PROGRESS.md` (Phase 0) and the Phase 0 PR.
