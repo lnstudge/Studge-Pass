@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": "pass",
-    "updated_at": "2026-11-04T18:53:33Z"
+    "updated_at": "2026-11-04T19:00:53Z"
   },
   "commits": [
     {
@@ -172,6 +172,21 @@
       "sha": "53143f82cfae9a3dacc812a9123e06c1e0c1d01f",
       "message": "docs(progress): write the Phase 0 entry",
       "url": "https://github.com/lnstudge/Studge-Pass/commit/53143f82cfae9a3dacc812a9123e06c1e0c1d01f"
+    },
+    {
+      "sha": "c8baf5999873a11b04aaf1da48cf94a6f6cf3817",
+      "message": "docs(preview): refresh dashboard data, screenshots and self-critique",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/c8baf5999873a11b04aaf1da48cf94a6f6cf3817"
+    },
+    {
+      "sha": "7aade7ed97bbad8e35fb64f7e0af1a220edc384f",
+      "message": "docs(preview): record the Phase 0 pull request",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/7aade7ed97bbad8e35fb64f7e0af1a220edc384f"
+    },
+    {
+      "sha": "4771db737e9e3a7e6b3426070dbedcfc509c1b36",
+      "message": "ci(security): grant gitleaks pull-requests read so PR scans work",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/4771db737e9e3a7e6b3426070dbedcfc509c1b36"
     }
   ],
   "screenshots": [
