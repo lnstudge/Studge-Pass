@@ -741,3 +741,253 @@ h3 {
     transform: none;
   }
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: var(--space-1) 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+/* Docs */
+.doc-switch {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.doc-choice.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.doc-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  position: sticky;
+  top: var(--space-3);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.toc-summary {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.toc-list {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.toc-link {
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.toc-link:hover {
+  color: var(--accent);
+}
+
+.toc-item.level-3 {
+  padding-left: 14px;
+}
+
+.toc-item.level-3 .toc-link {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.doc-body {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow);
+  max-width: 82ch;
+}
+
+.doc-head {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.doc-title {
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.doc-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+}
+
+.doc-body h3 {
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: 20px;
+}
+
+.doc-body h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 16.5px;
+}
+
+.doc-body h5 {
+  margin: 20px 0 6px;
+  font-size: 15px;
+}
+
+.doc-body p,
+.doc-body li {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.doc-body ul,
+.doc-body ol {
+  padding-left: 22px;
+}
+
+.doc-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table-wrap {
+  margin: var(--space-2) 0;
+  overflow-x: auto;
+}
+
+.doc-body th,
+.doc-body td {
+  border-top: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-body th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+.doc-body code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--surface-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.doc-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.doc-body blockquote {
+  margin: var(--space-2) 0;
+  padding: 4px 0 4px 14px;
+  border-left: 3px solid var(--accent);
+  color: var(--ink-2);
+}
+
+.doc-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: var(--space-2) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.doc-body a {
+  color: var(--accent);
+}
+
+.doc-body hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--space-3) 0;
+}
+
+@media (max-width: 900px) {
+  .doc-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .toc {
+    position: static;
+    max-height: none;
+  }
+
+  .doc-body {
+    padding: var(--space-2);
+  }
+}

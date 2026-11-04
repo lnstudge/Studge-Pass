@@ -10,84 +10,84 @@
       "n": 1,
       "title": "Branch and phase plan",
       "state": "done",
-      "summary": "Created branch phase-01-spec from main (Phase 0 merged as f42d833); plan posted in chat and written to docs/preview/status.json. Documentation only: no product code changes.",
-      "commit_sha": null
+      "summary": "Created branch phase-01-spec from main (Phase 0 merged as f42d833); plan posted and written to status.json. Documentation only: no product code.",
+      "commit_sha": "a6dec94b2209abdc8728aff9da91f5bd3d8addf7"
     },
     {
       "n": 2,
       "title": "SPEC §1–3: purpose, terminology, trust model",
-      "state": "next",
-      "summary": "Scope, design goals, terminology, trust boundaries, and the assumptions the rest of the spec depends on.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Goals G1–G8, non-goals, 24-term glossary, parties/trust table, the precise list of what the relay can see, assumptions A-1…A-6 and the fail-closed policy. 1,769 words.",
+      "commit_sha": "86ae2c943006e3b5b4ae6b91a8c677b26390d125"
     },
     {
       "n": 3,
       "title": "SPEC §4: identities and key hierarchy",
-      "state": "next",
-      "summary": "account_id/device_id, the SP1 Secret Key format with checksum, Argon2id + HKDF MUK, OPAQUE auth secret, account key, Ed25519/X25519/ML-KEM identity keys, device certification and revocation, vault keys and item keys.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Identifiers, the SP1 Secret Key (125-bit proposal D-0101 with checksum), Argon2id→HKDF→MUK, OPAQUE auth secret, AK and key bundle, identity keys (Ed25519/X25519/ML-KEM-768), device certification and revocation, VK/IK, rotation table.",
+      "commit_sha": "f03aca2e27fa872b0163752c3b18aa5643865e97"
     },
     {
       "n": 4,
       "title": "SPEC §5–6: encryption format and op log",
-      "state": "next",
-      "summary": "XChaCha20-Poly1305 envelopes, deterministic-CBOR AAD with every bound field, HKDF purpose labels, the hash-chained op DAG, conflict resolution, signed heads and rollback/fork detection.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "XChaCha20-Poly1305 envelopes, the exact AAD map and record-type enum, the HKDF label table, field rules and failure policy; the signed op DAG, Lamport rules, conflict resolution, signed heads, head pinning with rollback/fork detection, limits.",
+      "commit_sha": "b87913f4a1ed649b886d2dedc0b6d0606e134742"
     },
     {
       "n": 5,
       "title": "SPEC §7: relay API and transports",
-      "state": "next",
-      "summary": "OPAQUE register/login, session tokens, every endpoint and its shapes, size limits, quotas, rate limits, generic errors, and the http/folder/memory Transport implementations.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "OPAQUE register/login, 256-bit tokens stored as SHA-256 with 24 h expiry, all 13 endpoints, head CAS, validation scope, quotas and rate limits, generic error model, storage tables, and the http/folder/memory transports.",
+      "commit_sha": "6f091fea9f638232a5182a876d0aaa201216f4cb"
     },
     {
       "n": 6,
-      "title": "SPEC §8–10: scoring, sharing, recovery, inventory",
-      "state": "next",
-      "summary": "Dashboard score formula and weights, sharing (HPKE, key transparency, safety codes), recovery (printable kit, 2-of-3 guardians, 72 h cancel), and the crypto inventory with versioning rules.",
-      "commit_sha": null
+      "title": "SPEC §8–11: scoring, sharing, recovery, inventory",
+      "state": "done",
+      "summary": "Score formula with p/w tables and local-only breach checks; membership ops, HPKE wrapping with bound info, transparency log, safety codes, rotation on removal; recovery kit, 2-of-3 guardians, 72 h window, emergency access; crypto inventory and forward-only versioning.",
+      "commit_sha": "baa9c0ac82bce498cf3c239c1868ceba179feb06"
     },
     {
       "n": 7,
       "title": "THREAT_MODEL part 1: adversaries A1–A8",
-      "state": "next",
-      "summary": "One table per adversary (malicious relay, network, sharee, malicious page, stolen locked device, malware, supply chain, hostile extension): assets, attacks, mitigations with SPEC links, residual risk.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Assets table; per-adversary tables for a malicious relay, network, sharee, malicious page, stolen device, malware (explicitly out of scope with reasoning), supply chain and hostile extensions, each with SPEC-linked mitigations and residual risk.",
+      "commit_sha": "05bfd513e568179a12e0341a266bf8537e305799"
     },
     {
       "n": 8,
       "title": "THREAT_MODEL part 2: mappings and open risks",
-      "state": "next",
-      "summary": "ETH Zurich 2026 malicious-server classes and the DEF CON 33 DOM clickjacking attack mapped to specific mitigations; open risks carried forward plus new design risks.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "The four ETH Zurich 2026 malicious-server classes and the DEF CON 33 DOM clickjacking attack mapped to concrete controls; a 17-row open-risk register (R-0001…R-0112) with severity, status and what closes each; Phase 0 appendix restored.",
+      "commit_sha": "03c51e6f4d930ab13bc59973b47c5bb869f42b84"
     },
     {
       "n": 9,
       "title": "Decisions: PROPOSED entries for every gap",
-      "state": "next",
-      "summary": "Every detail the prompt left open is proposed in docs/DECISIONS.md as PROPOSED (D-01xx) and mirrored to the Notion Decisions database for the founder's review.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "16 PROPOSED decisions (D-0101…D-0116) covering the Secret Key length, OPAQUE KSF, derived wrapping keys, bundle head pins, X25519-only HPKE, domain separation, enrolment proof, per-object salts, ids, limits, compaction, logout, enumeration, folder layout, the Shamir crate and scoring rules.",
+      "commit_sha": "a9ed28aaf29ff78c89f612c93a58daf7a4af37c6"
     },
     {
       "n": 10,
       "title": "Diagrams: key hierarchy and trust boundary",
-      "state": "next",
-      "summary": "Two hand-written SVGs under docs/diagrams/: password + Secret Key to MUK to AK to vault keys to item keys, and the relay trust boundary. Embedded in SPEC.md and rendered on the preview page.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Two hand-written SVGs (key hierarchy, relay trust boundary) with dark panels that read on both themes; embedded in SPEC §3.2 and §4.11; XML validated.",
+      "commit_sha": "16db97b3a331683ddfa4e49939a599571cfd73ac"
     },
     {
       "n": 11,
       "title": "Preview Docs tab with TOC, tests and screenshots",
-      "state": "next",
-      "summary": "Safe Markdown renderer (DOM nodes only, no innerHTML), Docs/Status tab switcher, table of contents for SPEC and THREAT_MODEL, unit tests, light/dark/narrow screenshots.",
+      "state": "done",
+      "summary": "Safe Markdown parser + DOM renderer (no innerHTML), docs view with contents, Status/Docs tabs with hash routing, ?scroll deep links; 43 tests pass; light/dark desktop and narrow screenshots.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "next",
-      "summary": "At least 10 design-level attack vectors, each blocked by a named SPEC clause or recorded as an open risk; GitHub issues, Notion risks, PROGRESS.md entry, final checks, PR closing #7.",
+      "state": "doing",
+      "summary": "Design-level attack review, GitHub issues, Notion risks, PROGRESS.md entry, final checks, PR closing #7, then the 10 decisions summary.",
       "commit_sha": null
     }
   ],
@@ -99,40 +99,44 @@
     "updated_at": "2026-11-04T19:20:21Z"
   },
   "commits": [],
-  "screenshots": [],
+  "screenshots": [
+    { "path": "screenshots/phase-01/step-11-docs-spec-light.png", "caption": "Docs tab — specification, light, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-spec-dark.png", "caption": "Docs tab — specification, dark, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-threat-light.png", "caption": "Docs tab — threat model, light, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-threat-dark.png", "caption": "Docs tab — threat model, dark, desktop" },
+    { "path": "screenshots/phase-01/step-11-docs-narrow-light.png", "caption": "Docs tab — narrow 390 px, light" },
+    { "path": "screenshots/phase-01/step-11-docs-narrow-dark.png", "caption": "Docs tab — narrow 390 px, dark" },
+    { "path": "screenshots/phase-01/step-11-diagram-light.png", "caption": "Trust-boundary diagram in §3.2, light" },
+    { "path": "screenshots/phase-01/step-11-diagram-dark.png", "caption": "Trust-boundary diagram in §3.2, dark" },
+    { "path": "screenshots/phase-01/step-11-table-light.png", "caption": "Adversary table rendering, light" },
+    { "path": "screenshots/phase-01/step-11-table-dark.png", "caption": "Adversary table rendering, dark" }
+  ],
   "try_it": [
-    { "label": "Read the specification", "command_or_url": "http://localhost:4400/#docs/spec , or docs/SPEC.md" },
-    { "label": "Read the threat model", "command_or_url": "http://localhost:4400/#docs/threat-model , or docs/THREAT_MODEL.md" },
+    { "label": "Read the specification in the preview", "command_or_url": "http://localhost:4400/#docs/spec" },
+    { "label": "Read the threat model in the preview", "command_or_url": "http://localhost:4400/#docs/threat-model" },
     { "label": "Open the dashboard", "command_or_url": ".\\x.ps1 \"pnpm install && pnpm preview\"  then http://localhost:4400" },
-    { "label": "Proposed build checks", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
+    { "label": "Read the raw documents", "command_or_url": "docs/SPEC.md and docs/THREAT_MODEL.md" },
+    { "label": "Build checks (unchanged Rust)", "command_or_url": ".\\x.ps1 \"cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo deny check\"" },
     { "label": "Preview tests", "command_or_url": ".\\x.ps1 \"pnpm -r lint && pnpm -r test\"" }
   ],
   "risks": [
-    {
-      "title": "R-0001 — CodeQL code scanning is skipped while the repository is private (needs GitHub Advanced Security); gitleaks, cargo-deny, cargo-audit and clippy still run (issue #23)",
-      "severity": "medium",
-      "status": "open"
-    },
-    {
-      "title": "R-0002 — Link targets in status.json are trusted from the repository; a malicious PR could point a card at a phishing page (mitigated by PR review)",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0003 — The local preview dev server needs style-src 'unsafe-inline' for Vite hot reload; loopback-only, no third-party data, must not be copied into product UI",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0004 — gitleaks can miss novel secret formats; mitigated by a manual staged-diff scan before every commit",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0005 — minimatch advisory (GHSA-g3hv-75wg-m249, moderate DoS) in the dev-only ESLint toolchain; never shipped, CI fails on high/critical via pnpm audit --audit-level high",
-      "severity": "low",
-      "status": "accepted"
-    }
+    { "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)", "severity": "medium", "status": "open" },
+    { "title": "R-0002 — Link targets in status.json are trusted from the repository (PR review)", "severity": "low", "status": "accepted" },
+    { "title": "R-0003 — Preview dev server needs style-src 'unsafe-inline' for Vite HMR (loopback only)", "severity": "low", "status": "accepted" },
+    { "title": "R-0004 — gitleaks can miss novel secret formats (manual diff scan)", "severity": "low", "status": "accepted" },
+    { "title": "R-0005 — minimatch advisory in dev-only ESLint tooling", "severity": "low", "status": "accepted" },
+    { "title": "R-0101 — The relay learns metadata: ids, sizes, counts, timing, IP", "severity": "low", "status": "accepted" },
+    { "title": "R-0102 — A device with no pinned head can be rolled back before first verification (TOFU)", "severity": "medium", "status": "accepted" },
+    { "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce", "severity": "low", "status": "accepted" },
+    { "title": "R-0104 — Key substitution on first contact before a safety code is verified", "severity": "medium", "status": "accepted" },
+    { "title": "R-0105 — A removed member keeps history they already saw; rotation protects future data only", "severity": "medium", "status": "accepted" },
+    { "title": "R-0106 — A malicious relay can withhold ops; clients detect but cannot obtain them", "severity": "low", "status": "accepted" },
+    { "title": "R-0107 — Device revocation is time-based; clock skew allows ops just before revoked_at", "severity": "low", "status": "accepted" },
+    { "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing", "severity": "medium", "status": "accepted" },
+    { "title": "R-0109 — The printed recovery kit can be photographed or stolen", "severity": "medium", "status": "accepted" },
+    { "title": "R-0110 — Key-transparency log is run by the untrusted relay; a split view is possible", "severity": "medium", "status": "open" },
+    { "title": "R-0111 — The 72-hour recovery window is enforced by the relay", "severity": "low", "status": "open" },
+    { "title": "R-0112 — An approved crate or pinned action SHA can still be compromised upstream", "severity": "medium", "status": "accepted" }
   ],
   "links": [
     { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },

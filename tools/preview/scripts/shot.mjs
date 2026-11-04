@@ -13,12 +13,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // resolved against the repository root instead.
 const repoRoot = path.resolve(here, "..", "..", "..");
 
-const [url, outBase, widthArg] = process.argv.slice(2);
+const [url, outBase, widthArg, mode] = process.argv.slice(2);
 
 if (!url || !outBase) {
-  console.error("usage: pnpm shot <url> <out-basename> [viewport-width]");
+  console.error("usage: pnpm shot <url> <out-basename> [viewport-width] [viewport|full]");
   process.exit(2);
 }
+
+const fullPage = mode !== "viewport";
 
 const width = widthArg === undefined ? 1440 : Number(widthArg);
 if (!Number.isFinite(width) || width < 320 || width > 5120) {
@@ -41,8 +43,18 @@ for (const theme of ["light", "dark"]) {
       deviceScaleFactor: 2,
     });
     await page.goto(target.toString(), { waitUntil: "networkidle" });
+
+    const scrollId = target.searchParams.get("scroll");
+    if (scrollId !== null) {
+      await page.evaluate((id) => {
+        document.getElementById(id)?.scrollIntoView({ block: "start" });
+      }, scrollId);
+    }
+    // Let lazy images and the smooth scroll settle before capturing.
+    await page.waitForTimeout(300);
+
     const file = `${base}-${theme}.png`;
-    await page.screenshot({ path: file, fullPage: true });
+    await page.screenshot({ path: file, fullPage });
     console.log(`wrote ${file}`);
   } finally {
     await browser.close();
