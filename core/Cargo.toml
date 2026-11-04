@@ -16,7 +16,7 @@ ciborium = "0.2.2"
 ed25519-dalek = { version = "3.0.0", features = ["rand_core", "signature"] }
 getrandom = { version = "0.4.3", features = ["sys_rng"] }
 hkdf = "0.13.0"
-hpke = { version = "0.15.1", default-features = false, features = ["x25519", "chacha", "getrandom"] }
+hpke = { version = "0.15.1", default-features = false, features = ["x25519", "chacha", "getrandom", "alloc"] }
 sha2 = "0.11.1"
 subtle = "2.6.1"
 thiserror = "2.0.21"
