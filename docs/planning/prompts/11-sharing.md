@@ -20,3 +20,6 @@ Evil-relay tests:
 - a forked key log is detected
 
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a demo with two fake accounts sharing a vault, showing safety codes side by side, plus a key-transparency log viewer on the preview page (tree size, signed head, and a highlighted inclusion proof).
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

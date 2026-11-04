@@ -24,3 +24,6 @@ Security:
 Tests: Rust tests for the commands, Vitest for UI logic, and a Playwright smoke test if it is practical. Write `pnpm tauri dev` instructions for Windows in PROGRESS.md. Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and tell me exactly how to run it.
 
 Design: use the @studge/design tokens and components from Phase 6b and follow the Design bar in AGENTS.md. Finish with light and dark screenshots in docs/screenshots/phase-07/ and a self-critique of where it falls short of the bar, then fix the top 3 issues before opening the PR.
+
+Preview for me: keep `pnpm tauri dev` running so I can click around while you build, and tell me which screen to look at after each step. Add before/after screenshots of each screen to the preview gallery.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

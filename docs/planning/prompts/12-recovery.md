@@ -23,3 +23,6 @@ Tests:
 - the relay swaps a guardian's key
 
 Commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: a guided demo of the recovery flow with 4 fake accounts (owner and 3 guardians), with screenshots of each screen and a timeline on the preview page showing request → approvals → waiting period → recovered.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.

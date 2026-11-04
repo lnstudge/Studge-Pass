@@ -29,3 +29,6 @@ Integration tests (reqwest against a relay spawned on a random port):
 - another account's vault returns 404
 
 Run every check, update PROGRESS.md with how to run the relay on Windows and in Docker, and commit and push following AGENTS.md, run the self-attack review, and open the pull request. Stop and report.
+
+Preview for me: start the relay and give me the URL. Add a "Relay" section to the preview page that lists every endpoint with a ready-to-copy curl or PowerShell `Invoke-RestMethod` example, and shows live results from /health. Run a scripted demo (`cargo run -p studge-relay --example relay_tour`) that registers a fake account, appends ops and prints each request and response, with tokens masked.
+Follow "Show your work" in AGENTS.md: post your plan, narrate every step, and update docs/preview/status.json after each one.
