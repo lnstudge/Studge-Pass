@@ -1,0 +1,121 @@
+{
+  "phase": {
+    "id": 0,
+    "name": "Repository setup, rules and preview dashboard",
+    "branch": "phase-00-setup",
+    "pr_url": null
+  },
+  "steps": [
+    {
+      "n": 1,
+      "title": "Branch and phase plan",
+      "state": "done",
+      "summary": "Created branch phase-00-setup from main; plan posted in chat and written to docs/preview/status.json.",
+      "commit_sha": null
+    },
+    {
+      "n": 2,
+      "title": "Notion Build Log",
+      "state": "next",
+      "summary": "BLOCKED: no Notion API key at ~/.config/notion/api_key (checked Windows and WSL). Per AGENTS.md fallback: logging locally in docs/PROGRESS.md; will back-fill the Build Log page, six databases, Start here page and the word-for-word prompt archive once the key exists.",
+      "commit_sha": null
+    },
+    {
+      "n": 3,
+      "title": "GitHub metadata",
+      "state": "next",
+      "summary": "BLOCKED: gh not authenticated on Windows or WSL. Labels, milestones and phase tracking issues will be created as soon as gh auth is available; re-checked at every step boundary.",
+      "commit_sha": null
+    },
+    {
+      "n": 4,
+      "title": "Repo scaffold",
+      "state": "next",
+      "summary": "LICENSE (GPL-3.0-or-later), relay/LICENSE (AGPL-3.0-or-later), SECURITY.md, CONTRIBUTING.md, extended README, .gitignore, .editorconfig, rust-toolchain.toml, rustfmt.toml, deny.toml, workspace Cargo.toml, placeholder dirs (desktop/extension/android/ios), docs skeletons (SPEC, THREAT_MODEL, PROGRESS, DECISIONS).",
+      "commit_sha": null
+    },
+    {
+      "n": 5,
+      "title": "Starter crates",
+      "state": "next",
+      "summary": "studge-core (lib, forbid unsafe, empty modules), studge-core-wasm (version() via wasm-bindgen), studge-relay (GET /health on 127.0.0.1:8787), studge CLI (--version via clap), studge-test-harness (empty lib).",
+      "commit_sha": null
+    },
+    {
+      "n": 6,
+      "title": "CI workflows",
+      "state": "next",
+      "summary": "ci.yml (fmt, clippy, test, deny on ubuntu, wasm build; ubuntu+windows matrix; actions pinned to full commit SHAs; contents: read), security.yml (gitleaks + weekly cargo audit), dependabot.yml, CodeQL.",
+      "commit_sha": null
+    },
+    {
+      "n": 7,
+      "title": "Full check suite",
+      "state": "next",
+      "summary": "Through .\\x.ps1: cargo fmt --check, clippy -D warnings, test --all, deny check, wasm build; live checks of relay /health and studge --version; results recorded here.",
+      "commit_sha": null
+    },
+    {
+      "n": 8,
+      "title": "Preview dashboard",
+      "state": "next",
+      "summary": "pnpm workspace + tools/preview package (Vite + TypeScript, no framework, no runtime network requests): status.schema.json with build-time validation, light/dark page (progress bar, checklist, check chips, commit timeline, gallery with lightbox, try-it cards with copy buttons, risks table), pnpm preview / preview:update / shot.",
+      "commit_sha": null
+    },
+    {
+      "n": 9,
+      "title": "Dashboard screenshots",
+      "state": "next",
+      "summary": "Serve the dashboard at http://localhost:4400, capture light and dark screenshots into docs/screenshots/phase-00/, add to the gallery, self-critique against the design bar.",
+      "commit_sha": null
+    },
+    {
+      "n": 10,
+      "title": "Self-attack review",
+      "state": "next",
+      "summary": "List at least 10 concrete ways an attacker could break Phase 0's work; block each with a test where possible; record the rest as open risks in docs/THREAT_MODEL.md, Notion and GitHub security issues.",
+      "commit_sha": null
+    },
+    {
+      "n": 11,
+      "title": "Progress and logs",
+      "state": "next",
+      "summary": "Phase 0 entry in docs/PROGRESS.md (what changed, how to run, test results, known gaps), Notion phase summary and test-run row, phase status In review.",
+      "commit_sha": null
+    },
+    {
+      "n": 12,
+      "title": "Final PR",
+      "state": "next",
+      "summary": "gh pr create --base main (Closes #<phase-0 issue>, requests review from @lnstudge, links Notion summary), comment on the phase issue, post the final preview summary with file tree, verify commands and open questions. No merge.",
+      "commit_sha": null
+    }
+  ],
+  "checks": {
+    "fmt": null,
+    "clippy": null,
+    "tests": { "passed": null, "failed": null, "ignored": null },
+    "deny": null,
+    "updated_at": "2026-11-04T18:05:37Z"
+  },
+  "commits": [],
+  "screenshots": [],
+  "try_it": [],
+  "risks": [
+    {
+      "title": "gh CLI not authenticated (Windows and WSL) - phase metadata and the final PR are blocked until the founder runs gh auth login",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "title": "Notion API key missing - Build Log cannot be created yet; logging locally in docs/PROGRESS.md per the AGENTS.md fallback",
+      "severity": "low",
+      "status": "open"
+    }
+  ],
+  "links": [
+    { "label": "GitHub repository", "url": "https://github.com/lnstudge/Studge-Pass" },
+    { "label": "AGENTS.md (rulebook)", "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md" },
+    { "label": "Phase 0 master prompt", "url": "/planning/prompts/00-master-setup.md" }
+  ]
+}
