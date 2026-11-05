@@ -12,6 +12,7 @@ pub mod cbor;
 pub mod codec;
 pub mod crypto;
 pub mod error;
+pub mod export;
 pub mod health;
 pub mod import;
 pub mod oplog;

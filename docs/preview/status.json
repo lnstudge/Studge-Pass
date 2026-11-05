@@ -44,14 +44,14 @@
     {
       "n": 6,
       "title": "Encrypted .studgevault backup and the exporters",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Encrypted .studgevault backup: a container of already-encrypted records (account bundle, wrapped vault keys, heads, ops) with a magic header and strict parsing, needing no new key or label (D-0307). Plus the three plaintext exporters (JSON, CSV, KeePass XML) that each refuse without allow_plaintext and carry a PLAINTEXT warning. 16 new tests.",
       "commit_sha": null
     },
     {
       "n": 7,
       "title": "Generator: passwords, EFF passphrases, entropy estimate",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:53:53Z"
+    "updated_at": "2026-11-05T01:56:46Z"
   },
   "commits": [],
   "screenshots": [],

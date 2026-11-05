@@ -599,6 +599,36 @@ fn kem_public_from_seed(seed: &[u8; 64]) -> CoreResult<Vec<u8>> {
 }
 
 #[cfg(test)]
+pub(crate) mod test_support {
+    //! Cheap account fixtures for the crate's own tests.
+
+    use super::*;
+    use crate::crypto::kdf::derive_muk_raw;
+
+    fn fast(
+        password: &str,
+        salt: &[u8; SALT_BYTES],
+        secret_key: &SecretKey,
+        params: KdfParams,
+    ) -> CryptoResult<MasterUnlockKey> {
+        derive_muk_raw(password, salt, secret_key, params)
+    }
+
+    /// An account with cheap KDF parameters, created fresh per call.
+    pub(crate) fn bundle() -> (AccountBundle, SecretKey) {
+        let params = KdfParams {
+            version: 1,
+            m_kib: 8,
+            t: 1,
+            p: 1,
+        };
+        let (bundle, secret_key, _kit) =
+            create_account_with("test password", params, fast).expect("test account");
+        (bundle, secret_key)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::crypto::kdf::derive_muk_raw;
