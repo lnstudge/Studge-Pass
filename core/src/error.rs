@@ -87,6 +87,10 @@ pub enum CoreError {
     #[error("head counters went backwards")]
     HeadCountersRegressed,
 
+    /// A device was certified twice with different keys.
+    #[error("conflicting device certificate")]
+    ConflictingDeviceCertificate,
+
     /// A vault key was not unlocked.
     #[error("vault is locked")]
     Locked,

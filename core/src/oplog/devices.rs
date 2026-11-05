@@ -14,8 +14,8 @@ use std::collections::BTreeMap;
 pub struct DeviceRegistry {
     account_id: [u8; 16],
     identity_public: [u8; PUBLIC_KEY_BYTES],
-    keys: BTreeMap<[u8; 16], [u8; PUBLIC_KEY_BYTES]>,
-    revoked: BTreeMap<[u8; 16], Timestamp>,
+    certs: BTreeMap<[u8; 16], DeviceCertificate>,
+    revocations: BTreeMap<[u8; 16], DeviceRevocation>,
 }
 
 impl DeviceRegistry {
@@ -24,8 +24,8 @@ impl DeviceRegistry {
         Self {
             account_id,
             identity_public,
-            keys: BTreeMap::new(),
-            revoked: BTreeMap::new(),
+            certs: BTreeMap::new(),
+            revocations: BTreeMap::new(),
         }
     }
 
@@ -41,18 +41,20 @@ impl DeviceRegistry {
 
     /// Adds a certified device after verifying the certificate.
     pub fn certify(&mut self, cert: &DeviceCertificate, now: &Timestamp) -> CoreResult<()> {
-        let revoked_at = self.revoked.get(cert.device_id());
+        let revoked_at = self
+            .revocations
+            .get(cert.device_id())
+            .map(|rev| rev.revoked_at());
         cert.verify(&self.identity_public, &self.account_id, now, revoked_at)
             .map_err(CoreError::Crypto)?;
-        if self
-            .keys
-            .insert(*cert.device_id(), *cert.device_public_key())
-            .is_some()
-        {
-            // Re-certifying is not a protocol error, but a second certificate
+        if let Some(existing) = self.certs.get(cert.device_id()) {
+            // Re-certifying the same key is harmless; a second certificate
             // with a different key would be a silent key swap.
-            return Ok(());
+            if existing.device_public_key() != cert.device_public_key() {
+                return Err(CoreError::ConflictingDeviceCertificate);
+            }
         }
+        self.certs.insert(*cert.device_id(), cert.clone());
         Ok(())
     }
 
@@ -61,21 +63,34 @@ impl DeviceRegistry {
         revocation
             .verify(&self.identity_public, &self.account_id)
             .map_err(CoreError::Crypto)?;
-        let entry = self.revoked.entry(*revocation.device_id());
-        // Keep the earliest revocation: a later one must not widen the window.
-        entry
-            .and_modify(|existing| {
-                if revocation.revoked_at().unix_seconds() < existing.unix_seconds() {
-                    *existing = revocation.revoked_at().clone();
-                }
-            })
-            .or_insert_with(|| revocation.revoked_at().clone());
+        let earlier = match self.revocations.get(revocation.device_id()) {
+            // Keep the earliest revocation: a later one must not widen the
+            // window in which a stolen device's ops still verify (R-0107).
+            Some(existing) => {
+                existing.revoked_at().unix_seconds() <= revocation.revoked_at().unix_seconds()
+            }
+            None => false,
+        };
+        if !earlier {
+            self.revocations
+                .insert(*revocation.device_id(), revocation.clone());
+        }
         Ok(())
+    }
+
+    /// The certified devices, for storing in the key bundle.
+    pub fn certificates(&self) -> Vec<&DeviceCertificate> {
+        self.certs.values().collect()
+    }
+
+    /// The revocations, for storing in the key bundle.
+    pub fn revocations(&self) -> Vec<&DeviceRevocation> {
+        self.revocations.values().collect()
     }
 
     /// Whether the device is known at all.
     pub fn knows(&self, device_id: &[u8; 16]) -> bool {
-        self.keys.contains_key(device_id)
+        self.certs.contains_key(device_id)
     }
 
     /// The device key valid at `at`, or a typed error.
@@ -84,31 +99,31 @@ impl DeviceRegistry {
         device_id: &[u8; 16],
         at: &Timestamp,
     ) -> CoreResult<[u8; PUBLIC_KEY_BYTES]> {
-        let key = *self
-            .keys
+        let cert = self
+            .certs
             .get(device_id)
             .ok_or(CoreError::OpVerificationFailed)?;
-        if let Some(revoked_at) = self.revoked.get(device_id) {
-            if at.unix_seconds() >= revoked_at.unix_seconds() {
+        if let Some(revocation) = self.revocations.get(device_id) {
+            if at.unix_seconds() >= revocation.revoked_at().unix_seconds() {
                 return Err(CoreError::Crypto(crate::crypto::CryptoError::Revoked));
             }
         }
-        Ok(key)
+        Ok(*cert.device_public_key())
     }
 
     /// The revocation time of a device, if revoked.
     pub fn revoked_at(&self, device_id: &[u8; 16]) -> Option<&Timestamp> {
-        self.revoked.get(device_id)
+        self.revocations.get(device_id).map(|rev| rev.revoked_at())
     }
 
     /// Number of certified devices.
     pub fn len(&self) -> usize {
-        self.keys.len()
+        self.certs.len()
     }
 
     /// Whether no device is certified yet.
     pub fn is_empty(&self) -> bool {
-        self.keys.is_empty()
+        self.certs.is_empty()
     }
 }
 
@@ -203,6 +218,25 @@ mod tests {
     }
 
     #[test]
+    fn a_second_certificate_with_another_key_is_rejected() {
+        let (identity, mut registry, _) = setup();
+        let swapped = DeviceCertificate::create(
+            &identity,
+            ACCOUNT,
+            DEVICE,
+            SigningKeyPair::from_seed([9u8; 32]).public_bytes(),
+            at("2026-11-05T09:10:00Z"),
+        )
+        .expect("cert");
+        assert_eq!(
+            registry
+                .certify(&swapped, &at("2026-11-05T09:30:00Z"))
+                .expect_err("swap"),
+            CoreError::ConflictingDeviceCertificate
+        );
+    }
+
+    #[test]
     fn the_earliest_revocation_wins() {
         let (identity, mut registry, _) = setup();
         for when in ["2026-11-05T12:00:00Z", "2026-11-05T11:00:00Z"] {
@@ -214,5 +248,7 @@ mod tests {
             registry.revoked_at(&DEVICE).expect("revoked").as_str(),
             "2026-11-05T11:00:00Z"
         );
+        assert_eq!(registry.certificates().len(), 1);
+        assert_eq!(registry.revocations().len(), 1);
     }
 }

@@ -30,14 +30,14 @@
     {
       "n": 4,
       "title": "Account API: create, unlock, lock, device certification, vault keyring",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Account API: create_account derives the MUK, wraps the AK and seals a six-entry key bundle (identities incl. ML-KEM-768, device list, head pins, version); unlock opens every entry under its own AAD; UnlockedAccount certifies and revokes devices, wraps/unwraps vault keys, pins heads, re-seals the bundle and wipes on lock. Device certificates gained strict storage CBOR. 14 new tests plus one ignored real-Argon2 test.",
       "commit_sha": null
     },
     {
       "n": 5,
       "title": "Storage: LocalStore trait, in-memory store and SQLite store",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:41:14Z"
+    "updated_at": "2026-11-05T01:49:27Z"
   },
   "commits": [],
   "screenshots": [],

@@ -7,6 +7,7 @@
 //! through injected traits, so the crate builds for native targets and for
 //! `wasm32-unknown-unknown` alike.
 
+pub mod account;
 pub mod cbor;
 pub mod codec;
 pub mod crypto;
