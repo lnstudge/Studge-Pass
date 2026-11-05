@@ -332,9 +332,11 @@ transparency entries, and a signature must never be replayable in another role.
 
 Enrolment is an explicit user action on the existing device (show a code, scan
 or type it, confirm the new device's name). The new device proves possession of
-its private key by signing
+its private key by signing the **BLAKE3 digest** of
 `CBOR{suite, type: "device-enroll", account_id, device_id, nonce}` with a
-single-use `nonce` issued by the approving device. **PROPOSED** (D-0107).
+single-use `nonce` issued by the approving device. Every signature in this
+protocol covers a digest (D-0207), matching the op hash in §6.3. **PROPOSED**
+(D-0107).
 
 A client MUST verify, before trusting any device-signed object: the certificate
 signature against the pinned identity key, that `account_id` matches, that the

@@ -41,6 +41,7 @@ export interface Screenshot {
 export interface TryIt {
   label: string;
   command_or_url: string;
+  expect?: string;
 }
 
 export interface Risk {
