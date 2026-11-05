@@ -92,17 +92,73 @@
     }
   ],
   "checks": {
-    "fmt": null,
-    "clippy": null,
+    "fmt": "pass",
+    "clippy": "pass",
     "tests": {
-      "passed": 0,
+      "passed": 241,
       "failed": 0,
-      "ignored": 0
+      "ignored": 2
     },
-    "deny": null,
-    "updated_at": "2026-11-05T02:13:11Z"
+    "deny": "pass",
+    "updated_at": "2026-11-05T02:23:17Z"
   },
-  "commits": [],
+  "commits": [
+    {
+      "sha": "98b05d7c7a229ad04f46d211eab015535318f5e0",
+      "message": "build(core): pin the Phase 3 crates and record D-0301 to D-0306",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/98b05d7c7a229ad04f46d211eab015535318f5e0"
+    },
+    {
+      "sha": "c77e41b5a8ddfe825977a8ac4d8fb2bd8981ed44",
+      "message": "feat(vault): item model with 13 templates and strict field validation",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/c77e41b5a8ddfe825977a8ac4d8fb2bd8981ed44"
+    },
+    {
+      "sha": "c95d65ef0b49132904eee464e1194939124601be",
+      "message": "feat(oplog): signed op DAG, vault heads and rollback/fork detection",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/c95d65ef0b49132904eee464e1194939124601be"
+    },
+    {
+      "sha": "3cc3f15056754f12be6831596e6d2d617bf8d7c7",
+      "message": "feat(account): key bundle, unlock, device certification and vault keys",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/3cc3f15056754f12be6831596e6d2d617bf8d7c7"
+    },
+    {
+      "sha": "430c6ce807839d31af009ad04dbbb0a3c56d73da",
+      "message": "feat(storage): ciphertext-only LocalStore with memory and SQLite backends",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/430c6ce807839d31af009ad04dbbb0a3c56d73da"
+    },
+    {
+      "sha": "9f15773c2bcbf34c94649ad694b2baff5bfb8f0b",
+      "message": "feat(export): encrypted .studgevault backup, JSON, CSV and KeePass XML",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/9f15773c2bcbf34c94649ad694b2baff5bfb8f0b"
+    },
+    {
+      "sha": "f6dde5d7130ada6c5faf26925a1ea73bd1db751f",
+      "message": "feat(generate): password and EFF passphrase generator with entropy bounds",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/f6dde5d7130ada6c5faf26925a1ea73bd1db751f"
+    },
+    {
+      "sha": "70110120728b858fe0885ffefc1b971d5bbb593b",
+      "message": "feat(totp): RFC 6238 codes, strict otpauth parsing and base32 codec",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/70110120728b858fe0885ffefc1b971d5bbb593b"
+    },
+    {
+      "sha": "429cc3d34b4887f7ff98a2377b5ee6e38c2b2f5c",
+      "message": "feat(import): Bitwarden, Chrome, Apple, Dashlane and generic CSV import",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/429cc3d34b4887f7ff98a2377b5ee6e38c2b2f5c"
+    },
+    {
+      "sha": "8f059db27178e307caa0e1e513751c59093f751f",
+      "message": "feat(import): 1Password, Proton Pass and KeePass XML import",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/8f059db27178e307caa0e1e513751c59093f751f"
+    },
+    {
+      "sha": "0df15eed88fbf3d80e4e9a3c0e8e721096975799",
+      "message": "feat(preview): op-log graph view and the vault_tour demo",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/0df15eed88fbf3d80e4e9a3c0e8e721096975799"
+    }
+  ],
   "screenshots": [
     {
       "path": "screenshots/phase-03/step-11-oplog-light.png",

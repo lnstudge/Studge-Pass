@@ -472,3 +472,82 @@ the founder approves them by merging the Phase 3 pull request.
   `vault_id` and `lamport` keep the scan bounded, and Phase 5 adds a decrypted
   in-memory cache that is dropped on lock.
 - **Affects:** `core/src/storage`, THREAT_MODEL R-0304. **Status:** Proposed.
+
+## Phase 3 decisions, continued (D-0307 … D-0311)
+
+## D-0307 — `.studgevault` is a container of already-encrypted records
+
+- **Options:** encrypt the backup under a new passphrase-derived key; wrap the
+  vault key for the file; ship a container of the records that are already
+  ciphertext.
+- **Choice:** the container. A backup holds the account record (AK envelope and
+  key bundle), each vault's wrapped key, its head and its ops — every one of them
+  already sealed by the code that owns it.
+- **Reason:** a new file key would need a new HKDF label and a new record type,
+  which this phase is not allowed to invent, and it would add a second place
+  where a wrong passphrase could produce a silently different file. Because the
+  records are individually authenticated, the container needs no MAC of its own:
+  a flipped byte inside a record is caught when that record is verified or
+  decrypted (tested), and a flipped structural byte is caught by the strict CBOR
+  parser. Opening a backup therefore needs exactly what opening the account
+  needs: the password and the Secret Key (SPEC §10.1).
+- **Consequence:** the header (account id, vault ids, counts, creation time) is
+  visible, the same metadata class as R-0101.
+- **Affects:** `core/src/export/backup.rs`. **Status:** Proposed.
+
+## D-0308 — The EFF large wordlist is bundled, with attribution
+
+- **Options:** fetch a wordlist at runtime; generate one; bundle the EFF list.
+- **Choice:** bundle `core/data/eff_large_wordlist.txt` (7776 words, fetched
+  unmodified from eff.org on 2026-11-04) with `include_str!`, and record its
+  CC BY 3.0 US licence and attribution in `core/data/README.md`.
+- **Reason:** a passphrase generator that needs the network is not a passphrase
+  generator. The list is a data file, not code, and its licence permits
+  redistribution with attribution. Four of its words contain a hyphen
+  (`drop-down`, `felt-tip`, `t-shirt`, `yo-yo`), which is why the default `-`
+  separator is documented as ambiguous for splitting (not for security).
+- **Affects:** `core/data/`, `core/src/generate.rs`. **Status:** Proposed.
+
+## D-0309 — TOTP secrets shorter than 128 bits are accepted, and flagged
+
+- **Options:** refuse a secret under 128 bits; accept it silently; accept it and
+  surface the weakness.
+- **Choice:** accept it through `totp-rs`'s non-compliant builder path, after our
+  own parameter checks, and expose `TotpConfig::is_legacy_strength()` so the UI
+  can say that the *service* chose a short secret.
+- **Reason:** RFC 4226 recommends 160 bits and `totp-rs` refuses under 128, but
+  real services still issue 80-bit secrets. Refusing one means refusing the
+  user's account, and silently accepting one would hide a weakness the user
+  cannot fix. The flag is the honest middle: the code still yields unguessable
+  values (2^80), and the UI can explain where it came from.
+- **Affects:** `core/src/totp.rs`. **Status:** Proposed.
+
+## D-0310 — The conflict order is total: hash breaks a (lamport, device) tie
+
+- **Options:** define the winner as SPEC §6.6 does and leave a tie undefined;
+  add a final deterministic tiebreak.
+- **Choice:** compare `(lamport, device_id)` as SPEC says, then `op_hash` if both
+  are equal. Two different ops from one device with the same clock and the same
+  parents (a device that forked itself, e.g. a restored backup) are therefore
+  still resolved identically on every client.
+- **Reason:** SPEC's rule is total between honest devices but not against one
+  device that produced two ops for the same item at the same clock. A tie left
+  undefined would make two clients disagree about the same history — exactly the
+  failure the hash-chained log exists to prevent. The hash is random-looking and
+  cannot be steered to pick a winner in advance.
+- **Affects:** SPEC §6.6 (clarification), `core/src/oplog/materialise.rs`.
+  **Status:** Proposed.
+
+## D-0311 — KDF policy is enforced where the key is derived, not where the file is parsed
+
+- **Options:** reject weak KDF parameters while parsing an account record; reject
+  them when deriving the MUK; both.
+- **Choice:** at derivation. `AccountBundle::from_cbor` parses any recorded
+  parameters, and `derive_muk` refuses anything under the §4.3 floor before it
+  runs Argon2.
+- **Reason:** a client that cannot even parse the record can only say "corrupt
+  file"; one that parses and then refuses says "this account was downgraded",
+  which is the message a user needs. The security property is unchanged because
+  there is no path to a key without `derive_muk`; the tests use a crate-internal
+  raw derivation that is unreachable from outside the crate (D-0204).
+- **Affects:** `core/src/account.rs`, `core/src/crypto/kdf.rs`. **Status:** Proposed.

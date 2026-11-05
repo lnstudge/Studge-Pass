@@ -203,6 +203,10 @@ about how interesting the bug is.
 | R-0117 | The `test-vectors` feature exposes fixed-nonce sealing; enabling it in a release build would weaken nonce handling | low | Accepted | The feature is documented test-only, `seal` has no nonce parameter, and CI enables it only in a dedicated test step |
 | R-0118 | The Secret Key check character is 5 bits: a typo that stays inside the alphabet has a 1-in-32 chance of passing and then surfaces as a wrong MUK | low | Accepted | The failure is safe (no data loss, the recovery flow aborts with a clear error); a longer check would cost another printed character |
 | R-0119 | HPKE base mode gives no sender authentication; anyone holding a public key can seal to it | low | Accepted | Correct for wrapping a vault key to a member — the recipient does not need to know who wrapped it. Phase 11 must not present it as authentication |
+| R-0301 | A plaintext CSV or JSON export opened in a spreadsheet can execute a value: a password beginning with `=`, `+`, `-` or `@` is a formula (CSV injection). Our own importer reads raw CSV, so silently prefixing cells would corrupt round-trips | medium | Open | Export is opt-in, labelled `PLAINTEXT` and documented; a later export format that cannot execute (or an explicit “safe for spreadsheets” mode) closes it. Tracked as a follow-up issue |
+| R-0302 | The KeePass XML importer ignores elements it does not recognise, so a foreign extension field is dropped rather than reported | low | Accepted | Only the KeePass 2.x element set is read and an unknown element is never turned into a field name (which would be R-0114); a dropped custom extension is the safer failure |
+| R-0303 | A vault containing an op kind this build does not implement (`move`, `membership`, `key_rotation`) cannot be materialised at all | low | Accepted by design | Fail-closed: refusing the whole history beats silently ignoring an access-control or key-rotation op (D-0305). Phase 11 introduces the kinds with their payloads |
+| R-0304 | The local SQLite file holds no plaintext, but its size, row counts and file times reveal how many items and ops a vault has | low | Accepted | The same metadata class as R-0101, on a device the attacker already had to access; nothing readable is stored (tested) |
 
 ## 14. Phase 1 self-attack review (design level)
 
@@ -275,5 +279,34 @@ removed; the rest are the three new risks above.
 | 16 | Use fixed-nonce sealing in a release build | Opt-in feature only, `seal` always random (D-0203) | R-0117 |
 | 17 | Forge a Secret Key typo into a working key | 5-bit check character | R-0118 |
 | 18 | Treat HPKE sealing as proof of who sent it | Base mode has no sender auth | R-0119 |
+
+## 17. Phase 3 self-attack review (vault, op log, storage, import/export)
+
+Attacking the phase the way a malicious relay, a malicious member and a hostile
+file would. Each "blocked" row names the test that fails if the protection is
+removed; the rest are the four new risks above.
+
+| # | Attack | Where it lands | Verdict |
+| --- | --- | --- | --- |
+| 1 | Edit a stored op payload and let the relay serve it | The payload is inside the signed op, so the hash changes (`oplog::materialise::tests::editing_the_payload_breaks_the_signature`) | Blocked |
+| 2 | Publish a valid ciphertext under another item id (a malicious member with the vault key) | AAD binds vault and item (`a_tampered_payload_fails_materialisation`) | Blocked |
+| 3 | Drop an op from the middle of the history | Missing parent is a hard error (`a_dropped_parent_is_a_hard_error`) | Blocked |
+| 4 | Reorder ops or inflate the Lamport clock to win a conflict | `lamport = 1 + max(parents)` is enforced on insert (`rejects_a_wrong_lamport_clock`) | Blocked |
+| 5 | Reuse an `op_id` with different content | Duplicate id with a different hash is refused (`rejects_a_replayed_op_id_with_new_content`) | Blocked |
+| 6 | Serve an older head (rollback) | Descent from the pinned head is required (`a_rollback_is_detected`) | Blocked, except a device with no pin (R-0102) |
+| 7 | Show two valid histories for one vault (fork) | Same counters and no descent is a fork (`a_fork_is_detected`) | Blocked |
+| 8 | Sign ops with a revoked device | The registry refuses anything at or after `revoked_at` (`an_op_from_a_revoked_device_is_rejected`, `a_certified_device_is_usable_before_its_revocation`) | Blocked |
+| 9 | Present a head signed by an uncertified device | Device key lookup before signature (`a_head_from_an_unknown_device_fails`) | Blocked |
+| 10 | Inject a look-alike field name into an item (R-0114) | Field names are validated against the template on build and on parse (`rejects_unknown_and_look_alike_field_names`) | Blocked |
+| 11 | Make a change disappear from the history | Losing ops stay in the DAG; the winner is only a display choice (`the_higher_lamport_wins_a_conflict`, `the_higher_device_id_breaks_a_lamport_tie`) | Blocked |
+| 12 | Read plaintext from the local database of a locked device | The store has no plaintext column; a test greps the database file (`the_database_file_contains_no_plaintext`) | Blocked |
+| 13 | Read plaintext from a `.studgevault` backup | Every record in it is already ciphertext (`the_file_contains_no_plaintext`) | Blocked |
+| 14 | Swap two key-bundle entries, or drop one | Each entry has its own AAD (`every_bundle_entry_is_bound_to_its_name`, `a_dropped_entry_is_rejected`) | Blocked |
+| 15 | Downgrade the KDF parameters recorded with an account | `derive_muk` refuses anything below the floor (`a_downgraded_kdf_is_rejected_at_unlock`) | Blocked |
+| 16 | XML external entity, entity expansion or a deeply nested document in a KeePass import | DOCTYPE/entity/PI refused, depth capped at 64, value at 1 MiB (`rejects_doctype_and_entities`, `refuses_deep_nesting`) | Blocked |
+| 17 | Memory bomb: a huge CSV, JSON or XML file | Size, row, column, depth and item caps (`check_input_size`, reader limits) | Blocked |
+| 18 | Smuggle a non-canonical CBOR op past the parser | Strict re-encode and compare (`rejects_non_canonical_or_unknown_keys`) | Blocked |
+| 19 | Executable value in a plaintext CSV opened in a spreadsheet | Nothing in core prevents it | R-0301 |
+| 20 | Unsupported op kind used to smuggle an ACL change | Rejected with `UnsupportedOpKind` (D-0305) | R-0303 |
 
 <!-- THREAT-END -->
