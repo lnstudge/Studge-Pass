@@ -23,14 +23,14 @@
     {
       "n": 3,
       "title": "Op log: hash, signatures, DAG materialisation, heads, rollback and fork detection",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Op log: canonical CBOR ops, BLAKE3 op hash, Ed25519 over the hash, strict parsing with exact key sets, DeviceRegistry with revocation cut-offs, DAG with parent/Lamport/duplicate-id rules, signed VaultHead, verify_descends and check_head_update (rollback vs fork), and materialisation with the (lamport, device_id) conflict rule. 30 new tests, including all six tamper vectors.",
       "commit_sha": null
     },
     {
       "n": 4,
       "title": "Account API: create, unlock, lock, device certification, vault keyring",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:29:09Z"
+    "updated_at": "2026-11-05T01:41:14Z"
   },
   "commits": [],
   "screenshots": [],
