@@ -65,14 +65,14 @@
     {
       "n": 9,
       "title": "Importers A: Bitwarden, Chrome, Apple, Dashlane, generic CSV",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Importers A: Bitwarden JSON and CSV, Chrome, Apple Passwords, Dashlane and a generic CSV mapper, all over a hand-written strict RFC 4180 reader (256 columns, 1 MiB/field, 200k rows). Every importer returns ImportReport{imported, skipped} where skips are an enum plus a row index, never file content; unknown template fields are errors, not silent drops. Fake fixtures in core/tests/fixtures/import.",
       "commit_sha": null
     },
     {
       "n": 10,
       "title": "Importers B: 1Password export.data, Proton Pass, KeePass XML",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T02:01:23Z"
+    "updated_at": "2026-11-05T02:04:50Z"
   },
   "commits": [],
   "screenshots": [],
