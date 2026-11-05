@@ -3,7 +3,7 @@
     "id": 3,
     "name": "Vault, op log, storage, import/export",
     "branch": "phase-03-vault",
-    "pr_url": null
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/41"
   },
   "steps": [
     {
@@ -86,8 +86,8 @@
     {
       "n": 12,
       "title": "Docs, self-attack review, issues and pull request",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Docs, self-attack review (20 vectors: 19 blocked by tests, 4 residual risks), issues #39/#40 filed and PR #41 opened. DECISIONS D-0307..D-0311 and THREAT_MODEL section 17 added; PROGRESS.md Phase 3 entry written.",
       "commit_sha": null
     }
   ],
@@ -100,7 +100,7 @@
       "ignored": 2
     },
     "deny": "pass",
-    "updated_at": "2026-11-05T02:23:17Z"
+    "updated_at": "2026-11-05T02:48:49Z"
   },
   "commits": [
     {
