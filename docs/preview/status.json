@@ -58,14 +58,14 @@
     {
       "n": 8,
       "title": "TOTP: RFC 6238 vectors and otpauth:// parsing",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "TOTP: TotpConfig over totp-rs with strict otpauth:// parsing (duplicate or unknown parameters rejected, label and issuer must agree), base32 and percent codecs with canonical-form checks, and the full RFC 6238 vector set. Secrets under 128 bits are accepted through the non-compliant path and flagged via is_legacy_strength so the UI can warn (D-0309). 12 new tests.",
       "commit_sha": null
     },
     {
       "n": 9,
       "title": "Importers A: Bitwarden, Chrome, Apple, Dashlane, generic CSV",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:58:25Z"
+    "updated_at": "2026-11-05T02:01:23Z"
   },
   "commits": [],
   "screenshots": [],

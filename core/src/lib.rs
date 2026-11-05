@@ -19,6 +19,7 @@ pub mod import;
 pub mod oplog;
 pub mod storage;
 pub mod sync;
+pub mod totp;
 pub mod vault;
 
 pub use error::{CoreError, CoreResult};
