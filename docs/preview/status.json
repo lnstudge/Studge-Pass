@@ -51,14 +51,14 @@
     {
       "n": 7,
       "title": "Generator: passwords, EFF passphrases, entropy estimate",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Generator: passwords (length, charsets, exclude-ambiguous) and EFF passphrases (7776-word list bundled with CC-BY attribution, separator, capitalisation, digit) with lower-bound entropy estimates. Selections use rejection sampling over OsRng so no value is favoured by modulo bias; results are zeroizing. 11 tests.",
       "commit_sha": null
     },
     {
       "n": 8,
       "title": "TOTP: RFC 6238 vectors and otpauth:// parsing",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:56:46Z"
+    "updated_at": "2026-11-05T01:58:25Z"
   },
   "commits": [],
   "screenshots": [],
