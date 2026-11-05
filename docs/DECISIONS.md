@@ -246,10 +246,10 @@ Phase 1 PR description.
   capabilities. Recorded as R-0113.
 - **Affects:** SPEC §9.1; THREAT_MODEL R-0113; issue #18. **Status:** Approved by founder.
 
-## Phase 2 proposals (D-0201 … D-0205)
+## Phase 2 decisions (D-0201 … D-0207)
 
 Implementation choices made while building `core/src/crypto`. Each is consistent
-with the approved SPEC; they are listed here for the founder's review at merge.
+with the approved SPEC; the founder approved all seven when PR #38 was merged.
 
 ## D-0201 — Crate versions for Phase 2
 
@@ -278,7 +278,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
 
 - **Reason:** pinning plus a committed lockfile gives reproducible builds; every
   entry is either on the approved list or does no crypto at all.
-- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Proposed.
+- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
 
 ## D-0202 — Timestamps are fixed-width RFC 3339 UTC
 
@@ -288,7 +288,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   is added.
 - **Reason:** §6.1 already uses RFC 3339 for ops, and §4.7–4.8 leave the encoding
   open. Fixed width makes the text sort correctly and keeps the wire readable.
-- **Affects:** SPEC §4.7, §4.8 (clarification). **Status:** Proposed.
+- **Affects:** SPEC §4.7, §4.8 (clarification). **Status:** Approved by founder.
 
 ## D-0203 — The `test-vectors` feature exposes fixed-nonce sealing
 
@@ -300,7 +300,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
 - **Reason:** the vectors need byte-exact ciphertext; a deterministic RNG would
   be a much larger foot-gun than one fixed-nonce function. The feature is
   documented as test-only and CI runs it as a separate step.
-- **Affects:** `core/Cargo.toml`, `core/tests/vectors.rs`. **Status:** Proposed.
+- **Affects:** `core/Cargo.toml`, `core/tests/vectors.rs`. **Status:** Approved by founder.
 
 ## D-0204 — KDF minimums live in `derive_muk`; tests use a crate-internal raw path
 
@@ -312,7 +312,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
 - **Reason:** defense in depth — a caller cannot accidentally accept a downgraded
   account — while keeping the suite fast. The real parameters are exercised by
   one `#[ignore]` test that verifies the published MUK vector.
-- **Affects:** SPEC §4.3. **Status:** Proposed.
+- **Affects:** SPEC §4.3. **Status:** Approved by founder.
 
 ## D-0205 — The hybrid KEM is available upstream, but v1 stays X25519
 
@@ -324,7 +324,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   says v1 wraps with X25519. The finding that the crate now supports X-Wing
   means the Phase 11 re-check can almost certainly flip it on; that is a
   Phase 11 change, not a Phase 2 surprise.
-- **Affects:** SPEC §9.2, R-0116. **Status:** Proposed.
+- **Affects:** SPEC §9.2, R-0116. **Status:** Approved by founder.
 
 ## D-0206 — The wasm build uses the browser RNG backend for getrandom
 
@@ -337,7 +337,7 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   extension target and CI caught it. The documented feature uses the browser's
   `Crypto.getRandomValues` through wasm-bindgen and does not affect native
   builds, which keep the OS backend.
-- **Affects:** `core-wasm/Cargo.toml`, `Cargo.lock`. **Status:** Proposed.
+- **Affects:** `core-wasm/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
 
 ## D-0207 — Every signature covers a BLAKE3 digest, not the raw body
 
@@ -350,4 +350,4 @@ with the approved SPEC; they are listed here for the founder's review at merge.
   **Note:** the Phase 2 code first signed raw bodies and was corrected during the
   PR #38 review; the vectors were regenerated.
 - **Affects:** SPEC §4.7, §4.8, §6.3; `core/src/crypto/signing.rs`; vectors.
-  **Status:** Proposed.
+  **Status:** Approved by founder.
