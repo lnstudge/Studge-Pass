@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KeePassFile>
+  <Meta>
+    <Generator>KeePass</Generator>
+  </Meta>
+  <Root>
+    <Group>
+      <Name>Demo Root</Name>
+      <Entry>
+        <String><Key>Title</Key><Value>Demo Bank</Value></String>
+        <String><Key>UserName</Key><Value>demo@example.test</Value></String>
+        <String><Key>Password</Key><Value>demo-password-ten</Value></String>
+        <String><Key>URL</Key><Value>https://demo-bank.example/login</Value></String>
+        <String><Key>Notes</Key><Value>DEMO ONLY entry</Value></String>
+        <String><Key>otp</Key><Value>JBSWY3DPEHPK3PXP</Value></String>
+        <History>
+          <Entry>
+            <String><Key>Title</Key><Value>Demo Bank (old)</Value></String>
+            <String><Key>Password</Key><Value>old-demo-password</Value></String>
+          </Entry>
+        </History>
+      </Entry>
+      <Group>
+        <Name>Sub Group</Name>
+        <Entry>
+          <String><Key>Title</Key><Value>Demo Nested</Value></String>
+          <String><Key>UserName</Key><Value>demo.nested@example.test</Value></String>
+          <String><Key>Password</Key><Value>demo-password-eleven</Value></String>
+          <String><Key>Support PIN</Key><Value>9876</Value></String>
+        </Entry>
+      </Group>
+      <Entry>
+        <String><Key>Title</Key><Value>Demo Protected</Value></String>
+        <String><Key>UserName</Key><Value>demo@example.test</Value></String>
+        <String><Key>Password</Key><Value Protected="True">ZGVtby1wcm90ZWN0ZWQtcGFzc3dvcmQ=</Value></String>
+      </Entry>
+    </Group>
+  </Root>
+</KeePassFile>

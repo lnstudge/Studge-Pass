@@ -72,14 +72,14 @@
     {
       "n": 10,
       "title": "Importers B: 1Password export.data, Proton Pass, KeePass XML",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Importers B: 1Password export.data, Proton Pass and KeePass 2.x XML. KeePass uses quick-xml with a strict element set, DTD/entity/PI rejection, a depth cap of 64 and a 1 MiB value cap; History subtrees are skipped. 1PUX takes the extracted member (no ZIP crate) and rejects raw ZIP bytes with a clear error. 14 new tests.",
       "commit_sha": null
     },
     {
       "n": 11,
       "title": "vault_tour demo and the preview op-log graph",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T02:04:50Z"
+    "updated_at": "2026-11-05T02:08:31Z"
   },
   "commits": [],
   "screenshots": [],

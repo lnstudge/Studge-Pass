@@ -18,6 +18,9 @@ pub mod chrome;
 pub mod csv_reader;
 pub mod dashlane;
 pub mod generic;
+pub mod keepass;
+pub mod onepassword;
+pub mod proton;
 
 use crate::crypto::signing::Timestamp;
 use crate::error::{CoreError, CoreResult};
