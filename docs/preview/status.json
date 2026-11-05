@@ -79,14 +79,14 @@
     {
       "n": 11,
       "title": "vault_tour demo and the preview op-log graph",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "vault_tour example: creates a real account, certifies two devices, builds five fake items (Aadhaar, PAN, UPI, login with TOTP, note), prints the op log as a table, resolves a two-device conflict by the (lamport, device_id) rule, shows a rollback being refused by the head check, and imports a fake Bitwarden file. Preview gains an Op log graph view.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "Docs, self-attack review, issues and pull request",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     }
@@ -100,10 +100,19 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T02:08:31Z"
+    "updated_at": "2026-11-05T02:13:11Z"
   },
   "commits": [],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "path": "screenshots/phase-03/step-11-oplog-light.png",
+      "caption": "Preview dashboard, light: the demo op log from vault_tour as a graph"
+    },
+    {
+      "path": "screenshots/phase-03/step-11-oplog-dark.png",
+      "caption": "Preview dashboard, dark: the same op log graph"
+    }
+  ],
   "try_it": [
     {
       "label": "Vault tour (DEMO ONLY, fake data)",
@@ -185,5 +194,76 @@
       "label": "Notion: Phase 2 row",
       "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3"
     }
-  ]
+  ],
+  "oplog": {
+    "vault": "c36fd2b8",
+    "heads": [
+      "70f3a47b",
+      "65997233"
+    ],
+    "note": "From `cargo run -p studge-core --example vault_tour`: five signed item ops, then two devices editing the same login offline. Metadata only; the node labels carry no vault content.",
+    "nodes": [
+      {
+        "hash": "c3e54ef8",
+        "kind": "create",
+        "lamport": 1,
+        "device": "d1d1d1d1",
+        "parents": []
+      },
+      {
+        "hash": "29957072",
+        "kind": "create",
+        "lamport": 2,
+        "device": "d1d1d1d1",
+        "parents": [
+          "c3e54ef8"
+        ]
+      },
+      {
+        "hash": "6370066d",
+        "kind": "create",
+        "lamport": 3,
+        "device": "d1d1d1d1",
+        "parents": [
+          "29957072"
+        ]
+      },
+      {
+        "hash": "2e0f1186",
+        "kind": "create",
+        "lamport": 4,
+        "device": "d1d1d1d1",
+        "parents": [
+          "6370066d"
+        ]
+      },
+      {
+        "hash": "b1c62734",
+        "kind": "create",
+        "lamport": 5,
+        "device": "d1d1d1d1",
+        "parents": [
+          "2e0f1186"
+        ]
+      },
+      {
+        "hash": "70f3a47b",
+        "kind": "update",
+        "lamport": 6,
+        "device": "d1d1d1d1",
+        "parents": [
+          "b1c62734"
+        ]
+      },
+      {
+        "hash": "65997233",
+        "kind": "update",
+        "lamport": 6,
+        "device": "d2d2d2d2",
+        "parents": [
+          "b1c62734"
+        ]
+      }
+    ]
+  }
 }

@@ -997,3 +997,69 @@ h3 {
     padding: var(--space-2);
   }
 }
+
+/* Op log graph */
+.oplog-graph {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  overflow: visible;
+}
+.oplog-edge {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.oplog-node circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.oplog-node.oplog-update circle {
+  stroke: var(--warn);
+}
+.oplog-node.oplog-delete circle {
+  stroke: var(--bad);
+}
+.oplog-node circle.oplog-head {
+  fill: var(--accent);
+  stroke: var(--accent-strong);
+}
+.oplog-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  fill: var(--ink);
+}
+.oplog-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+.oplog-legend {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.oplog-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.oplog-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  display: inline-block;
+}
+.oplog-key.oplog-update .oplog-dot {
+  border-color: var(--warn);
+}
+.oplog-key.oplog-delete .oplog-dot {
+  border-color: var(--bad);
+}
+.oplog-dot.oplog-dot-head {
+  background: var(--accent);
+}

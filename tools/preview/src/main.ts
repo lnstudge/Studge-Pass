@@ -4,6 +4,7 @@ import "./styles.css";
 import {
   checkLabel,
   checkTone,
+  oplogLayout,
   progressOf,
   screenshotUrl,
   shortSha,
@@ -246,6 +247,85 @@ async function copyText(text: string, button: HTMLButtonElement): Promise<void> 
   }
 }
 
+function buildOplog(): HTMLElement | null {
+  const oplog = status.oplog;
+  if (oplog === undefined || oplog.nodes.length === 0) {
+    return null;
+  }
+  const view = section("Op log", `${oplog.nodes.length} ops`);
+  if (oplog.note !== undefined) {
+    view.body.append(el("p", "muted small", oplog.note));
+  }
+  const layout = oplogLayout(oplog);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+  svg.setAttribute("class", "oplog-graph");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    `Operation graph: ${oplog.nodes.length} signed operations in vault ${oplog.vault}`
+  );
+
+  const positionOf = (hash: string): { x: number; y: number } | null => {
+    const found = layout.nodes.find((entry) => entry.node.hash === hash);
+    return found === undefined ? null : { x: found.x, y: found.y };
+  };
+
+  // Edges first so nodes draw on top.
+  for (const entry of layout.nodes) {
+    for (const parent of entry.node.parents) {
+      const from = positionOf(parent);
+      if (from === null) continue;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", String(from.x));
+      line.setAttribute("y1", String(from.y));
+      line.setAttribute("x2", String(entry.x));
+      line.setAttribute("y2", String(entry.y));
+      line.setAttribute("class", "oplog-edge");
+      svg.append(line);
+    }
+  }
+
+  for (const entry of layout.nodes) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", `oplog-node oplog-${entry.node.kind}`);
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", String(entry.x));
+    circle.setAttribute("cy", String(entry.y));
+    circle.setAttribute("r", "9");
+    if (oplog.heads.includes(entry.node.hash)) {
+      circle.setAttribute("class", "oplog-head");
+    }
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String(entry.x + 15));
+    label.setAttribute("y", String(entry.y + 4));
+    label.setAttribute("class", "oplog-label");
+    label.textContent = `${entry.node.kind} ${entry.node.hash}`;
+    const meta = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    meta.setAttribute("x", String(entry.x + 15));
+    meta.setAttribute("y", String(entry.y + 17));
+    meta.setAttribute("class", "oplog-meta");
+    meta.textContent = `lamport ${entry.node.lamport} \u00b7 device ${entry.node.device}`;
+    group.append(circle, label, meta);
+    svg.append(group);
+  }
+
+  const legend = el("div", "oplog-legend");
+  for (const kind of ["create", "update", "delete"]) {
+    const item = el("span", `oplog-key oplog-${kind}`);
+    item.append(el("span", "oplog-dot"));
+    item.append(el("span", undefined, kind));
+    legend.append(item);
+  }
+  const headKey = el("span", "oplog-key");
+  headKey.append(el("span", "oplog-dot oplog-dot-head"));
+  headKey.append(el("span", undefined, "head"));
+  legend.append(headKey);
+
+  view.body.append(svg, legend);
+  return view.root;
+}
+
 function buildTryIt(): HTMLElement {
   const view = section("Try it");
   const list = el("div", "tryit");
@@ -486,6 +566,7 @@ function main(): void {
     buildSteps(),
     buildChecks(),
     buildCommits(),
+    ...(buildOplog() === null ? [] : [buildOplog() as HTMLElement]),
     buildScreenshots(lightbox),
     buildTryIt(),
     buildRisks(),
