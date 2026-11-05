@@ -9,3 +9,6 @@ dist/
 .env*
 *.studgevault
 *.log
+
+# Local scratch space for build helper scripts and task notes (never committed)
+.work/

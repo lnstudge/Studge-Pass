@@ -1,266 +1,118 @@
 {
   "phase": {
-    "id": 2,
-    "name": "Core cryptography",
-    "branch": "phase-02-core-crypto",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/38"
+    "id": 3,
+    "name": "Vault, op log, storage, import/export",
+    "branch": "phase-03-vault",
+    "pr_url": null
   },
   "steps": [
     {
       "n": 1,
-      "title": "Branch, plan and pinned crypto dependencies",
+      "title": "Branch, plan, pinned dependencies and decision records",
       "state": "done",
-      "summary": "Branch phase-02-core-crypto from main (Phases 0–1 merged as 4ef461d); plan in status.json; crypto crates pinned in core/Cargo.toml with every version justified in DECISIONS.md.",
+      "summary": "Branch phase-03-vault from main (Phases 0-2 merged as 51e4f9d). Six crates pinned: rusqlite 0.41.1 (bundled, native only so wasm still builds), quick-xml 0.42.0, totp-rs 6.0.0, p256 0.14.0, ml-kem 0.3.4, serde_json 1.0.154. Decisions D-0301..D-0306 recorded; plan written; .work/ ignored for helper scripts.",
       "commit_sha": null
     },
     {
       "n": 2,
-      "title": "Foundations: random, labels, CryptoError",
-      "state": "done",
-      "summary": "One OsRng-backed random function; every HKDF label as a constant in labels.rs; a thiserror CryptoError with no secret data in messages.",
-      "commit_sha": "2807a08"
+      "title": "Vault item model: 8 kinds, 7 India templates, strict fields and history",
+      "state": "doing",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 3,
-      "title": "secret_key: SP1 format",
-      "state": "done",
-      "summary": "Generate 128 bits, encode to SP1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX with a BLAKE3 check character, decode with Crockford normalisation; reject bad length, bad checksum and set pad bits.",
-      "commit_sha": "af8bde5"
+      "title": "Op log: hash, signatures, DAG materialisation, heads, rollback and fork detection",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 4,
-      "title": "aad: typed builder and canonical CBOR",
-      "state": "done",
-      "summary": "Deterministic CBOR with RFC 8949 key ordering; closed record-type enum; the API makes encrypting without an AAD impossible.",
-      "commit_sha": "c3c4d24"
+      "title": "Account API: create, unlock, lock, device certification, vault keyring",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 5,
-      "title": "aead: XChaCha20-Poly1305 envelope",
-      "state": "done",
-      "summary": "seal/open with a 24-byte OsRng nonce, strict envelope parsing, suite check, hard error on any failure.",
-      "commit_sha": "6882387"
+      "title": "Storage: LocalStore trait, in-memory store and SQLite store",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 6,
-      "title": "kdf: NFKC + Argon2id to MUK, HKDF sub-keys",
-      "state": "done",
-      "summary": "derive_muk with the SPEC parameters and anti-downgrade minimums, derive_subkey, auth secret; small params only in unit tests.",
-      "commit_sha": "9574aa9"
+      "title": "Encrypted .studgevault backup and the exporters",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 7,
-      "title": "keys: newtypes and wrap/unwrap",
-      "state": "done",
-      "summary": "MasterUnlockKey, AccountKey, VaultKey, ItemKey over Zeroizing<[u8;32]>, redacted Debug, no Clone; wrap/unwrap AK, VK, IK and field keys with per-object salts.",
-      "commit_sha": "9574aa9"
+      "title": "Generator: passwords, EFF passphrases, entropy estimate",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 8,
-      "title": "signing: device keys, certificates, revocations",
-      "state": "done",
-      "summary": "Ed25519 device and identity keys, domain-separated certificate/revocation/enrolment bodies, verification with account binding, future-skew check and revocation cut-off.",
-      "commit_sha": "6882387"
+      "title": "TOTP: RFC 6238 vectors and otpauth:// parsing",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 9,
-      "title": "hpke: X25519 seal/open plus a KEM trait",
-      "state": "done",
-      "summary": "HPKE base mode X25519/HKDF-SHA256/ChaCha20Poly1305 with the SPEC info and aad binding; a trait so the Phase 11 X-Wing upgrade is a swap, not a rewrite.",
-      "commit_sha": "33d8cf5"
+      "title": "Importers A: Bitwarden, Chrome, Apple, Dashlane, generic CSV",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 10,
-      "title": "Tests: round-trip, tamper matrix, proptest, vectors",
-      "state": "done",
-      "summary": "core/tests with round-trips for every public function, a tamper matrix (nonce, ciphertext, tag, every AAD field, wrong suite, wrong key), proptest properties, known-answer vectors in core/tests/vectors/v1.json and one #[ignore] real-parameter Argon2 test.",
-      "commit_sha": "4e09215"
+      "title": "Importers B: 1Password export.data, Proton Pass, KeePass XML",
+      "state": "next",
+      "summary": "Planned.",
+      "commit_sha": null
     },
     {
       "n": 11,
-      "title": "crypto_tour example and preview card",
-      "state": "done",
-      "summary": "cargo run -p studge-core --example crypto_tour walks a fake account through the SP1 Secret Key, Argon2id timing, wrapping, field encryption and three attacks that each print 'rejected'. The preview page has a Crypto tour card with the command and an Expected line; light/dark screenshots captured.",
+      "title": "vault_tour demo and the preview op-log graph",
+      "state": "next",
+      "summary": "Planned.",
       "commit_sha": null
     },
     {
       "n": 12,
-      "title": "Self-attack review, PROGRESS entry and PR",
-      "state": "done",
-      "summary": "18 crypto attack vectors reviewed: 15 blocked by named tests, 3 accepted (R-0117..R-0119, issues #36/#37). PROGRESS.md entry written, THREAT_MODEL section 16 added, PR #38 closes #8.",
-      "commit_sha": "fed55b8"
-    },
-    {
-      "n": 13,
-      "title": "Review fix 1: signatures cover the BLAKE3 digest",
-      "state": "done",
-      "summary": "signing_digest() added; certificates, revocations and enrolment proofs sign and verify the digest (SPEC 4.7 updated, D-0207); vectors regenerated with cert_digest_hex and the revocation fields; tests prove a raw-body signature fails.",
-      "commit_sha": "bdc06e1"
-    },
-    {
-      "n": 14,
-      "title": "Review fix 2: timestamps are real calendar dates",
-      "state": "done",
-      "summary": "Timestamp::parse round-trips through Unix seconds, rejecting impossible dates and second 60; the revocation cut-off compares numerically.",
-      "commit_sha": "40d9171"
-    },
-    {
-      "n": 15,
-      "title": "Review fix 3: zeroize working buffers",
-      "state": "done",
-      "summary": "NFKC password, Secret-Key decode buffers, HPKE secret copy and signing seed are all zeroizing (AGENTS rule 4).",
-      "commit_sha": "21990c6"
-    },
-    {
-      "n": 16,
-      "title": "Review fix 4: reproducible vectors",
-      "state": "done",
-      "summary": "hpke and ak_wrap marked kind=decrypt-only; the generator writes only with STUDGE_WRITE_VECTORS=1 and otherwise fails on drift in the deterministic sections.",
-      "commit_sha": "7d4931f"
-    },
-    {
-      "n": 17,
-      "title": "Review fix 5: documentation",
-      "state": "done",
-      "summary": "PROGRESS.md shows Phase 0 and Phase 1 merged and records the review fixes; PR #38 description and this dashboard updated.",
+      "title": "Docs, self-attack review, issues and pull request",
+      "state": "next",
+      "summary": "Planned.",
       "commit_sha": null
     }
   ],
   "checks": {
-    "fmt": "pass",
-    "clippy": "pass",
+    "fmt": null,
+    "clippy": null,
     "tests": {
-      "passed": 82,
+      "passed": 0,
       "failed": 0,
-      "ignored": 1
+      "ignored": 0
     },
-    "deny": "pass",
-    "updated_at": "2026-11-04T23:01:20Z"
+    "deny": null,
+    "updated_at": "2026-11-05T01:23:12Z"
   },
-  "commits": [
-    {
-      "sha": "62a765e1d81a31317ec846d20b2cf4d50e6636d7",
-      "message": "feat(crypto): scaffold the crypto module and pin its dependencies",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/62a765e1d81a31317ec846d20b2cf4d50e6636d7"
-    },
-    {
-      "sha": "2807a08e54cd6132e73ef833bda8ea6ca0e1af77",
-      "message": "feat(crypto): add CryptoError, the single RNG and all HKDF labels",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/2807a08e54cd6132e73ef833bda8ea6ca0e1af77"
-    },
-    {
-      "sha": "af8bde51d1ba352647852ed6d48c4687f26b4acb",
-      "message": "feat(crypto): implement the SP1 Secret Key format with checksum",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/af8bde51d1ba352647852ed6d48c4687f26b4acb"
-    },
-    {
-      "sha": "c3c4d246beaff0346aa31526e07c43d25f8fdf20",
-      "message": "feat(crypto): add the typed AAD builder and canonical CBOR helpers",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/c3c4d246beaff0346aa31526e07c43d25f8fdf20"
-    },
-    {
-      "sha": "9574aa9d9b235847f94848320df2e75d450020a3",
-      "message": "feat(crypto): add the KDF and the key hierarchy with wrap/unwrap",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/9574aa9d9b235847f94848320df2e75d450020a3"
-    },
-    {
-      "sha": "688238759d21f006d775287193b8811c8c7ed2e3",
-      "message": "feat(crypto): add device keys, certificates, revocations and enrolment proofs",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/688238759d21f006d775287193b8811c8c7ed2e3"
-    },
-    {
-      "sha": "33d8cf5985f16df31375656fcb84ba08b2c695a2",
-      "message": "feat(crypto): add HPKE X25519 sealing with a KEM seam for Phase 11",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/33d8cf5985f16df31375656fcb84ba08b2c695a2"
-    },
-    {
-      "sha": "4e09215218c5cc617bc3a39e85c5b4dcf4a77ec9",
-      "message": "test(crypto): add tamper matrix, property tests, vectors and the slow KDF test",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/4e09215218c5cc617bc3a39e85c5b4dcf4a77ec9"
-    },
-    {
-      "sha": "e690e8c2d96db4be8a78b5185c87901ada675162",
-      "message": "fix(crypto): remove the superseded module file and tidy the AAD test",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/e690e8c2d96db4be8a78b5185c87901ada675162"
-    },
-    {
-      "sha": "62c6cc2f4576c624c2c88786e2b7706d6f299c78",
-      "message": "feat(core): add the crypto tour example and the preview card",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/62c6cc2f4576c624c2c88786e2b7706d6f299c78"
-    },
-    {
-      "sha": "fed55b8fe3dda1e675968c356120843a3d37cbcc",
-      "message": "docs(security): record the Phase 2 self-attack review and risks",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/fed55b8fe3dda1e675968c356120843a3d37cbcc"
-    },
-    {
-      "sha": "7e23d997ae8722e7ecd0f5564c8da0f611b1951d",
-      "message": "docs(preview): record the Phase 2 pull request",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/7e23d997ae8722e7ecd0f5564c8da0f611b1951d"
-    },
-    {
-      "sha": "74f3b05c77aab5d8ad6fd1f949e865449acb173b",
-      "message": "fix(wasm): enable the browser RNG backend for the wasm32 build",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/74f3b05c77aab5d8ad6fd1f949e865449acb173b"
-    },
-    {
-      "sha": "e5aad0b4a41861bb683f33a96b6ac1caf1fdf502",
-      "message": "docs(progress): note the wasm fix found by CI",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/e5aad0b4a41861bb683f33a96b6ac1caf1fdf502"
-    },
-    {
-      "sha": "bdc06e134dd46ae7d20ad2698b9b60a2d0a294af",
-      "message": "fix(crypto): sign the BLAKE3 digest for certificates, revocations and enrolment",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/bdc06e134dd46ae7d20ad2698b9b60a2d0a294af"
-    },
-    {
-      "sha": "40d9171a17e0f7f914316a899bcbd931f9ce8d18",
-      "message": "fix(crypto): reject impossible dates and compare revocation times numerically",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/40d9171a17e0f7f914316a899bcbd931f9ce8d18"
-    },
-    {
-      "sha": "21990c6f1676b34430da9573136ab630be529459",
-      "message": "fix(crypto): zeroize password and decode working buffers",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/21990c6f1676b34430da9573136ab630be529459"
-    },
-    {
-      "sha": "7d4931f98ec555e3453e1d7f22b0ecad86b9b70b",
-      "message": "test(vectors): mark randomised entries and guard against silent drift",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/7d4931f98ec555e3453e1d7f22b0ecad86b9b70b"
-    },
-    {
-      "sha": "8e726cb38da6dc67037eb95d89dff6d475ba169a",
-      "message": "docs(progress): record the review fixes and mark Phases 0-1 merged",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/8e726cb38da6dc67037eb95d89dff6d475ba169a"
-    }
-  ],
-  "screenshots": [
-    {
-      "path": "screenshots/phase-02/step-11-crypto-tour-light.png",
-      "caption": "Crypto tour card with its expected output, light"
-    },
-    {
-      "path": "screenshots/phase-02/step-11-crypto-tour-dark.png",
-      "caption": "Crypto tour card with its expected output, dark"
-    }
-  ],
+  "commits": [],
+  "screenshots": [],
   "try_it": [
     {
-      "label": "Crypto tour (DEMO ONLY, fake data)",
-      "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example crypto_tour\"",
-      "expect": "9 steps: the SP1 Secret Key, Argon2id timing, key wrapping, field encryption, then three attacks that each print 'rejected: decryption failed'."
+      "label": "Vault tour (DEMO ONLY, fake data)",
+      "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example vault_tour\"",
+      "expect": "Fake vault with Aadhaar, PAN and UPI items; the op log as a table; a conflict resolved by the SPEC rule; a Bitwarden import report."
     },
     {
-      "label": "Crypto tests (76: unit, tamper matrix, properties, vectors)",
+      "label": "Core tests",
       "command_or_url": ".\\x.ps1 \"cargo test -p studge-core\""
-    },
-    {
-      "label": "Known-answer vectors, byte-exact",
-      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core --features test-vectors\""
-    },
-    {
-      "label": "Slow real-parameter Argon2 vector",
-      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core --test kdf_slow -- --ignored\""
     },
     {
       "label": "Open the dashboard",
