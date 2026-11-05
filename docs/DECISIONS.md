@@ -245,3 +245,109 @@ Phase 1 PR description.
   claim AGENTS.md forbids. Approved on the condition that Phase 11 adds the
   capabilities. Recorded as R-0113.
 - **Affects:** SPEC §9.1; THREAT_MODEL R-0113; issue #18. **Status:** Approved by founder.
+
+## Phase 2 decisions (D-0201 … D-0207)
+
+Implementation choices made while building `core/src/crypto`. Each is consistent
+with the approved SPEC; the founder approved all seven when PR #38 was merged.
+
+## D-0201 — Crate versions for Phase 2
+
+- **Choice:** the pinned set below, with `Cargo.lock` committed. All are on the
+  AGENTS.md approved list except `thiserror` (error derive), `proptest` and
+  `serde_json` (dev-only); none of those does cryptography.
+
+| Crate | Version | Used for (SPEC) | Why this one |
+| --- | --- | --- | --- |
+| `argon2` | 0.6.0 | Argon2id for the MUK (§4.3) | RustCrypto, RFC 9106, no `unsafe` in our paths |
+| `blake3` | 1.8.7 | op hashes, checksum, safety codes (§5.7) | the reference BLAKE3 implementation |
+| `chacha20poly1305` | 0.11.0 | XChaCha20-Poly1305 envelopes (§5.1) | RustCrypto AEAD, 24-byte nonce support |
+| `ciborium` | 0.2.2 | canonical CBOR (§5.3) | small serde CBOR; we add a strict re-encode check |
+| `ed25519-dalek` | 3.0.0 | device/identity signatures (§4.7) | dalek-cryptography, RFC 8032 |
+| `getrandom` | 0.4.3 | the only RNG (§4, rule 3) | OS source, no userspace fallback |
+| `hkdf` | 0.13.0 | every sub-key (§5.4) | RustCrypto, RFC 5869 |
+| `hpke` | 0.15.1 | sealing vault keys (§9.2) | RFC 9180; X25519 KEM; features pinned to `x25519,chacha,alloc,getrandom` |
+| `sha2` | 0.11.1 | HKDF/OPAQUE internals (§5.7) | RustCrypto |
+| `subtle` | 2.6.1 | constant-time compares (rule 5) | the standard constant-time primitives |
+| `thiserror` | 2.0.21 | `CryptoError` derive | no runtime behaviour of its own |
+| `unicode-normalization` | 0.1.26 | NFKC passwords (§4.3) | Unicode reference tables |
+| `x25519-dalek` | 3.0.0 | HPKE recipient keys (§4.6) | dalek-cryptography |
+| `zeroize` | 1.9.1 | secret wiping (rule 4) | the standard zeroization crate |
+| `proptest` | 1.12.0 (dev) | property tests | shrinking + reproducibility |
+| `serde_json` | 1.0.154 (dev) | the vector file | test-only |
+
+- **Reason:** pinning plus a committed lockfile gives reproducible builds; every
+  entry is either on the approved list or does no crypto at all.
+- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
+
+## D-0202 — Timestamps are fixed-width RFC 3339 UTC
+
+- **Options:** Unix seconds as an integer; RFC 3339 text; a date-time crate.
+- **Choice:** `YYYY-MM-DDTHH:MM:SSZ`, exactly 20 characters, parsed strictly.
+  Comparison is numeric through a small civil-date conversion, so no date crate
+  is added.
+- **Reason:** §6.1 already uses RFC 3339 for ops, and §4.7–4.8 leave the encoding
+  open. Fixed width makes the text sort correctly and keeps the wire readable.
+- **Affects:** SPEC §4.7, §4.8 (clarification). **Status:** Approved by founder.
+
+## D-0203 — The `test-vectors` feature exposes fixed-nonce sealing
+
+- **Options:** a deterministic RNG behind a feature; a `seal_with_nonce` helper
+  behind a feature; no vectors generated in-tree.
+- **Choice:** `test-vectors` exposes `aead::seal_with_nonce`, and only that.
+  Nonces stay random everywhere else, and `seal` cannot be talked into taking a
+  caller nonce in a normal build.
+- **Reason:** the vectors need byte-exact ciphertext; a deterministic RNG would
+  be a much larger foot-gun than one fixed-nonce function. The feature is
+  documented as test-only and CI runs it as a separate step.
+- **Affects:** `core/Cargo.toml`, `core/tests/vectors.rs`. **Status:** Approved by founder.
+
+## D-0204 — KDF minimums live in `derive_muk`; tests use a crate-internal raw path
+
+- **Options:** accept any parameters in the primitive and enforce minimums in the
+  account layer; enforce in `derive_muk`; make tests slow.
+- **Choice:** `derive_muk` rejects anything below 64 MiB / t=3 / p=1 or an
+  unknown version. The unit tests that need speed call `derive_muk_raw`, which is
+  `pub(crate)` and unreachable from outside the crate.
+- **Reason:** defense in depth — a caller cannot accidentally accept a downgraded
+  account — while keeping the suite fast. The real parameters are exercised by
+  one `#[ignore]` test that verifies the published MUK vector.
+- **Affects:** SPEC §4.3. **Status:** Approved by founder.
+
+## D-0205 — The hybrid KEM is available upstream, but v1 stays X25519
+
+- **Options:** wire X-Wing now because `hpke` 0.15 ships it; keep v1 on X25519
+  per D-0105 and leave a typed seam.
+- **Choice:** keep X25519. `hpke::KemChoice::XWingMlKem768` exists and returns
+  `UnsupportedKem`, with a `TODO(security)` that points at Phase 11.
+- **Reason:** D-0105 was approved with exactly this condition, and SPEC §9.2
+  says v1 wraps with X25519. The finding that the crate now supports X-Wing
+  means the Phase 11 re-check can almost certainly flip it on; that is a
+  Phase 11 change, not a Phase 2 surprise.
+- **Affects:** SPEC §9.2, R-0116. **Status:** Approved by founder.
+
+## D-0206 — The wasm build uses the browser RNG backend for getrandom
+
+- **Options:** leave wasm builds unsupported; enable getrandom's `wasm_js`
+  feature for wasm32 only; implement a custom backend.
+- **Choice:** enable `wasm_js` in `core-wasm` under
+  `cfg(target_arch = "wasm32")` only.
+- **Reason:** getrandom 0.4 has no default backend on `wasm32-unknown-unknown`,
+  so after Phase 2 added core's RNG the workspace stopped building for the
+  extension target and CI caught it. The documented feature uses the browser's
+  `Crypto.getRandomValues` through wasm-bindgen and does not affect native
+  builds, which keep the OS backend.
+- **Affects:** `core-wasm/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
+
+## D-0207 — Every signature covers a BLAKE3 digest, not the raw body
+
+- **Options:** sign the canonical CBOR directly (as §4.7 read for the enrolment
+  proof); sign `BLAKE3(canonical CBOR)` for every signed object.
+- **Choice:** the digest, for certificates, revocations and enrolment proofs,
+  matching the op hash rule in §6.3. SPEC §4.7 was updated.
+- **Reason:** one rule across the whole protocol, a fixed 32-byte signed message,
+  and domain separation already lives in the body's `suite`/`type` fields.
+  **Note:** the Phase 2 code first signed raw bodies and was corrected during the
+  PR #38 review; the vectors were regenerated.
+- **Affects:** SPEC §4.7, §4.8, §6.3; `core/src/crypto/signing.rs`; vectors.
+  **Status:** Approved by founder.

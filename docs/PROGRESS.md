@@ -4,7 +4,7 @@ One entry per phase, newest last. The Notion Build Log mirrors this file.
 
 ## Phase 0 — Repository setup, rules and preview dashboard
 
-- **Status:** In review
+- **Status:** Merged (PR #26)
 - **Branch:** `phase-00-setup` · **Issue:** #6 · **Milestone:** Phase 0
 - **Dates:** 2026-11-04 → 2026-11-05
 
@@ -120,7 +120,7 @@ Against the AGENTS.md design bar, honestly:
 
 ## Phase 1 — Protocol specification and threat model
 
-- **Status:** In review
+- **Status:** Merged (PR #35)
 - **Branch:** `phase-01-spec` · **Issue:** #7 · **Milestone:** Phase 1
 - **Dates:** 2026-11-05
 
@@ -190,7 +190,6 @@ No product code changed in this phase.
 
 None blocking. All 22 decisions are approved; Phase 1 is ready to merge and
 Phase 2 can start on merge.
-
 ### Follow-ups (outside this phase's scope)
 
 - **CI does not run the preview's TypeScript checks yet.** `ci.yml` covers Rust
@@ -199,3 +198,88 @@ Phase 2 can start on merge.
 - `tools/preview` still needs a restart after files are added under `docs/`
   (the static file list is cached at startup).
 - A Storybook and the design-token package arrive in Phase 6b, per the plan.
+
+## Phase 2 — Core cryptography
+
+- **Status:** In review
+- **Branch:** `phase-02-core-crypto` · **Issue:** #8 · **Milestone:** Phase 2
+- **Dates:** 2026-11-05
+
+### What changed
+
+- **`core/src/crypto/`** — ten modules implementing SPEC §4–§5: `random` (OsRng
+  only), `labels` (every label in one file), `error` (`CryptoError`, no secret
+  data in messages), `secret_key` (128-bit SP1 format with a BLAKE3 check
+  character), `aad` (typed builder, deterministic CBOR, strict re-encode check),
+  `aead` (XChaCha20-Poly1305 envelopes), `kdf` (NFKC + Argon2id → MUK, HKDF
+  sub-keys, anti-downgrade minimums), `keys` (MUK/AK/VK/IK newtypes, wrap/unwrap,
+  field keys), `signing` (Ed25519 device keys, certificates, revocations,
+  enrolment proofs, strict RFC 3339 timestamps), `hpke` (X25519 sealing with a
+  KEM seam for Phase 11).
+- **Tests** — 76 in the default run: 49 unit, 7 secret-key, 11 tamper, 3 property
+  (256 cases each), 6 vector; one `#[ignore]` real-parameter Argon2 test also
+  passes. With `--features test-vectors`, 78 (byte-exact re-encryption).
+- **`core/tests/vectors/v1.json`** — cross-language answers for the Secret Key,
+  AAD, AEAD, MUK, HPKE, a certificate and a wrapped account key. DEMO-ONLY data.
+- **`core/examples/crypto_tour.rs`** — the demo the phase asked for; the preview
+  page has a “Crypto tour” card with its expected output.
+- **CI** — an extra step runs the byte-exact vector checks. The first CI run
+  also caught a real regression: adding the RNG broke the wasm target
+  (`getrandom` has no default backend there). Fixed in `74f3b05` by enabling its
+  documented `wasm_js` feature for `cfg(target_arch = "wasm32")` only (D-0206).
+- **Decisions** — D-0201 (crate versions), D-0202 (timestamps), D-0203
+  (`test-vectors` feature), D-0204 (KDF minimums), D-0205 (hybrid deferred;
+  upstream now has X-Wing).
+
+### How to try it
+
+```powershell
+.\x.ps1 "cargo run -p studge-core --example crypto_tour"
+.\x.ps1 "cargo test -p studge-core"
+.\x.ps1 "cargo test -p studge-core --features test-vectors"
+.\x.ps1 "cargo test -p studge-core --test kdf_slow -- --ignored"
+```
+
+### Test results (2026-11-05, through `.\x.ps1`)
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --check` / `clippy -D warnings` | pass |
+| `cargo test --all` | 76 passed, 0 failed, 1 ignored |
+| `cargo test -p studge-core --features test-vectors` | 78 passed |
+| real-parameter Argon2 test | pass (3.5 s) |
+| `cargo deny check` | advisories, bans, licenses, sources ok |
+| `pnpm -r lint` / `pnpm -r test` | pass; 43 tests |
+
+### Review fixes (PR #38)
+
+Founder review of PR #38, applied on the branch before merge:
+
+- **Fix 1 (`bdc06e1`)** — every signature (certificate, revocation, enrolment
+  proof) now covers `BLAKE3(canonical body)`, matching the op hash in §6.3;
+  SPEC §4.7 updated; D-0207 recorded; vectors regenerated with digest fields;
+  new tests prove a raw-body signature does not verify.
+- **Fix 2 (`40d9171`)** — `Timestamp::parse` round-trips through Unix seconds, so
+  impossible dates (29 February in a non-leap year, 31 April) and leap second
+  60 are rejected; the revocation cut-off compares numerically.
+- **Fix 3 (`21990c6`)** — the NFKC password, the Secret-Key decode buffers, the
+  HPKE secret copy and the signing seed are zeroizing.
+- **Fix 4 (`7d4931f`)** — the `hpke` and `ak_wrap` vectors are marked
+  `kind: "decrypt-only"`; the generator writes only with
+  `STUDGE_WRITE_VECTORS=1` and otherwise fails on any drift in the five
+  deterministic sections.
+- **Fix 5** — documentation: merged statuses, this section, the PR description
+  and the dashboard.
+
+### Known gaps and open questions
+
+- New accepted risks: R-0117 (the `test-vectors` feature could be enabled in a
+  release build), R-0118 (5-bit check character), R-0119 (HPKE base mode has no
+  sender authentication).
+- The hybrid X-Wing KEM is not wired (D-0205); Phase 11 should flip
+  `KemChoice::XWingMlKem768` — `hpke` 0.15.1 already ships it.
+- Zeroization is best-effort: Rust cannot prove that memory was wiped.
+- The Argon2 demo takes ~3 s in a debug build; a release build is faster.
+- Clarifications recorded for review: fixed-width RFC 3339 timestamps (D-0202)
+  and KDF minimums enforced in `derive_muk` with a crate-internal raw path for
+  fast unit tests (D-0204). Nothing else deviates from SPEC §4–§5.

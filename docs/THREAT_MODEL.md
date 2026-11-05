@@ -199,7 +199,10 @@ about how interesting the bug is.
 | R-0113 | v1 membership is write-or-nothing: a member device holding the vault key can publish ops, so a “view only” share cannot be enforced | medium | Open | **Phase 11 MUST add owner-signed capabilities** so view-only sharing can be enforced (D-0117 approved, issue #18); the UI must not claim view-only today |
 | R-0114 | A malicious member can name an extra field with a look-alike label (for example a Cyrillic “о” in “password”) to phish another member | low | Open | Clients render labels from item templates and quote unknown field names (§5.6); a test in Phase 3 covers the rendering rule |
 | R-0115 | An attacker can talk the owner into approving *their* device during enrolment; the possession proof does not stop social engineering | medium | Open | Enrolment UI must show device name, platform and key fingerprint, and require an explicit confirmation on the already-trusted device (§4.7); Phase 7/8 implement and test it |
-| R-0116 | Vault-key wrapping is X25519-only; no post-quantum protection for shared vaults yet | low | Open | The ML-KEM-768 identity key is stored from v1 (§4.6); **Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate and switch if one exists** (D-0105 condition) |
+| R-0116 | Vault-key wrapping is X25519-only; no post-quantum protection for shared vaults yet | low | Open | The ML-KEM-768 identity key is stored from v1 (§4.6); **Phase 11 must re-check for a maintained hybrid HPKE / X-Wing crate and switch if one exists** (D-0105 condition). `hpke` 0.15.1 now ships X-Wing, so the re-check should pass |
+| R-0117 | The `test-vectors` feature exposes fixed-nonce sealing; enabling it in a release build would weaken nonce handling | low | Accepted | The feature is documented test-only, `seal` has no nonce parameter, and CI enables it only in a dedicated test step |
+| R-0118 | The Secret Key check character is 5 bits: a typo that stays inside the alphabet has a 1-in-32 chance of passing and then surfaces as a wrong MUK | low | Accepted | The failure is safe (no data loss, the recovery flow aborts with a clear error); a longer check would cost another printed character |
+| R-0119 | HPKE base mode gives no sender authentication; anyone holding a public key can seal to it | low | Accepted | Correct for wrapping a vault key to a member — the recipient does not need to know who wrapped it. Phase 11 must not present it as authentication |
 
 ## 14. Phase 1 self-attack review (design level)
 
@@ -225,7 +228,6 @@ named clause blocks it, or it is a recorded risk that later phases must close.
 | 15 | A “view only” sharee publishes ops | No read-only roles in v1 (§9.1) | R-0113 / D-0117 |
 
 ## 15. Appendix — Phase 0 self-attack review (historical)
-
 Recorded during Phase 0 against the repository, CI and the preview dashboard.
 Full detail and test names: `docs/PROGRESS.md` (Phase 0) and the Phase 0 PR.
 
@@ -246,5 +248,32 @@ Full detail and test names: `docs/PROGRESS.md` (Phase 0) and the Phase 0 PR.
 | 13 | `pnpm shot` pointed at a hostile page | Helper only renders and screenshots; no credentials | Accepted |
 | 14 | Secret format gitleaks does not know | Manual diff review | R-0004 (accepted) |
 | 15 | High-severity npm advisory | `pnpm audit --audit-level high` in CI | Blocked (moderate tracked as R-0005) |
+
+## 16. Phase 2 self-attack review (crypto module)
+
+Attacking `core/src/crypto` the way a malicious relay or a malicious member
+would. Every "blocked" row names the test that fails if the protection is
+removed; the rest are the three new risks above.
+
+| # | Attack | Where it lands | Verdict |
+| --- | --- | --- | --- |
+| 1 | Flip any byte of the ciphertext | AEAD tag (`tamper::flipping_any_ciphertext_byte_fails`) | Blocked |
+| 2 | Flip any byte of the 16-byte tag | AEAD tag (`flipping_any_tag_byte_fails`) | Blocked |
+| 3 | Flip any byte of the nonce | AEAD tag (`flipping_any_nonce_byte_fails`) | Blocked |
+| 4 | Truncate the ciphertext | Length check + tag (`truncating_the_ciphertext_fails`) | Blocked |
+| 5 | Open a password field as the username field | AAD field name (`swapping_two_fields_of_the_same_item_fails`) | Blocked |
+| 6 | Move a field to another item, vault or record type | AAD (`changing_any_aad_field_fails`) | Blocked |
+| 7 | Open with the wrong key | AEAD (`wrong_key_fails`, property `a_wrong_key_never_opens`) | Blocked |
+| 8 | Claim an older or unknown suite | Suite check (`unknown_suite_fails_at_parse`) | Blocked |
+| 9 | Smuggle non-canonical CBOR past the parser | Strict re-encode (`non_canonical_envelope_fails_at_parse`, `strict_parser_rejects_non_canonical_maps`) | Blocked |
+| 10 | Move a wrapped vault key to another vault or account | AAD + per-object salt (`wrapping_a_key_into_another_slot_fails`) | Blocked |
+| 11 | Type the Secret Key with one wrong character | 5-bit checksum (`rejects_a_bad_checksum`); padding (`rejects_set_padding_bits`) | Blocked, with a 1-in-32 escape (R-0118) |
+| 12 | Downgrade the KDF parameters recorded with an account | `derive_muk` minimums (`rejects_weak_parameters_and_unknown_versions`) | Blocked |
+| 13 | Present a certificate for another account, in the future, or after revocation | Signing checks (`certificate_rejects_wrong_identity_account_and_time`, `certificate_respects_revocation_cutoff`) | Blocked |
+| 14 | Open an HPKE seal with another recipient, info or AAD; tamper `enc` or `ct` | HPKE binding (`wrong_recipient_fails`, `wrong_info_or_aad_fails`, `tampered_enc_or_ciphertext_fails`) | Blocked |
+| 15 | Read a secret out of a `Debug` print | Manual redaction on every key type (`debug_redacts_every_key_type`, `debug_never_prints_the_key`) | Blocked |
+| 16 | Use fixed-nonce sealing in a release build | Opt-in feature only, `seal` always random (D-0203) | R-0117 |
+| 17 | Forge a Secret Key typo into a working key | 5-bit check character | R-0118 |
+| 18 | Treat HPKE sealing as proof of who sent it | Base mode has no sender auth | R-0119 |
 
 <!-- THREAT-END -->

@@ -36,6 +36,8 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Test
         run: cargo test --all
+      - name: Test (known-answer vectors)
+        run: cargo test -p studge-core --features test-vectors
       - name: Build wasm
         run: cargo build -p studge-core-wasm --target wasm32-unknown-unknown
 
