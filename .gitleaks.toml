@@ -1,0 +1,21 @@
+# gitleaks configuration.
+#
+# The default ruleset is kept. One narrow allowlist suppresses a known false
+# positive, and nothing else:
+#
+#   core/src/vault/items.rs names the passkey private-key field
+#   ("private_key_pkcs8") in a Rust match arm. It is a field name from the item
+#   template, not a credential, and gitleaks' generic-api-key rule reads the
+#   line as an assignment.
+#
+# The allowlist is scoped to that file and to that exact literal, so a real
+# secret in the same file is still reported. If this ever hides a finding, the
+# fix is to narrow the regex, not to widen the path.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Item template field name that looks like an assignment"
+paths = ['''core/src/vault/items\.rs''']
+regexes = ['''"private_key_pkcs8"''']
