@@ -37,14 +37,14 @@
     {
       "n": 5,
       "title": "Storage: LocalStore trait, in-memory store and SQLite store",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Local storage: a LocalStore trait over ciphertext only, an in-memory implementation and a SQLite implementation (native only, STRICT tables, secure_delete, schema version checked on open). No plaintext columns exist; a test opens the database file and proves the demo title, password and URL do not appear in it.",
       "commit_sha": null
     },
     {
       "n": 6,
       "title": "Encrypted .studgevault backup and the exporters",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:49:27Z"
+    "updated_at": "2026-11-05T01:53:53Z"
   },
   "commits": [],
   "screenshots": [],

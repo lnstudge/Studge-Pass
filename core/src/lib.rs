@@ -15,6 +15,7 @@ pub mod error;
 pub mod health;
 pub mod import;
 pub mod oplog;
+pub mod storage;
 pub mod sync;
 pub mod vault;
 
