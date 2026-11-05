@@ -157,6 +157,16 @@
       "sha": "0df15eed88fbf3d80e4e9a3c0e8e721096975799",
       "message": "feat(preview): op-log graph view and the vault_tour demo",
       "url": "https://github.com/lnstudge/Studge-Pass/commit/0df15eed88fbf3d80e4e9a3c0e8e721096975799"
+    },
+    {
+      "sha": "f05fd1ed1bd5597f56e993fb7d5be5e9d44af16c",
+      "message": "docs(phase-3): decisions, threat model and progress for the vault phase",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/f05fd1ed1bd5597f56e993fb7d5be5e9d44af16c"
+    },
+    {
+      "sha": "980575743a41632233fbdd9ffc72db6049568dec",
+      "message": "chore(preview): close the Phase 3 checklist and link the pull request",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/980575743a41632233fbdd9ffc72db6049568dec"
     }
   ],
   "screenshots": [
