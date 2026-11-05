@@ -16,14 +16,14 @@
     {
       "n": 2,
       "title": "Vault item model: 8 kinds, 7 India templates, strict fields and history",
-      "state": "doing",
-      "summary": "Planned.",
+      "state": "done",
+      "summary": "Vault item model: 13 kinds (6 generic + 7 India templates) with a closed field set per template, strict field/URL/tag/custom validation, last-10 secret history, and canonical-CBOR payloads capped at 1 MiB. Look-alike field names are rejected on build and on parse (R-0114). 23 new tests.",
       "commit_sha": null
     },
     {
       "n": 3,
       "title": "Op log: hash, signatures, DAG materialisation, heads, rollback and fork detection",
-      "state": "next",
+      "state": "doing",
       "summary": "Planned.",
       "commit_sha": null
     },
@@ -100,7 +100,7 @@
       "ignored": 0
     },
     "deny": null,
-    "updated_at": "2026-11-05T01:23:12Z"
+    "updated_at": "2026-11-05T01:29:09Z"
   },
   "commits": [],
   "screenshots": [],
