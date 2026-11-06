@@ -19,6 +19,9 @@ mod config;
 mod error;
 mod routes;
 mod state;
+// The store's methods light up as the endpoints land (steps 4-6); this allow
+// is removed before the phase ends (checked in step 12).
+#[allow(dead_code)]
 mod store;
 
 use axum::Router;
