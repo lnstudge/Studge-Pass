@@ -15,11 +15,6 @@ use axum::Json;
 use serde::Serialize;
 
 /// Every error the relay can answer with (SPEC §7.8).
-///
-/// Handlers construct these one by one; until every endpoint exists, the
-/// not-yet-constructed variants are expected dead code in non-test builds. The
-/// expectation is removed as the handlers arrive.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiError {
     /// Malformed input: unknown field, wrong type, bad id, bad media type.
@@ -103,6 +98,18 @@ impl IntoResponse for ApiError {
 /// The result type handlers return. Used by every endpoint from step 2 on.
 #[allow(dead_code)]
 pub type ApiResult<T> = Result<T, ApiError>;
+
+/// Crypto failures map onto the API error model: a decryption failure is an
+/// authentication failure (the client's bytes did not authenticate), and every
+/// other crypto rejection is malformed input. Nothing else crosses.
+impl From<studge_core::crypto::CryptoError> for ApiError {
+    fn from(error: studge_core::crypto::CryptoError) -> Self {
+        match error {
+            studge_core::crypto::CryptoError::DecryptionFailed => Self::Unauthorized,
+            _ => Self::InvalidRequest,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

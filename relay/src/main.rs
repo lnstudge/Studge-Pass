@@ -11,16 +11,18 @@
 //!
 //! - [`config`] — the TOML file and `STUDGE_RELAY_*` variables;
 //! - [`error`] — the closed error set of §7.8;
+//! - [`extract`] — strict reading of client input;
 //! - [`routes`] — the endpoints of §7.4;
 //! - [`state`] — what the handlers share;
 //! - [`store`] — the SQLite layer of §7.9.
 
 mod config;
 mod error;
+mod extract;
 mod routes;
 mod state;
-// The store's methods light up as the endpoints land (steps 4-6); this allow
-// is removed before the phase ends (checked in step 12).
+// The store's methods light up as the endpoints land; this allow is removed
+// when the last endpoint uses its last method (checked at phase end).
 #[allow(dead_code)]
 mod store;
 
@@ -30,6 +32,7 @@ use state::RelayState;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use studge_core::crypto::signing::Timestamp;
 use tower_http::limit::RequestBodyLimitLayer;
 
 /// Reads the config path from the first argument or `STUDGE_RELAY_CONFIG`.
@@ -111,8 +114,50 @@ async fn main() -> std::process::ExitCode {
             .try_init();
     }
 
+    let store = match store::RelayStore::open(&config.database_path).await {
+        Ok(store) => store,
+        Err(_) => {
+            eprintln!("studge-relay: the database could not be opened");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let setup = match state::RelayState::load_or_create_setup(&config.server_setup_path).await {
+        Ok(setup) => setup,
+        Err(_) => {
+            eprintln!("studge-relay: the OPAQUE server-setup key could not be loaded");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let state = RelayState::new(config.clone(), store, setup);
+
+    // The sweeper: expired sessions and tombstones older than 24 h, every
+    // ten minutes (SPEC 7.3, 7.4).
+    let sweeper_state = state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(600));
+        loop {
+            interval.tick().await;
+            let now = match Timestamp::now() {
+                Ok(now) => now,
+                Err(_) => continue,
+            };
+            let cutoff = match Timestamp::from_unix_seconds(now.unix_seconds() - 24 * 3600) {
+                Ok(cutoff) => cutoff,
+                Err(_) => continue,
+            };
+            let _ = sweeper_state
+                .store()
+                .delete_expired_sessions(now.as_str())
+                .await;
+            let _ = sweeper_state
+                .store()
+                .purge_tombstones_before(cutoff.as_str())
+                .await;
+        }
+    });
+
     let address: SocketAddr = config.listen;
-    let router = app(RelayState::new(config));
+    let router = app(state);
     let listener = match tokio::net::TcpListener::bind(address).await {
         Ok(listener) => listener,
         Err(_) => {
@@ -154,7 +199,9 @@ mod tests {
 
     #[tokio::test]
     async fn the_app_carries_the_security_headers() {
-        let app = app(RelayState::new(RelayConfig::default()));
+        let store = store::RelayStore::open_in_memory().await.expect("store");
+        let setup = studge_core::crypto::opaque::ServerSetupKey::generate().expect("setup");
+        let app = app(RelayState::new(RelayConfig::default(), store, setup));
         let response = app
             .oneshot(
                 Request::builder()

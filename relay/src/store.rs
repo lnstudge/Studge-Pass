@@ -605,6 +605,48 @@ impl RelayStore {
         Ok(result.rows_affected() == 1)
     }
 
+    // ---------------------------------------------------------------- login states
+
+    /// Stores the relay's ServerLogin state between the two login messages.
+    pub async fn put_login_state(
+        &self,
+        account_id: &[u8],
+        device_id: &[u8],
+        state_bytes: &[u8],
+        created_at: &str,
+    ) -> Result<(), ApiError> {
+        sqlx::query(
+            "INSERT OR REPLACE INTO login_states (account_id, device_id, state, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+        )
+        .bind(account_id)
+        .bind(device_id)
+        .bind(state_bytes)
+        .bind(created_at)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| ApiError::Unavailable)?;
+        Ok(())
+    }
+
+    /// Takes (reads and deletes) the login state for one login exchange. A
+    /// state can be used exactly once: a replayed finalization finds nothing.
+    pub async fn take_login_state(
+        &self,
+        account_id: &[u8],
+        device_id: &[u8],
+    ) -> Result<Option<Vec<u8>>, ApiError> {
+        let row = sqlx::query(
+            "DELETE FROM login_states WHERE account_id = ?1 AND device_id = ?2 RETURNING state",
+        )
+        .bind(account_id)
+        .bind(device_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| ApiError::Unavailable)?;
+        Ok(row.map(|row| row.get::<Vec<u8>, _>("state")))
+    }
+
     // ---------------------------------------------------------------- counters
 
     /// Increments a fixed-window counter and returns its new value.
