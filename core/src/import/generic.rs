@@ -39,7 +39,7 @@ impl ColumnMapping {
             title: find(&["title", "name", "account"]),
             username: find(&["username", "user", "login", "email"]),
             password: find(&["password", "pass", "secret"]),
-            url: find(&["url", "website", "site", "uri"]),
+            url: find(&["url", "urls", "website", "site", "uri"]),
             notes: find(&["notes", "note", "comment"]),
             totp: find(&["totp", "otp", "otpauth", "otpsecret"]),
         }

@@ -135,6 +135,17 @@ pub enum CoreError {
     #[error("parameter out of range")]
     InvalidParameter,
 
+    /// A value cannot be exported byte-exactly (for example a control character
+    /// that XML 1.0 cannot represent, or a custom-field label the KeePass
+    /// format reserves). The field is named so the user can fix the data.
+    #[error("field {field} cannot be exported: {reason}")]
+    FieldNotExportable {
+        /// The field that cannot be written.
+        field: String,
+        /// Why the value cannot be written byte-exactly.
+        reason: &'static str,
+    },
+
     /// A key or id had the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {

@@ -227,4 +227,42 @@ mod tests {
         let parsed: Value = serde_json::from_str(&text).expect("json");
         assert!(parsed["items"].is_array());
     }
+
+    #[test]
+    fn json_round_trip_preserves_every_value_byte_for_byte() {
+        let state = demo_state();
+        let text = export_json(&state, true).expect("export");
+        let parsed: Value = serde_json::from_str(&text).expect("json");
+        let item = state.item(&ITEM).expect("item");
+
+        // Every template field that is set comes back exactly, including the
+        // entity- and quote-heavy ones.
+        for spec in crate::vault::template(item.kind()).fields {
+            if let Some(value) = item.field(spec.name) {
+                assert_eq!(
+                    parsed["items"][0]["fields"][spec.name].as_str(),
+                    Some(value),
+                    "{} did not survive",
+                    spec.name
+                );
+            }
+        }
+        assert_eq!(
+            parsed["items"][0]["urls"][0]["url"].as_str(),
+            Some(item.urls()[0].url())
+        );
+        assert_eq!(
+            parsed["items"][0]["custom"][0]["label"].as_str(),
+            Some(item.custom()[0].label())
+        );
+        assert_eq!(
+            parsed["items"][0]["custom"][0]["value"].as_str(),
+            Some(item.custom()[0].value())
+        );
+        // Secret history survives too.
+        assert_eq!(
+            parsed["items"][0]["history"]["password"][0]["value"].as_str(),
+            Some(item.history("password")[0].value())
+        );
+    }
 }

@@ -194,4 +194,40 @@ mod tests {
         assert!(row.contains("JBSWY3DPEHPK3PXP"));
         assert!(row.ends_with(','));
     }
+
+    #[test]
+    fn csv_round_trip_preserves_special_characters() {
+        let tricky = "& < > \" ' , ;\nnewline";
+        let state = state_with(&[
+            ("title", &format!("Title {tricky}")),
+            ("username", &format!("user {tricky}")),
+            ("password", &format!("pass {tricky}")),
+            ("totp", "JBSWY3DPEHPK3PXP"),
+            ("notes", &format!("note {tricky}")),
+        ]);
+        let csv = export_csv(&state, true).expect("export");
+        let mapping = crate::import::generic::ColumnMapping::from_header(
+            csv.lines()
+                .next()
+                .expect("header")
+                .split(',')
+                .map(|cell| cell.to_string())
+                .collect::<Vec<String>>()
+                .as_slice(),
+        );
+        let outcome = crate::import::generic::import(&csv, &mapping).expect("import");
+        assert_eq!(outcome.report.imported, 1, "report: {:?}", outcome.report);
+        let parsed = &outcome.items[0];
+        for name in ["title", "username", "password", "totp", "notes"] {
+            assert_eq!(
+                parsed.field(name),
+                state.item(&ITEM).and_then(|item| item.field(name)),
+                "{name} did not survive the round trip"
+            );
+        }
+        assert_eq!(
+            parsed.urls[0].0,
+            state.item(&ITEM).expect("item").urls()[0].url()
+        );
+    }
 }

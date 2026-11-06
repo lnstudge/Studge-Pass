@@ -1,13 +1,15 @@
 //! KeePass 2.x XML export (task item 6).
 //!
 //! The importer (Phase 3, `import::keepass`) reads this back, and KeePass itself
-//! opens the file. Values are written unencrypted unless the caller protects
-//! them; this is a plaintext exporter and takes the same `allow_plaintext`
-//! opt-in as JSON and CSV.
+//! opens the file. Every value is written byte-exactly: the only transformation
+//! is XML escaping of the five predefined entities, and a value that XML 1.0
+//! cannot represent (a control character) is an error naming the field, never a
+//! silent rewrite (R-0305). This is a plaintext exporter and takes the same
+//! `allow_plaintext` opt-in as JSON and CSV.
 //!
-//! Writing XML by hand is safe here because every value goes through one
-//! escaper and the element structure is fixed — nothing user-controlled ever
-//! becomes markup.
+//! Each template field and each custom field becomes its own `<String>` element
+//! whose key is the field name or the user's label; the kind travels in a
+//! `StudgeKind` marker so the import can map keys back onto the right template.
 
 use crate::error::{CoreError, CoreResult};
 use crate::oplog::materialise::VaultState;
@@ -15,6 +17,24 @@ use crate::vault::items::Item;
 
 /// The `Generator` string KeePass shows in its metadata pane.
 pub const GENERATOR: &str = "Studge Pass";
+
+/// `<String>` keys the importer treats specially; a custom field may not use
+/// them, because the import maps keys back onto fields and a collision would
+/// silently pick one value.
+const RESERVED_KEYS: [&str; 9] = [
+    "Title",
+    "UserName",
+    "Password",
+    "URL",
+    "Notes",
+    "otp",
+    "StudgeKind",
+    "TOTP Seed",
+    "TOTP Settings",
+];
+
+/// Template fields written under their own reserved keys.
+const OWN_KEYS: [&str; 5] = ["title", "username", "password", "notes", "totp"];
 
 /// Exports a materialised vault as KeePass 2.x XML.
 pub fn export_keepass(state: &VaultState, allow_plaintext: bool) -> CoreResult<String> {
@@ -30,53 +50,78 @@ pub fn export_keepass(state: &VaultState, allow_plaintext: bool) -> CoreResult<S
     out.push_str("    <DatabaseName>Studge Pass export</DatabaseName>\n");
     out.push_str("  </Meta>\n  <Root>\n    <Group>\n      <Name>Studge Pass</Name>\n");
     for item in state.items() {
-        write_entry(&mut out, item);
+        write_entry(&mut out, item)?;
     }
     out.push_str("    </Group>\n  </Root>\n</KeePassFile>\n");
     Ok(out)
 }
 
-fn write_entry(out: &mut String, item: &Item) {
+fn write_entry(out: &mut String, item: &Item) -> CoreResult<()> {
     out.push_str("      <Entry>\n");
-    let title = item.field("title").unwrap_or("");
-    write_string(out, "Title", title);
-    write_string(out, "UserName", item.field("username").unwrap_or(""));
-    write_string(out, "Password", item.field("password").unwrap_or(""));
+    write_string(out, "Title", item.field("title").unwrap_or(""))?;
+    write_string(out, "UserName", item.field("username").unwrap_or(""))?;
+    write_string(out, "Password", item.field("password").unwrap_or(""))?;
     let url = item.urls().first().map(|entry| entry.url()).unwrap_or("");
-    write_string(out, "URL", url);
-    let mut notes = item.field("notes").unwrap_or("").to_string();
-    if !notes.is_empty() {
-        notes.push('\n');
+    write_string(out, "URL", url)?;
+    write_string(out, "Notes", item.field("notes").unwrap_or(""))?;
+    if let Some(totp) = item.field("totp") {
+        write_string(out, "otp", totp)?;
     }
-    notes.push_str(&format!("Kind: {}", item.kind().as_str()));
+    write_string(out, "StudgeKind", item.kind().as_str())?;
+    // Every other template field travels under its own name so the import can
+    // map it back onto the template of the recorded kind.
     for spec in crate::vault::template(item.kind()).fields {
-        if matches!(spec.name, "title" | "username" | "password" | "notes") {
+        if OWN_KEYS.contains(&spec.name) {
             continue;
         }
         if let Some(value) = item.field(spec.name) {
-            notes.push_str(&format!("\n{}: {value}", spec.name));
+            write_string(out, spec.name, value)?;
         }
     }
     for entry in item.custom() {
-        notes.push_str(&format!("\n{}: {}", entry.label(), entry.value()));
+        if RESERVED_KEYS
+            .iter()
+            .any(|reserved| reserved.eq_ignore_ascii_case(entry.label()))
+        {
+            return Err(CoreError::FieldNotExportable {
+                field: entry.label().to_string(),
+                reason: "its label is reserved by the KeePass export format",
+            });
+        }
+        write_string(out, entry.label(), entry.value())?;
     }
-    write_string(out, "Notes", &notes);
-    out.push_str("        <String><Key>StudgeKind</Key><Value>");
-    out.push_str(&escape(item.kind().as_str()));
-    out.push_str("</Value></String>\n");
     out.push_str("      </Entry>\n");
+    Ok(())
 }
 
-fn write_string(out: &mut String, key: &str, value: &str) {
+fn write_string(out: &mut String, key: &str, value: &str) -> CoreResult<()> {
+    validate_exportable(key, key)?;
+    validate_exportable(key, value)?;
     out.push_str("        <String><Key>");
     out.push_str(&escape(key));
     out.push_str("</Key><Value>");
     out.push_str(&escape(value));
     out.push_str("</Value></String>\n");
+    Ok(())
 }
 
-/// XML text escaping: the five predefined entities, and control characters that
-/// XML 1.0 forbids are replaced so a weird note can never break the document.
+/// Rejects what XML 1.0 cannot represent. Control characters other than tab and
+/// newline are not expressible in a well-formed document; rewriting them (to a
+/// space, say) would hand the user a different password than the one stored.
+fn validate_exportable(field: &str, value: &str) -> CoreResult<()> {
+    let control = value
+        .chars()
+        .any(|c| (c.is_control() && c != '\n' && c != '\t') || c == '\u{7F}');
+    if control {
+        return Err(CoreError::FieldNotExportable {
+            field: field.to_string(),
+            reason: "contains a control character that XML 1.0 cannot represent",
+        });
+    }
+    Ok(())
+}
+
+/// XML text escaping: the five predefined entities, nothing else.
 fn escape(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for character in value.chars() {
@@ -86,7 +131,6 @@ fn escape(value: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
-            c if (c as u32) < 0x20 && c != '\n' && c != '\t' => out.push(' '),
             c => out.push(c),
         }
     }
@@ -102,7 +146,7 @@ mod tests {
     use crate::oplog::materialise::materialise;
     use crate::oplog::op::{Op, OpKind};
     use crate::oplog::Dag;
-    use crate::vault::items::ItemKind;
+    use crate::vault::items::{Item, ItemKind};
 
     const ACCOUNT: [u8; 16] = [0xA1; 16];
     const VAULT: [u8; 16] = [0x22; 16];
@@ -178,14 +222,52 @@ mod tests {
     }
 
     #[test]
-    fn writes_the_keepass_skeleton() {
-        let state = state_with(&[("title", "Demo Only"), ("username", "demo")]);
+    fn writes_the_keepass_skeleton_and_per_field_strings() {
+        let state = state_with(&[
+            ("title", "Demo Only"),
+            ("username", "demo"),
+            ("totp", "JBSWY3DPEHPK3PXP"),
+        ]);
         let xml = export_keepass(&state, true).expect("export");
         assert!(xml.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>"));
-        assert!(xml.contains("<KeePassFile>"));
-        assert!(xml.contains("<Group>"));
         assert!(xml.contains("<Key>Title</Key><Value>Demo Only</Value>"));
+        assert!(xml.contains("<Key>UserName</Key><Value>demo</Value>"));
+        assert!(xml.contains("<Key>otp</Key><Value>JBSWY3DPEHPK3PXP</Value>"));
         assert!(xml.contains("<Key>StudgeKind</Key><Value>login</Value>"));
         assert!(xml.trim_end().ends_with("</KeePassFile>"));
+    }
+
+    #[test]
+    fn notes_are_written_untouched() {
+        let state = state_with(&[("title", "Demo"), ("notes", "line one\nline two")]);
+        let xml = export_keepass(&state, true).expect("export");
+        // No "Kind:" suffix, no custom-field stuffing: the value is the value.
+        assert!(xml.contains("<Key>Notes</Key><Value>line one\nline two</Value>"));
+        assert!(!xml.contains("Kind:"));
+    }
+
+    #[test]
+    fn control_characters_are_an_error_naming_the_field() {
+        // Item::set_field already refuses control characters, so the exporter
+        // cannot normally see one; the check exists because a VaultState is a
+        // public type and future phases can build one another way. The test
+        // pins the behaviour at the exporter's own boundary.
+        for (field, value) in [
+            ("Title", "bad \u{0007} here"),
+            ("Notes", "bad \u{001B} here"),
+            ("Password", "bad \u{007F} here"),
+            ("Support PIN", "bad \r here"),
+        ] {
+            assert_eq!(
+                validate_exportable(field, value).expect_err("control character"),
+                CoreError::FieldNotExportable {
+                    field: field.to_string(),
+                    reason: "contains a control character that XML 1.0 cannot represent",
+                },
+                "{field}"
+            );
+        }
+        // Tab and newline are the two control characters XML 1.0 represents.
+        assert!(validate_exportable("Notes", "line one\nline two\tend").is_ok());
     }
 }

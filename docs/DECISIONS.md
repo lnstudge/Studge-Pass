@@ -394,15 +394,27 @@ the founder approves them by merging the Phase 3 pull request.
 
 - **Options:** a hand-written subset parser; `quick-xml`; defer the format.
 - **Choice:** `quick-xml` 0.42.0 — the founder's answer at the Phase 3 kickoff.
-  The importer rejects any `<!DOCTYPE>`, `<!ENTITY>`, processing instruction or
-  unknown element, caps input at 32 MiB and nesting at 64, and reads only the
-  KeePass 2.x element set.
+  The importer rejects any `<!DOCTYPE>`, `<!ENTITY>`, processing instruction,
+  unknown **entity reference** (only the five predefined entities and numeric
+  character references are resolved), a duplicate key inside one entry and an
+  element nested inside an element's text, and caps input at 64 MiB, nesting at
+  64 and one element's text at 1 MiB.
+- **Correction (PR #41 review):** this decision used to say the importer also
+  rejects *unknown elements*. It does not, and should not: every real KeePass
+  export carries elements this importer does not model (`Times`, `AutoType`,
+  `Binaries`, `CustomData`, …), so rejecting unknown elements would reject every
+  real file. Elements outside the modelled set are **ignored**, which is recorded
+  as R-0302; unknown entities and malformed values are rejected. The founder's
+  review chose correction over rejecting unknown elements.
 - **Reason:** `quick-xml` is a tokenizer, not a document engine: it does not
   fetch external entities, expand internal ones, or honour DTDs unless asked.
   Refusing those constructs at the token level, plus size and depth caps, closes
-  the XXE and billion-laughs classes without inventing a parser.
+  the XXE and billion-laughs classes without inventing a parser. Values are
+  assembled byte-exactly (text pieces plus resolved entity references, committed
+  when the element closes) and proven by export→import round-trip tests (R-0305).
 - **Affects:** `core/src/import/keepass.rs`, `core/src/export/keepass.rs`;
-  THREAT_MODEL R-0302. **Status:** Proposed.
+  THREAT_MODEL R-0302, R-0305. **Status:** Proposed (correction awaiting
+  approval with the rest of PR #41).
 
 ## D-0303 — In v1 an op carries the whole item; item keys wait for Phase 5
 

@@ -152,6 +152,14 @@ impl ParsedItem {
         Ok(item)
     }
 
+    /// A field value, if set.
+    pub fn field(&self, name: &str) -> Option<&str> {
+        self.fields
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.as_str())
+    }
+
     /// Whether the parsed item has a title worth keeping.
     pub fn has_title(&self) -> bool {
         self.fields
