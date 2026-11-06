@@ -37,7 +37,9 @@ totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otp
 # wasm32-unknown-unknown, where a C SQLite cannot go. The browser keeps vaults
 # in the extension's own storage instead (Phase 8).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rusqlite = { version = "0.41.1", features = ["bundled"] }
+# 0.39 so that libsqlite3-sys ^0.37 unifies with sqlx 0.9 in the relay binary:
+# only one crate may link the native SQLite (D-0401).
+rusqlite = { version = "0.39.0", features = ["bundled"] }
 
 [dev-dependencies]
 proptest = "1.12.0"

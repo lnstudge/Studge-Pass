@@ -8,6 +8,37 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# Versions are pinned in Cargo.lock and justified in docs/DECISIONS.md (D-0401).
 axum.workspace = true
 serde.workspace = true
 tokio.workspace = true
+studge-core = { path = "../core" }
+
+# OPAQUE (SPEC 4.4): ristretto255, identity KSF (D-0102). `std` pulls the OS
+# RNG; serde stays off because protocol messages travel as base64 in JSON.
+opaque-ke = { version = "4.0.1", default-features = false, features = ["ristretto255", "std"] }
+# The key-exchange hash demanded by TripleDh (the crate's canonical choice).
+sha2 = "0.10.9"
+# Only used as the OsRng handle opaque-ke's API takes; the OS source itself.
+rand = { version = "0.8.5", default-features = false }
+
+# HTTP framework plumbing (rate limiting arrives with the endpoints).
+tower = "0.5.2"
+tower-http = { version = "0.7.1", features = ["cors", "limit", "timeout", "trace"] }
+tower_governor = "0.8.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt", "json"] }
+
+# Configuration and storage.
+toml = "0.9.11"
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+
+[dev-dependencies]
+reqwest = { version = "0.12.24", default-features = false, features = ["json", "rustls-tls"] }
+serde_json = "1.0.154"
+tempfile = "3.23.0"
+
+[features]
+# Optional Postgres driver. The SQLite migrations are the reference; the
+# Postgres parity work is tracked in PROGRESS.md.
+postgres = ["sqlx/postgres"]
