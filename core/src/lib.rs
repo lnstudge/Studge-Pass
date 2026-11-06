@@ -4,13 +4,22 @@
 //!
 //! Crypto, vault model, operation log, sync engine, import/export and health
 //! scoring. No direct I/O: everything that touches the outside world arrives
-//! through injected traits. The crate is filled in phase by phase; Phase 0 only
-//! fixes the module layout.
+//! through injected traits, so the crate builds for native targets and for
+//! `wasm32-unknown-unknown` alike.
 
+pub mod account;
+pub mod cbor;
+pub mod codec;
 pub mod crypto;
 pub mod error;
+pub mod export;
+pub mod generate;
 pub mod health;
 pub mod import;
 pub mod oplog;
+pub mod storage;
 pub mod sync;
+pub mod totp;
 pub mod vault;
+
+pub use error::{CoreError, CoreResult};

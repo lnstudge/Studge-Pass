@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "userId": "demo-user",
+  "encrypted": false,
+  "vaults": [
+    {
+      "name": "Personal",
+      "items": [
+        {
+          "id": "demo-1",
+          "type": "login",
+          "data": {
+            "metadata": { "name": "Demo Login", "note": "DEMO ONLY" },
+            "content": {
+              "username": "demo@example.test",
+              "password": "demo-password-thirteen",
+              "urls": [{ "url": "https://demo.example" }],
+              "totpUri": "otpauth://totp/Demo:demo?secret=JBSWY3DPEHPK3PXP&issuer=Demo"
+            },
+            "extraFields": [
+              { "name": "Support PIN", "type": "hidden", "data": "4321" }
+            ]
+          }
+        },
+        {
+          "id": "demo-2",
+          "type": "note",
+          "data": { "metadata": { "name": "Demo Note", "note": "DEMO ONLY note body" } }
+        },
+        {
+          "id": "demo-3",
+          "type": "sshKey",
+          "data": {
+            "metadata": { "name": "Demo SSH" },
+            "content": { "privateKey": "DEMO-ONLY-KEY", "publicKey": "ssh-ed25519 DEMO" }
+          }
+        },
+        {
+          "id": "demo-4",
+          "type": "alias",
+          "data": { "metadata": { "name": "Demo Alias" } }
+        }
+      ]
+    }
+  ]
+}

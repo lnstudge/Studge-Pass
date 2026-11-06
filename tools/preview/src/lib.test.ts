@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  oplogLayout,
   checkLabel,
   checkTone,
   progressOf,
@@ -116,5 +117,53 @@ describe("themeFrom", () => {
 describe("shortSha", () => {
   it("keeps seven characters", () => {
     expect(shortSha("13a26e249ccb88d7697648165a22e1059492d185")).toBe("13a26e2");
+  });
+});
+
+describe("oplogLayout", () => {
+  const oplog = {
+    vault: "22aa22aa",
+    heads: ["bbbbbbbb"],
+    nodes: [
+      { hash: "aaaaaaaa", kind: "create", lamport: 1, device: "d1d1d1d1", parents: [] },
+      { hash: "bbbbbbbb", kind: "update", lamport: 2, device: "d2d2d2d2", parents: ["aaaaaaaa"] },
+    ],
+  };
+
+  it("places one column per Lamport clock", () => {
+    const layout = oplogLayout(oplog, 100, 40);
+    const first = layout.nodes.find((entry) => entry.node.hash === "aaaaaaaa");
+    const second = layout.nodes.find((entry) => entry.node.hash === "bbbbbbbb");
+    expect(first?.x).toBe(28);
+    expect(second?.x).toBe(128);
+    expect(first?.y).toBe(second?.y);
+  });
+
+  it("sizes the canvas to hold every node", () => {
+    const layout = oplogLayout(oplog, 100, 40);
+    expect(layout.width).toBe(228);
+    expect(layout.height).toBe(68);
+  });
+
+  it("stacks nodes that share a clock", () => {
+    const forked = {
+      ...oplog,
+      nodes: [
+        ...oplog.nodes,
+        {
+          hash: "cccccccc",
+          kind: "update" as const,
+          lamport: 2,
+          device: "d3d3d3d3",
+          parents: ["aaaaaaaa"],
+        },
+      ],
+    };
+    const layout = oplogLayout(forked, 100, 40);
+    const ys = layout.nodes
+      .filter((entry) => entry.node.lamport === 2)
+      .map((entry) => entry.y);
+    expect(new Set(ys).size).toBe(2);
+    expect(layout.height).toBe(108);
   });
 });

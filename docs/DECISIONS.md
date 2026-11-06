@@ -351,3 +351,216 @@ with the approved SPEC; the founder approved all seven when PR #38 was merged.
   PR #38 review; the vectors were regenerated.
 - **Affects:** SPEC §4.7, §4.8, §6.3; `core/src/crypto/signing.rs`; vectors.
   **Status:** Approved by founder.
+
+## Phase 3 decisions (D-0301 … D-0306)
+
+Implementation choices made while building the vault model, op log, storage,
+import/export, generator and TOTP. Each is consistent with the approved SPEC;
+the founder approves them by merging the Phase 3 pull request.
+
+## D-0301 — Crates added in Phase 3, and why each one earns its place
+
+- **Options:** hand-write everything (CSV, XML, TOTP, SQLite); add the smallest
+  set of maintained crates; add a general "password manager utilities" bundle.
+- **Choice:** the six below, pinned in `core/Cargo.toml` and locked in
+  `Cargo.lock`.
+
+| Crate | Version | Used for | Why this one |
+| --- | --- | --- | --- |
+| `rusqlite` | 0.41.1 | local `LocalStore` (SPEC §6, task item 3) | The brief names it. `bundled` compiles SQLite from source, so there is no system library to trust or version-match. Native targets only (see below). |
+| `quick-xml` | 0.42.0 | KeePass XML import/export | Founder's choice (Q1 of the Phase 3 kickoff). No DTD, no entity expansion, no XInclude; `default-features = false` keeps the encoding layer out. |
+| `totp-rs` | 6.0.0 | RFC 6238 TOTP (approved crate) | Already on the AGENTS.md list. `otpauth`, `zeroize` and `std` only. |
+| `p256` | 0.14.0 | validating a stored passkey private key | Approved crate. Used once, to reject a corrupt PKCS#8 key at import instead of storing a passkey that can never sign. |
+| `ml-kem` | 0.3.4 | ML-KEM-768 identity key in the bundle (SPEC §4.6, D-0105) | Approved crate. Generation and 64-byte seed storage only; nothing encapsulates with it in v1. |
+| `serde_json` | 1.0.154 | import/export of the JSON formats | Was already a dev-dependency for the vectors. No `serde` derive: the importers read `serde_json::Value` directly, so no proc-macro crate enters the build. |
+
+- **Not added:** a ZIP crate (`zip`, `flate2`) — see D-0304; an XML or CSV
+  framework beyond `quick-xml` and the hand-written RFC 4180 reader; a date
+  crate (`Timestamp` already exists); `base32` (the Secret Key already has a
+  Crockford codec, and TOTP secrets use the standard alphabet through
+  `totp-rs`).
+- **SQLite is a native-only dependency.** `core-wasm` builds `core` for
+  `wasm32-unknown-unknown`, where a C SQLite cannot go, so `rusqlite` lives
+  under `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]` and the
+  SQLite module behind `#[cfg(not(target_arch = "wasm32"))]`. The browser
+  extension keeps its vault in the extension's own storage (Phase 8).
+- **Cost accepted:** `totp-rs` with `otpauth` pulls in `url` → `idna` → `icu_*`,
+  which is a large data payload for a small feature. Kept anyway because
+  hand-rolling percent-decoding and query parsing is a worse trade for a
+  password manager; trimming it is a Phase 8 size decision, not a v1 one.
+- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
+
+## D-0302 — KeePass XML: quick-xml with every dangerous feature switched off
+
+- **Options:** a hand-written subset parser; `quick-xml`; defer the format.
+- **Choice:** `quick-xml` 0.42.0 — the founder's answer at the Phase 3 kickoff.
+  The importer rejects any `<!DOCTYPE>`, `<!ENTITY>`, processing instruction,
+  unknown **entity reference** (only the five predefined entities and numeric
+  character references are resolved), a duplicate key inside one entry and an
+  element nested inside an element's text, and caps input at 64 MiB, nesting at
+  64 and one element's text at 1 MiB.
+- **Correction (PR #41 review):** this decision used to say the importer also
+  rejects *unknown elements*. It does not, and should not: every real KeePass
+  export carries elements this importer does not model (`Times`, `AutoType`,
+  `Binaries`, `CustomData`, …), so rejecting unknown elements would reject every
+  real file. Elements outside the modelled set are **ignored**, which is recorded
+  as R-0302; unknown entities and malformed values are rejected. The review
+  offered either option; the implementer chose to correct this decision rather
+  than reject unknown elements, and the founder approved that at merge.
+- **Reason:** `quick-xml` is a tokenizer, not a document engine: it does not
+  fetch external entities, expand internal ones, or honour DTDs unless asked.
+  Refusing those constructs at the token level, plus size and depth caps, closes
+  the XXE and billion-laughs classes without inventing a parser. Values are
+  assembled byte-exactly (text pieces plus resolved entity references, committed
+  when the element closes) and proven by export→import round-trip tests (R-0305).
+- **Affects:** `core/src/import/keepass.rs`, `core/src/export/keepass.rs`;
+  THREAT_MODEL R-0302, R-0305. **Status:** Approved by founder
+  (with the correction, at the merge of PR #41).
+
+## D-0303 — In v1 an op carries the whole item; item keys wait for Phase 5
+
+- **Options:** op payload = the full item state under the vault's `op-payload`
+  key; or op payload = a diff, with per-field `item-field` envelopes under each
+  item's key.
+- **Choice:** the full state, sealed under `op-payload` with AAD
+  `op/item`. The `ik` and `item-field` record types stay in the crypto layer
+  (they are implemented and tested since Phase 2) and are written by the sync
+  engine in Phase 5, where per-item records actually travel.
+- **Reason:** SPEC §6.10 already says a client may cache materialised state and
+  that v1 has no compaction, so a self-contained op is the simplest correct
+  history: materialising is "take the winning op per item", with no replay of
+  diffs and no second way to reconstruct state. Encrypting the same fields
+  twice (once under the item key, once under the op key) would add 40 bytes per
+  field and a second failure mode for no confidentiality gain, because the vault
+  key protects both.
+- **Consequence to revisit:** sharing a single item across vaults (Phase 11)
+  re-encrypts it under the destination vault rather than re-wrapping an item
+  key. Recorded as a follow-up.
+- **Affects:** SPEC §5.5, §6.1; `core/src/vault`, `core/src/oplog`.
+  **Status:** Approved by founder.
+
+## D-0304 — 1PUX import takes the extracted `export.data` JSON
+
+- **Options:** add a ZIP crate and read `.1pux` directly; require the caller to
+  extract `export.data`; defer 1Password import.
+- **Choice:** the extracted JSON — the founder's answer at the Phase 3 kickoff.
+- **Reason:** a `.1pux` is a ZIP whose only interesting member is
+  `export.data` (JSON). Reading ZIP means a decompressor in the most
+  security-sensitive crate in the project, and core is deliberately I/O-free.
+  The CLI and desktop clients (Phases 6–7) open the archive with platform
+  tooling and hand core the bytes; the importer documents exactly that contract
+  and rejects anything that is not the 1PUX JSON shape.
+- **Affects:** `core/src/import/onepassword.rs`. **Status:** Approved by founder.
+
+## D-0305 — `move` ops are rejected in v1
+
+- **Options:** define `move` as a folder move inside one vault; define it as a
+  move between vaults; reject the kind until a later phase defines it.
+- **Choice:** reject it — the founder's answer at the Phase 3 kickoff. An op
+  whose `kind` is `move` is a hard `UnsupportedOpKind` error, never silently
+  ignored, and the item is not materialised from it.
+- **Reason:** SPEC §6.1 lists the kind but defines no payload, no folder concept
+  and no cross-vault semantics. Guessing would put an invented meaning into the
+  signed history that cannot be changed without a schema version bump. Rejecting
+  is fail-closed: a vault that contains such an op refuses to materialise rather
+  than showing a state nobody agreed on. Phase 5/6 defines folders if the
+  design needs them.
+- **Affects:** SPEC §6.1 (note), `core/src/oplog/materialise.rs`, THREAT_MODEL
+  R-0303. **Status:** Approved by founder.
+
+## D-0306 — The local SQLite store keeps only ciphertext and public metadata
+
+- **Options:** store plaintext item rows for speed; store ops and let the client
+  materialise; store a plaintext cache alongside.
+- **Choice:** the store holds exactly three things: op ciphertext (canonical
+  bytes, hash-addressed), wrapped key envelopes, and non-secret metadata
+  (`vault_id`, `lamport`, `kind`, `device_id`, `received_at`, schema version).
+  There is no plaintext table. A test dumps the whole database file and greps it
+  for the demo plaintext, the item titles and the passwords.
+- **Reason:** AGENTS.md rule 4 and the A5 threat ("stolen locked device"): a
+  local database is the most likely thing an attacker images first. Keeping the
+  disk copy ciphertext-only means the same reasoning as the relay applies
+  locally, and the query path already has to decrypt to show anything.
+- **Cost:** materialising a vault decrypts every op it needs; SQLite indexes on
+  `vault_id` and `lamport` keep the scan bounded, and Phase 5 adds a decrypted
+  in-memory cache that is dropped on lock.
+- **Affects:** `core/src/storage`, THREAT_MODEL R-0304. **Status:** Approved by founder.
+
+## Phase 3 decisions, continued (D-0307 … D-0311)
+
+## D-0307 — `.studgevault` is a container of already-encrypted records
+
+- **Options:** encrypt the backup under a new passphrase-derived key; wrap the
+  vault key for the file; ship a container of the records that are already
+  ciphertext.
+- **Choice:** the container. A backup holds the account record (AK envelope and
+  key bundle), each vault's wrapped key, its head and its ops — every one of them
+  already sealed by the code that owns it.
+- **Reason:** a new file key would need a new HKDF label and a new record type,
+  which this phase is not allowed to invent, and it would add a second place
+  where a wrong passphrase could produce a silently different file. Because the
+  records are individually authenticated, the container needs no MAC of its own:
+  a flipped byte inside a record is caught when that record is verified or
+  decrypted (tested), and a flipped structural byte is caught by the strict CBOR
+  parser. Opening a backup therefore needs exactly what opening the account
+  needs: the password and the Secret Key (SPEC §10.1).
+- **Consequence:** the header (account id, vault ids, counts, creation time) is
+  visible, the same metadata class as R-0101.
+- **Affects:** `core/src/export/backup.rs`. **Status:** Approved by founder.
+
+## D-0308 — The EFF large wordlist is bundled, with attribution
+
+- **Options:** fetch a wordlist at runtime; generate one; bundle the EFF list.
+- **Choice:** bundle `core/data/eff_large_wordlist.txt` (7776 words, fetched
+  unmodified from eff.org on 2026-11-04) with `include_str!`, and record its
+  CC BY 3.0 US licence and attribution in `core/data/README.md`.
+- **Reason:** a passphrase generator that needs the network is not a passphrase
+  generator. The list is a data file, not code, and its licence permits
+  redistribution with attribution. Four of its words contain a hyphen
+  (`drop-down`, `felt-tip`, `t-shirt`, `yo-yo`), which is why the default `-`
+  separator is documented as ambiguous for splitting (not for security).
+- **Affects:** `core/data/`, `core/src/generate.rs`. **Status:** Approved by founder.
+
+## D-0309 — TOTP secrets shorter than 128 bits are accepted, and flagged
+
+- **Options:** refuse a secret under 128 bits; accept it silently; accept it and
+  surface the weakness.
+- **Choice:** accept it through `totp-rs`'s non-compliant builder path, after our
+  own parameter checks, and expose `TotpConfig::is_legacy_strength()` so the UI
+  can say that the *service* chose a short secret.
+- **Reason:** RFC 4226 recommends 160 bits and `totp-rs` refuses under 128, but
+  real services still issue 80-bit secrets. Refusing one means refusing the
+  user's account, and silently accepting one would hide a weakness the user
+  cannot fix. The flag is the honest middle: the code still yields unguessable
+  values (2^80), and the UI can explain where it came from.
+- **Affects:** `core/src/totp.rs`. **Status:** Approved by founder.
+
+## D-0310 — The conflict order is total: hash breaks a (lamport, device) tie
+
+- **Options:** define the winner as SPEC §6.6 does and leave a tie undefined;
+  add a final deterministic tiebreak.
+- **Choice:** compare `(lamport, device_id)` as SPEC says, then `op_hash` if both
+  are equal. Two different ops from one device with the same clock and the same
+  parents (a device that forked itself, e.g. a restored backup) are therefore
+  still resolved identically on every client.
+- **Reason:** SPEC's rule is total between honest devices but not against one
+  device that produced two ops for the same item at the same clock. A tie left
+  undefined would make two clients disagree about the same history — exactly the
+  failure the hash-chained log exists to prevent. The hash is random-looking and
+  cannot be steered to pick a winner in advance.
+- **Affects:** SPEC §6.6 (clarification), `core/src/oplog/materialise.rs`.
+  **Status:** Approved by founder.
+
+## D-0311 — KDF policy is enforced where the key is derived, not where the file is parsed
+
+- **Options:** reject weak KDF parameters while parsing an account record; reject
+  them when deriving the MUK; both.
+- **Choice:** at derivation. `AccountBundle::from_cbor` parses any recorded
+  parameters, and `derive_muk` refuses anything under the §4.3 floor before it
+  runs Argon2.
+- **Reason:** a client that cannot even parse the record can only say "corrupt
+  file"; one that parses and then refuses says "this account was downgraded",
+  which is the message a user needs. The security property is unchanged because
+  there is no path to a key without `derive_muk`; the tests use a crate-internal
+  raw derivation that is unreachable from outside the crate (D-0204).
+- **Affects:** `core/src/account.rs`, `core/src/crypto/kdf.rs`. **Status:** Approved by founder.

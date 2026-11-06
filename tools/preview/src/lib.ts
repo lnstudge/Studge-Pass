@@ -55,6 +55,23 @@ export interface Link {
   url: string;
 }
 
+/** One op in the demo log: metadata only, never plaintext. */
+export interface OplogNode {
+  hash: string;
+  kind: string;
+  lamport: number;
+  device: string;
+  parents: string[];
+}
+
+/** The demo op log rendered by the dashboard. */
+export interface Oplog {
+  vault: string;
+  heads: string[];
+  note?: string;
+  nodes: OplogNode[];
+}
+
 export interface Phase {
   id: number;
   name: string;
@@ -71,6 +88,53 @@ export interface Status {
   try_it: TryIt[];
   risks: Risk[];
   links: Link[];
+  oplog?: Oplog;
+}
+
+export interface PositionedNode {
+  node: OplogNode;
+  x: number;
+  y: number;
+}
+
+export interface OplogLayout {
+  nodes: PositionedNode[];
+  width: number;
+  height: number;
+}
+
+/**
+ * Lays the demo DAG out one column per Lamport clock and one row per node in
+ * that column. Pure and unit-tested: the SVG code in main.ts only draws what
+ * this returns.
+ */
+export function oplogLayout(
+  oplog: Oplog,
+  columnWidth = 212,
+  rowHeight = 56
+): OplogLayout {
+  const columns = new Map<number, number>();
+  const positioned: PositionedNode[] = [];
+  const ordered = [...oplog.nodes].sort(
+    (left, right) => left.lamport - right.lamport || left.hash.localeCompare(right.hash)
+  );
+  for (const node of ordered) {
+    const column = Math.max(0, node.lamport - 1);
+    const row = columns.get(column) ?? 0;
+    columns.set(column, row + 1);
+    positioned.push({
+      node,
+      x: 28 + column * columnWidth,
+      y: 28 + row * rowHeight,
+    });
+  }
+  const columnCount = Math.max(1, ...positioned.map((entry) => Math.ceil((entry.x - 28) / columnWidth) + 1));
+  const rowCount = Math.max(1, ...Array.from(columns.values()));
+  return {
+    nodes: positioned,
+    width: 28 + columnCount * columnWidth,
+    height: 28 + rowCount * rowHeight,
+  };
 }
 
 export function progressOf(steps: readonly Step[]): {

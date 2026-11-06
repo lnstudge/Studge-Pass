@@ -96,6 +96,33 @@ Against the AGENTS.md design bar, honestly:
   dedicated error state if `status.json` ever ships broken, because the build
   validates it first.
 
+### Review fixes (PR #41)
+
+Founder review of PR #41, applied on the branch before merge:
+
+- **Fix 1 (`74cbb76`)** — data-loss bug: the KeePass importer overwrote a field
+  on every XML text event, so `p&lt;a&amp;s&gt;s&quot;1` imported as `1` and
+  `Bank &amp; Co` as `Co`. Values now accumulate across `Text`, `GeneralRef` and
+  `CData` events and commit when the element closes; only the five predefined
+  entities and XML-1.0-valid numeric references resolve; unknown entities,
+  duplicate keys inside an entry and elements nested inside text are hard
+  errors; `<Value/>` is an empty value; the 1 MiB cap applies to the assembled
+  value. The exporter writes per-field `<String>` elements (a `StudgeKind`
+  marker maps keys back onto the right template) and returns
+  `FieldNotExportable` naming the field instead of silently rewriting control
+  characters. Export→import round trips are byte-exact for KeePass XML, JSON and
+  CSV. D-0302 corrected: unknown elements are ignored, unknown entities rejected.
+- **Fix 2 (`dbdb3ca`)** — the gitleaks allowlist covered the whole of
+  `items.rs` (a global `[allowlist]` is an OR of its criteria). Replaced with a
+  per-rule `[[rules.allowlists]]` (condition AND, line + path) after checking
+  that CI's gitleaks 8.24.3 has no conditional global allowlist; proved locally
+  with a fake AWS key that the old config hid it and the new one reports it.
+- **Fix 3 (`280a4d3`)** — SPEC §4.10, §5.5 and §5.6 describe what v1 does (the
+  whole item travels in the op payload; `ik` and `item-field` records are
+  reserved, D-0303); D-0301 and D-0303…D-0311 marked Approved by founder,
+  D-0302 stays Proposed with its correction recorded.
+- **Fix 4** — this section, the PR description, risk R-0305 and the dashboard.
+
 ### Known gaps and open questions
 
 - **R-0001 / #23:** CodeQL code scanning needs a public repository or GitHub
@@ -283,3 +310,100 @@ Founder review of PR #38, applied on the branch before merge:
 - Clarifications recorded for review: fixed-width RFC 3339 timestamps (D-0202)
   and KDF minimums enforced in `derive_muk` with a crate-internal raw path for
   fast unit tests (D-0204). Nothing else deviates from SPEC §4–§5.
+
+## Phase 3 — Vault, op log, storage, import/export
+
+- **Status:** In review
+- **Branch:** `phase-03-vault` · **Issue:** #9 · **Milestone:** Phase 3
+
+### What changed
+
+- **Vault model (`core/src/vault`).** 13 item kinds — login, passkey, secure
+  note, card, identity, SSH key, plus the seven India templates (Aadhaar, PAN,
+  UPI, netbanking, DigiLocker, passport, voter ID). Each kind has a closed field
+  template; an unknown or look-alike field name is rejected when an item is
+  built **and** when a payload is parsed, which is the R-0114 defence. Secret
+  fields keep their last ten values. Payloads are canonical CBOR capped at
+  1 MiB. A passkey's PKCS#8 key is validated on the way in, so a corrupt key can
+  never reach the vault.
+- **Op log (`core/src/oplog`).** SPEC §6.1–§6.9: canonical CBOR ops,
+  `op_hash = BLAKE3(body without sig)`, Ed25519 over that hash, a strict parser
+  with an exact key set, a `DeviceRegistry` that enforces the certificate **and**
+  the revocation cut-off before any signature counts, a DAG that enforces
+  parents/duplicate ids/`lamport = 1 + max(parents)`, signed vault heads, and
+  `verify_descends`/`check_head_update` that separate a rollback from a fork.
+  Materialisation applies the `(lamport, device_id)` rule with the op hash as a
+  total tiebreak (D-0310).
+- **Account API (`core/src/account`).** `create_account` derives the MUK, wraps
+  the Account Key and seals a six-entry key bundle; `unlock` re-opens every entry
+  under its own AAD; `UnlockedAccount` certifies and revokes devices, wraps and
+  unwraps vault keys, pins heads, re-seals and wipes on `lock`.
+- **Storage (`core/src/storage`).** A `LocalStore` trait over ciphertext only,
+  with an in-memory store and a SQLite store (native targets only, so the wasm
+  build keeps working). No plaintext columns exist; a test reads the database
+  file and proves the demo title, password and URL do not appear in it.
+- **Export (`core/src/export`).** The `.studgevault` backup is a container of
+  records that are already encrypted (D-0307), so it needs no new key or label;
+  JSON, CSV and KeePass XML refuse unless `allow_plaintext` is true.
+- **Import (`core/src/import`).** Bitwarden JSON and CSV, Chrome, Apple
+  Passwords, Dashlane, 1Password `export.data` (D-0304), Proton Pass and KeePass
+  2.x XML (quick-xml with DTD/entity/PI rejection and depth caps, D-0302), plus a
+  generic CSV mapper. Every importer returns `ImportReport { imported, skipped }`
+  where a skip is an enum plus a row index — never file content.
+- **Generator and TOTP (`core/src/generate.rs`, `core/src/totp.rs`).** Passwords
+  and EFF passphrases with rejection sampling over OsRng and a lower-bound
+  entropy estimate (D-0308 for the bundled list); RFC 6238 codes for
+  SHA-1/256/512, 6/8 digits, 30/60 s, with strict `otpauth://` parsing
+  (D-0309 for short secrets).
+- **Demo and dashboard.** `core/examples/vault_tour.rs` and an "Op log" section
+  in the preview page that draws the same DAG as a graph.
+
+### How to try it
+
+```powershell
+.\x.ps1 "cargo run -p studge-core --example vault_tour"   # the whole phase in one run
+.\x.ps1 "cargo test -p studge-core"                       # 241 tests
+.\x.ps1 "cd tools/preview && pnpm preview"                # http://localhost:4400, "Op log"
+```
+
+### Test results
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test --all` | **241 passed, 0 failed, 2 ignored** |
+| `cargo test -p studge-core --features test-vectors` | pass (7 vector tests) |
+| `cargo test --release -- --ignored` | 2 passed (Argon2 KAT, real-parameter account) |
+| `cargo deny check` | advisories, bans, licences, sources ok (one pre-existing unused-allowance warning) |
+| `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` | pass |
+| `pnpm -C tools/preview lint` / `test` | pass, 46 tests |
+
+### Self-attack review
+
+Twenty vectors in `docs/THREAT_MODEL.md` §17; nineteen are blocked by a named
+test, and four residual risks are recorded (R-0301 CSV formula injection,
+R-0302 unknown XML elements ignored, R-0303 unsupported op kinds fail closed,
+R-0304 local file metadata).
+
+### Known gaps and open questions
+
+- **Item keys and per-field records** are implemented in crypto but not written
+  yet: v1 ops carry the whole item under the vault's op key (D-0303). Phase 5
+  writes `ik`/`item-field` records when sync needs them.
+- **`move`, `membership` and `key_rotation`** are rejected in v1 (D-0305); their
+  payloads arrive with sharing (Phase 11).
+- **Device signing keys** are supplied by the caller and belong in the OS
+  keystore, which is Phase 7's job; Phase 3 keeps them out of the synced bundle.
+- **CSV export can be interpreted by a spreadsheet** as a formula (R-0301). The
+  export is opt-in and labelled, but a safe-for-spreadsheets mode is a follow-up.
+- **1PUX needs an unzip step** outside core (D-0304); the CLI should do it in
+  Phase 6.
+- The KeePass importer drops elements it does not model rather than inventing
+  fields (R-0302).
+
+### Follow-ups
+
+- Safe-for-spreadsheets CSV export (R-0301).
+- CLI: extract `.1pux` and hand core `export.data` (Phase 6).
+- Phase 5: `ik`/`item-field` records and a decrypted in-memory cache.

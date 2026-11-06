@@ -385,9 +385,10 @@ collision in one vault cannot affect another. **PROPOSED** (D-0108).
 carries `CBOR{suite, scope: vault_id, record_type: "vk-share", member_id,
 key_epoch}` so a wrapped key cannot be replayed to another member or epoch.
 
-### 4.10 Item keys (IK)
+### 4.10 Item keys (IK) — reserved in v1
 
-Every item has its own 32 random bytes:
+The key hierarchy defines an item key so that one item can be shared, moved or
+re-keyed without touching the vault:
 
 ```
 k_ik = HKDF-SHA256(ikm = VK, salt = item_id, info = "studge/v1/ik-wrap", L = 32)
@@ -395,11 +396,19 @@ IK_env = AEAD(k_ik, IK, nonce,
               aad = CBOR{suite, scope: vault_id, item_id, record_type: "ik", schema_version})
 ```
 
-Fields are encrypted under
+Under that key, fields would be encrypted with
 `k_field = HKDF-SHA256(ikm = IK, salt = item_id, info = "studge/v1/item-field")`,
-with the field name in the AAD (§5.3). Two consequences worth stating: moving a
-field to another item fails authentication, and rekeying an item is a 32-byte
-rewrap rather than a re-encryption of all its fields.
+with the field name in the AAD (§5.3), so moving a field to another item fails
+authentication and rekeying an item is a 32-byte rewrap rather than a
+re-encryption of all its fields.
+
+**In v1 these records are not written.** An op carries the whole item — one
+self-contained snapshot sealed under the vault's `op-payload` key (§6.1) — so
+there is no item key envelope and no per-field ciphertext on the wire or on
+disk (D-0303). The derivations above and the `ik` / `item-field` record types
+stay implemented and tested in the crypto layer, and Phase 5 introduces the
+records themselves when per-item records travel between devices. A future
+version that writes them does so behind a schema-version bump, never silently.
 
 ### 4.11 Key hierarchy
 
@@ -534,8 +543,8 @@ except along the hierarchy in §4.11.
 | Device list, certificates, revocations | Ed25519 signatures (public data) |
 | Vault ops | payload AEAD under the vault's `op-payload` key; op header signed |
 | Vault head | Ed25519 signature (public data) |
-| Item key envelopes | AEAD under the vault's `ik-wrap` key |
-| Item fields | AEAD under the item's `item-field` key |
+| Item key envelopes | *reserved, not written in v1* (§4.10, D-0303); AEAD under the vault's `ik-wrap` key when introduced |
+| Item fields | *reserved, not written in v1* (§4.10, D-0303); in v1 the field map travels inside the op payload |
 | Vault key for shared members | HPKE to each member (Phase 11) |
 
 What remains visible to the relay: ids, sizes, counts, `lamport`, `created_at`,
@@ -543,8 +552,11 @@ What remains visible to the relay: ids, sizes, counts, `lamport`, `created_at`,
 
 ### 5.6 Field-level rules
 
-- Every field is encrypted separately; empty fields are omitted from the map,
-  never stored as empty ciphertext.
+- In v1 an op carries the item's whole field map as one snapshot under the
+  vault's `op-payload` key (§4.10, D-0303). The per-field rule below describes
+  the record format reserved for Phase 5: when field records travel, every field
+  is encrypted separately, and empty fields are omitted from the map, never
+  stored as empty ciphertext.
 - The field name is authenticated but **not** encrypted, because the relay never
   needs it and clients need it to render; it is part of the AAD and the op's
   encrypted payload, never of the relay-visible header. (If a future version

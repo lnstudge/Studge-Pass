@@ -1,0 +1,68 @@
+{
+  "encrypted": false,
+  "folders": [
+    { "id": "f1", "name": "Demo folder" }
+  ],
+  "items": [
+    {
+      "id": "i1",
+      "type": 1,
+      "name": "Demo Bank",
+      "notes": "DEMO ONLY - not a real account",
+      "favorite": true,
+      "login": {
+        "username": "demo.user@example.test",
+        "password": "demo-password-one",
+        "totp": "JBSWY3DPEHPK3PXP",
+        "uris": [
+          { "match": 3, "uri": "https://demo-bank.example/login" },
+          { "match": 0, "uri": "https://demo-bank.example" },
+          { "match": 2, "uri": "https://demo-bank.example/secure" }
+        ]
+      },
+      "fields": [
+        { "name": "Support PIN", "value": "4321", "type": 1 }
+      ]
+    },
+    {
+      "id": "i2",
+      "type": 2,
+      "name": "Demo note",
+      "notes": "DEMO ONLY note body",
+      "secureNote": { "type": 0 }
+    },
+    {
+      "id": "i3",
+      "type": 3,
+      "name": "Demo card",
+      "notes": "",
+      "card": {
+        "cardholderName": "DEMO HOLDER",
+        "brand": "Visa",
+        "number": "4111111111111111",
+        "expMonth": "11",
+        "expYear": "2030",
+        "code": "123"
+      }
+    },
+    {
+      "id": "i4",
+      "type": 4,
+      "name": "Demo identity",
+      "notes": "",
+      "identity": {
+        "firstName": "Demo",
+        "lastName": "Person",
+        "email": "demo@example.test",
+        "phone": "0000000000",
+        "address1": "1 Demo Street"
+      }
+    },
+    {
+      "id": "i5",
+      "type": 9,
+      "name": "Demo unknown type",
+      "notes": ""
+    }
+  ]
+}
