@@ -95,12 +95,12 @@
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 241,
+      "passed": 259,
       "failed": 0,
       "ignored": 2
     },
     "deny": "pass",
-    "updated_at": "2026-11-05T02:48:49Z"
+    "updated_at": "2026-11-06T01:37:30Z"
   },
   "commits": [
     {
@@ -167,6 +167,31 @@
       "sha": "980575743a41632233fbdd9ffc72db6049568dec",
       "message": "chore(preview): close the Phase 3 checklist and link the pull request",
       "url": "https://github.com/lnstudge/Studge-Pass/commit/980575743a41632233fbdd9ffc72db6049568dec"
+    },
+    {
+      "sha": "39e85a3e2e2386d4e9ba3737133ff219a8739646",
+      "message": "chore(preview): refresh the Phase 3 commit timeline",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/39e85a3e2e2386d4e9ba3737133ff219a8739646"
+    },
+    {
+      "sha": "f68defc9e845d97c43d848533c8bb544131c853c",
+      "message": "chore(ci): allowlist a field name that gitleaks reads as an api key",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/f68defc9e845d97c43d848533c8bb544131c853c"
+    },
+    {
+      "sha": "74cbb767e917b676332d8514a04ba9193241c311",
+      "message": "fix(import): assemble KeePass values byte-exactly across entity references",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/74cbb767e917b676332d8514a04ba9193241c311"
+    },
+    {
+      "sha": "dbdb3ca7969c1e0352e12318f79d4c0b1e13b76c",
+      "message": "fix(ci): scope the gitleaks allowlist to one line of one file",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/dbdb3ca7969c1e0352e12318f79d4c0b1e13b76c"
+    },
+    {
+      "sha": "280a4d36610c3cb9d1fc67e1f89304db96d6eed9",
+      "message": "docs(spec): v1 carries the whole item in the op payload (D-0303)",
+      "url": "https://github.com/lnstudge/Studge-Pass/commit/280a4d36610c3cb9d1fc67e1f89304db96d6eed9"
     }
   ],
   "screenshots": [

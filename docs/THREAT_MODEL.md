@@ -207,6 +207,7 @@ about how interesting the bug is.
 | R-0302 | The KeePass XML importer ignores elements it does not recognise, so a foreign extension field is dropped rather than reported | low | Accepted | Only the KeePass 2.x element set is read and an unknown element is never turned into a field name (which would be R-0114); a dropped custom extension is the safer failure |
 | R-0303 | A vault containing an op kind this build does not implement (`move`, `membership`, `key_rotation`) cannot be materialised at all | low | Accepted by design | Fail-closed: refusing the whole history beats silently ignoring an access-control or key-rotation op (D-0305). Phase 11 introduces the kinds with their payloads |
 | R-0304 | The local SQLite file holds no plaintext, but its size, row counts and file times reveal how many items and ops a vault has | low | Accepted | The same metadata class as R-0101, on a device the attacker already had to access; nothing readable is stored (tested) |
+| R-0305 | An importer that assembles a value piecewise (for example one that overwrites the field on every XML text event) silently truncates or rewrites it — a data-loss bug that looks like a successful import. Found in the PR #41 review: `<Value>p&lt;a&amp;s&gt;s"1</Value>` imported as `1` | medium | Fixed | Importers must be byte-exact and round-trip tested: KeePass XML values are accumulated (text + resolved entity references) and committed when the element closes, and export→import round-trip tests exist for the KeePass XML, JSON and CSV paths; every future importer ships with one too |
 
 ## 14. Phase 1 self-attack review (design level)
 
@@ -308,5 +309,6 @@ removed; the rest are the four new risks above.
 | 18 | Smuggle a non-canonical CBOR op past the parser | Strict re-encode and compare (`rejects_non_canonical_or_unknown_keys`) | Blocked |
 | 19 | Executable value in a plaintext CSV opened in a spreadsheet | Nothing in core prevents it | R-0301 |
 | 20 | Unsupported op kind used to smuggle an ACL change | Rejected with `UnsupportedOpKind` (D-0305) | R-0303 |
+| 21 | An XML entity reference splits a value so the last piece wins (found in review: `p&lt;a&amp;s&gt;s"1` imported as `1`) | Values accumulate across `Text` and `GeneralRef` events and commit on the element close; round trips are byte-exact (`entity_references_no_longer_truncate_values`, `keepass_export_import_round_trip_is_byte_exact`) | Blocked (was R-0305, now fixed) |
 
 <!-- THREAT-END -->

@@ -96,6 +96,33 @@ Against the AGENTS.md design bar, honestly:
   dedicated error state if `status.json` ever ships broken, because the build
   validates it first.
 
+### Review fixes (PR #41)
+
+Founder review of PR #41, applied on the branch before merge:
+
+- **Fix 1 (`74cbb76`)** — data-loss bug: the KeePass importer overwrote a field
+  on every XML text event, so `p&lt;a&amp;s&gt;s&quot;1` imported as `1` and
+  `Bank &amp; Co` as `Co`. Values now accumulate across `Text`, `GeneralRef` and
+  `CData` events and commit when the element closes; only the five predefined
+  entities and XML-1.0-valid numeric references resolve; unknown entities,
+  duplicate keys inside an entry and elements nested inside text are hard
+  errors; `<Value/>` is an empty value; the 1 MiB cap applies to the assembled
+  value. The exporter writes per-field `<String>` elements (a `StudgeKind`
+  marker maps keys back onto the right template) and returns
+  `FieldNotExportable` naming the field instead of silently rewriting control
+  characters. Export→import round trips are byte-exact for KeePass XML, JSON and
+  CSV. D-0302 corrected: unknown elements are ignored, unknown entities rejected.
+- **Fix 2 (`dbdb3ca`)** — the gitleaks allowlist covered the whole of
+  `items.rs` (a global `[allowlist]` is an OR of its criteria). Replaced with a
+  per-rule `[[rules.allowlists]]` (condition AND, line + path) after checking
+  that CI's gitleaks 8.24.3 has no conditional global allowlist; proved locally
+  with a fake AWS key that the old config hid it and the new one reports it.
+- **Fix 3 (`280a4d3`)** — SPEC §4.10, §5.5 and §5.6 describe what v1 does (the
+  whole item travels in the op payload; `ik` and `item-field` records are
+  reserved, D-0303); D-0301 and D-0303…D-0311 marked Approved by founder,
+  D-0302 stays Proposed with its correction recorded.
+- **Fix 4** — this section, the PR description, risk R-0305 and the dashboard.
+
 ### Known gaps and open questions
 
 - **R-0001 / #23:** CodeQL code scanning needs a public repository or GitHub
