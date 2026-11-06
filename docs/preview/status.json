@@ -3,7 +3,7 @@
     "id": 4,
     "name": "Relay server",
     "branch": "phase-04-relay",
-    "pr_url": null
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/47"
   },
   "steps": [
     {
@@ -59,8 +59,8 @@
       "n": 8,
       "title": "Hardening: headers, CORS, timeouts, log hygiene",
       "state": "done",
-      "summary": "Security headers on every response (nosniff, no-store, no-referrer, DENY, CSP). 30-second request timeout. Generic errors (§7.8). CORS configured in TOML (middleware wiring is a follow-up).",
-      "commit_sha": "85c40b0"
+      "summary": "Security headers on every response (nosniff, no-store, no-referrer, DENY, CSP). 30-second request timeout. Generic errors (§7.8). CorsLayer wired in app() with strict allowlist (8363cd3).",
+      "commit_sha": "8363cd3"
     },
     {
       "n": 9,
@@ -73,34 +73,34 @@
       "n": 10,
       "title": "Integration tests on a random port",
       "state": "done",
-      "summary": "11 black-box HTTP tests: register/login, wrong password, duplicate account, logout, vault ops push/fetch, head CAS conflict, vault isolation, malformed inputs. 297 total tests, 0 failed.",
+      "summary": "11 black-box HTTP tests: register/login, wrong password, duplicate account, logout, vault ops push/fetch, head CAS conflict, vault isolation, malformed inputs. 301 total tests, 0 failed.",
       "commit_sha": "9d6205b"
     },
     {
       "n": 11,
       "title": "relay_tour demo and the preview Relay section",
-      "state": "next",
-      "summary": "Planned but not completed (turn limit reached). Follow-up.",
+      "state": "skipped",
+      "summary": "Planned but not completed (turn limit reached). Follow-up issue to be filed.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "PROGRESS, self-attack review, issues, PR",
-      "state": "in-progress",
-      "summary": "PROGRESS.md updated. THREAT_MODEL.md §18 written (14 vectors, 12 blocked, 4 new risks R-0401..R-0404). PR being opened.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "PROGRESS.md updated. THREAT_MODEL.md §18: 14 vectors, 12 blocked, 5 new risks R-0401..R-0405. Security issues #43-#46 filed. PR #47 opened. CORS wired. deny.toml RUSTSEC-2026-0387 excepted.",
+      "commit_sha": "8363cd3"
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 297,
+      "passed": 301,
       "failed": 0,
       "ignored": 2
     },
     "deny": "pass",
-    "updated_at": "2026-11-06T10:30:00Z"
+    "updated_at": "2026-11-06T04:20:00Z"
   },
   "commits": [],
   "screenshots": [],
@@ -150,6 +150,26 @@
       "title": "R-0119 — HPKE base mode gives no sender authentication; correct for vault-key wrapping, must not be presented as authentication",
       "severity": "low",
       "status": "accepted"
+    },
+    {
+      "title": "R-0401 — No email notification on account lockout; rate limit enforced, notification is Phase 8 (issue #43)",
+      "severity": "low",
+      "status": "open"
+    },
+    {
+      "title": "R-0403 — Malicious relay operator can delete OPAQUE credential; mitigation in Phase 13 (issue #44)",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "title": "R-0404 — Malicious relay can serve forged identity key; mitigation in Phase 11 key transparency (issue #45)",
+      "severity": "low",
+      "status": "open"
+    },
+    {
+      "title": "R-0405 — crypto-bigint 0.5.5 timing side-channel (RUSTSEC-2026-0387) via opaque-ke; excepted in deny.toml; upgrade when upstream fixes (issue #46)",
+      "severity": "medium",
+      "status": "open"
     }
   ],
   "links": [
@@ -166,20 +186,20 @@
       "url": "/SPEC.md"
     },
     {
-      "label": "GitHub issue #8 (Phase 2)",
-      "url": "https://github.com/lnstudge/Studge-Pass/issues/8"
+      "label": "Phase 4 PR #47",
+      "url": "https://github.com/lnstudge/Studge-Pass/pull/47"
     },
     {
-      "label": "Phase 2 pull request #38",
-      "url": "https://github.com/lnstudge/Studge-Pass/pull/38"
+      "label": "Phase 4 tracking issue #10",
+      "url": "https://github.com/lnstudge/Studge-Pass/issues/10"
     },
     {
-      "label": "Notion: Build Log",
-      "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
+      "label": "docs/relay-api.md",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-api.md"
     },
     {
-      "label": "Notion: Phase 2 row",
-      "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3"
+      "label": "docs/relay-asvs.md",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-asvs.md"
     }
   ],
   "oplog": {

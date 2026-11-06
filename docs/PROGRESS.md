@@ -453,20 +453,24 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 | --- | --- |
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --all-targets --all-features -- -D warnings` | pass |
-| `cargo test --all` | **297 passed, 0 failed, 2 ignored** (233 core + 26 relay unit + 11 relay integration + 27 others) |
-| `cargo deny check` | advisories, bans, licenses, sources ok |
+| `cargo test --all` | **301 passed, 0 failed, 2 ignored** (233 core + 29 relay unit + 11 relay integration + 28 others) |
+| `cargo deny check` | advisories ok (RUSTSEC-2026-0387 excepted; see R-0405), bans ok, licenses ok, sources ok |
 
 ### Self-attack review
 
-14 attack vectors in `docs/THREAT_MODEL.md §18`; 12 blocked by named tests, 2 require client enforcement (R-0106/107), and 4 new risks recorded (R-0401–R-0404). No critical or high findings.
+14 attack vectors in `docs/THREAT_MODEL.md §18`; 12 blocked by named tests, 2 require client enforcement (R-0106/107), and 5 new risks recorded (R-0401–R-0405). No critical or high findings.
 
 ### Known gaps and follow-ups
 
-- **`relay_tour` demo example** (`cargo run -p studge-relay --example relay_tour`) — planned but not completed due to turn limit. See follow-ups.
+- **`relay_tour` demo example** (`cargo run -p studge-relay --example relay_tour`) — planned but not completed due to turn limit.
 - **Preview dashboard Relay section** — `status.json` updated but the full relay preview section with live `/health` results was not added to the dashboard in this phase.
-- **CORS origins** are configured in the TOML but the `tower-http` CORS layer needs wiring — middleware is present, the layer call is not yet in `app()`. Follow-up.
 - **Postgres feature** is present in `Cargo.toml` but the migrations are SQLite-only; parity is tracked.
-- R-0401: no email on lockout (Phase 8).
-- R-0403: OPAQUE credential transparency (Phase 13).
-- R-0404: identity key transparency (Phase 11).
+- R-0401: no email on lockout (Phase 8). GitHub issue #43.
+- R-0403: OPAQUE credential transparency (Phase 13). GitHub issue #44.
+- R-0404: identity key transparency (Phase 11). GitHub issue #45.
+- R-0405: `crypto-bigint` timing side-channel via `opaque-ke`; excepted in `deny.toml`; upgrade when upstream fixes. GitHub issue #46.
+
+### PR
+
+[#47: Phase 4: studge-relay (zero-knowledge sync relay)](https://github.com/lnstudge/Studge-Pass/pull/47) — awaiting founder review.
 
