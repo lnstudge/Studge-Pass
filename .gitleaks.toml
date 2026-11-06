@@ -1,21 +1,26 @@
 # gitleaks configuration.
 #
-# The default ruleset is kept. One narrow allowlist suppresses a known false
-# positive, and nothing else:
+# CI runs gitleaks 8.24.3 (gitleaks/gitleaks-action v3.0.0 downloads it). In
+# that version the *global* allowlist is a single `[allowlist]` table whose
+# criteria are OR-ed — listing `paths` there would silence every finding in the
+# file — and it has no `condition` field at all. `condition` and `regexTarget`
+# exist only on per-rule allowlists (`[[rules.allowlists]]`, added in v8.21.0).
 #
-#   core/src/vault/items.rs names the passkey private-key field
-#   ("private_key_pkcs8") in a Rust match arm. It is a field name from the item
-#   template, not a credential, and gitleaks' generic-api-key rule reads the
-#   line as an assignment.
-#
-# The allowlist is scoped to that file and to that exact literal, so a real
-# secret in the same file is still reported. If this ever hides a finding, the
-# fix is to narrow the regex, not to widen the path.
+# So instead of a global allowlist, this extends the one default rule that
+# produced the false positive. A finding is ignored only when the line matches
+# AND the path matches; a real secret anywhere else in the same file — or on any
+# other line of it — is still reported. Verified locally against gitleaks 8.24.3
+# with a fake AWS-style key placed in the same file (see the PR description).
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Item template field name that looks like an assignment"
-paths = ['''core/src/vault/items\.rs''']
-regexes = ['''"private_key_pkcs8"''']
+[[rules]]
+id = "generic-api-key"
+
+    [[rules.allowlists]]
+    description = "core/src/vault/items.rs names the passkey private-key field in a match arm; it is a template field name, not a credential"
+    condition = "AND"
+    regexTarget = "line"
+    regexes = ['''"private_key_pkcs8"''']
+    paths = ['''core/src/vault/items\.rs''']
