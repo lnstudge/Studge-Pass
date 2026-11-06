@@ -404,8 +404,9 @@ the founder approves them by merging the Phase 3 pull request.
   export carries elements this importer does not model (`Times`, `AutoType`,
   `Binaries`, `CustomData`, …), so rejecting unknown elements would reject every
   real file. Elements outside the modelled set are **ignored**, which is recorded
-  as R-0302; unknown entities and malformed values are rejected. The founder's
-  review chose correction over rejecting unknown elements.
+  as R-0302; unknown entities and malformed values are rejected. The review
+  offered either option; the implementer chose to correct this decision rather
+  than reject unknown elements, and the founder approved that at merge.
 - **Reason:** `quick-xml` is a tokenizer, not a document engine: it does not
   fetch external entities, expand internal ones, or honour DTDs unless asked.
   Refusing those constructs at the token level, plus size and depth caps, closes
@@ -413,8 +414,8 @@ the founder approves them by merging the Phase 3 pull request.
   assembled byte-exactly (text pieces plus resolved entity references, committed
   when the element closes) and proven by export→import round-trip tests (R-0305).
 - **Affects:** `core/src/import/keepass.rs`, `core/src/export/keepass.rs`;
-  THREAT_MODEL R-0302, R-0305. **Status:** Proposed (correction awaiting
-  approval with the rest of PR #41).
+  THREAT_MODEL R-0302, R-0305. **Status:** Approved by founder
+  (with the correction, at the merge of PR #41).
 
 ## D-0303 — In v1 an op carries the whole item; item keys wait for Phase 5
 
