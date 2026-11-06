@@ -11,6 +11,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 /// A stored account.
+#[expect(dead_code, reason = "consumed by the endpoints as they land")]
 #[derive(Debug, Clone)]
 pub struct AccountRow {
     /// The raw account record (JSON bytes, as received).
@@ -24,6 +25,7 @@ pub struct AccountRow {
 }
 
 /// A device row.
+#[expect(dead_code, reason = "consumed by the endpoints as they land")]
 #[derive(Debug, Clone)]
 pub struct DeviceRow {
     /// The device id.
@@ -39,6 +41,7 @@ pub struct DeviceRow {
 }
 
 /// A vault row.
+#[expect(dead_code, reason = "consumed by the endpoints as they land")]
 #[derive(Debug, Clone)]
 pub struct VaultRow {
     /// The signed head bytes, if any.
@@ -54,6 +57,7 @@ pub struct VaultRow {
 }
 
 /// One stored op.
+#[expect(dead_code, reason = "consumed by the endpoints as they land")]
 #[derive(Debug, Clone)]
 pub struct OpRow {
     /// The op hash.
@@ -69,6 +73,7 @@ pub struct OpRow {
 }
 
 /// The database handle.
+#[expect(dead_code, reason = "methods are consumed by the endpoints as they land")]
 #[derive(Debug, Clone)]
 pub struct RelayStore {
     pool: SqlitePool,
