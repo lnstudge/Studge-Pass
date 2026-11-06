@@ -40,8 +40,13 @@ pub async fn push_ops(
     body: Bytes,
 ) -> ApiResult<Response> {
     let vault_id = hex_id16(&vault_hex)?;
-    require_vault(&state, &session, &vault_id).await?;
     require_media_type(&headers, "application/cbor")?;
+    // SPEC §7.4: the first push creates the vault row implicitly (ensure_vault
+    // is INSERT OR IGNORE, so it is a no-op on subsequent pushes).
+    state
+        .store()
+        .ensure_vault(&session.account_id, &vault_id)
+        .await?;
 
     // SPEC §7.7: pushes are limited per account per minute.
     let identity = hex(&session.account_id);
