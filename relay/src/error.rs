@@ -16,9 +16,10 @@ use serde::Serialize;
 
 /// Every error the relay can answer with (SPEC §7.8).
 ///
-/// Handlers use them one by one; until every endpoint exists, the not-yet-used
-/// variants are expected dead code.
-#[expect(dead_code)]
+/// Handlers construct these one by one; until every endpoint exists, the
+/// not-yet-constructed variants are expected dead code in non-test builds. The
+/// expectation is removed as the handlers arrive.
+#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiError {
     /// Malformed input: unknown field, wrong type, bad id, bad media type.

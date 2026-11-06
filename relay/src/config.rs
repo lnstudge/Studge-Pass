@@ -446,7 +446,7 @@ ip_addresses = false
 
     #[test]
     fn wildcard_cors_and_out_of_range_limits_are_refused() {
-        let mut config = RelayConfig {
+        let config = RelayConfig {
             cors_origins: vec!["*".to_string()],
             ..RelayConfig::default()
         };
@@ -455,7 +455,7 @@ ip_addresses = false
             ConfigError::InvalidCorsOrigin
         );
 
-        let mut config = RelayConfig {
+        let config = RelayConfig {
             max_body_bytes: 0,
             ..RelayConfig::default()
         };
@@ -464,7 +464,7 @@ ip_addresses = false
             ConfigError::OutOfRange
         );
 
-        let mut config = RelayConfig {
+        let config = RelayConfig {
             max_ops_per_push: 10_000,
             ..RelayConfig::default()
         };
