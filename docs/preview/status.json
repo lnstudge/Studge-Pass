@@ -16,91 +16,91 @@
     {
       "n": 2,
       "title": "OPAQUE in core + register/login with the dummy flow",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "OPAQUE wrappers in core (commit 8c2b9bd). register/start, register/finish, login/start, login/finish, logout. Dummy exchange for unknown accounts (D-0113).",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 3,
       "title": "Sessions: tokens, SHA-256 storage, device binding, revocation",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "256-bit OsRng tokens, stored as SHA-256. 24-hour expiry. Device-bound. Login-state table (0002). take_login_state is atomic DELETE-RETURNING.",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 4,
       "title": "Storage: sqlx SQLite migrations and the store",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "migrations/0001 (accounts, devices, vaults, ops, sessions, counters) + 0002 (login_states). RelayStore with all required methods.",
+      "commit_sha": "79eb93f"
     },
     {
       "n": 5,
       "title": "Account and device endpoints",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "GET/PUT/DELETE /v1/account (If-Match versioning), POST /v1/devices (certificate + enrolment proof), DELETE /v1/devices/{id} (signed revocation).",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 6,
       "title": "Vault endpoints: ops push/fetch, head compare-and-swap",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "POST/GET /v1/vaults/{id}/ops (append-only, idempotent, paginated, implicit vault creation). GET/PUT /v1/vaults/{id}/head (CAS with If-Match).",
+      "commit_sha": "9d6205b"
     },
     {
       "n": 7,
       "title": "Quotas and rate limits",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Per-IP and per-account fixed-window counters. Storage quota check before every push. All limits from SPEC §7.7 enforced.",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 8,
       "title": "Hardening: headers, CORS, timeouts, log hygiene",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "Security headers on every response (nosniff, no-store, no-referrer, DENY, CSP). 30-second request timeout. Generic errors (§7.8). CORS configured in TOML (middleware wiring is a follow-up).",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 9,
       "title": "Docs: relay-api, relay-asvs, Caddy, Docker",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "docs/relay-api.md (all endpoints, examples). docs/relay-asvs.md (ASVS 4.0 Level 3). Dockerfile (multi-stage, non-root). docker-compose.yml + Caddyfile.",
+      "commit_sha": "0d2a8c7"
     },
     {
       "n": 10,
       "title": "Integration tests on a random port",
-      "state": "next",
-      "summary": "Planned.",
-      "commit_sha": null
+      "state": "done",
+      "summary": "11 black-box HTTP tests: register/login, wrong password, duplicate account, logout, vault ops push/fetch, head CAS conflict, vault isolation, malformed inputs. 297 total tests, 0 failed.",
+      "commit_sha": "9d6205b"
     },
     {
       "n": 11,
       "title": "relay_tour demo and the preview Relay section",
       "state": "next",
-      "summary": "Planned.",
+      "summary": "Planned but not completed (turn limit reached). Follow-up.",
       "commit_sha": null
     },
     {
       "n": 12,
       "title": "PROGRESS, self-attack review, issues, PR",
-      "state": "next",
-      "summary": "Planned.",
+      "state": "in-progress",
+      "summary": "PROGRESS.md updated. THREAT_MODEL.md §18 written (14 vectors, 12 blocked, 4 new risks R-0401..R-0404). PR being opened.",
       "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
-    "clippy": null,
+    "clippy": "pass",
     "tests": {
-      "passed": 0,
+      "passed": 297,
       "failed": 0,
-      "ignored": 0
+      "ignored": 2
     },
-    "deny": null,
-    "updated_at": "2026-11-06T02:54:11Z"
+    "deny": "pass",
+    "updated_at": "2026-11-06T10:30:00Z"
   },
   "commits": [],
   "screenshots": [],
