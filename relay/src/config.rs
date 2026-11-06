@@ -446,22 +446,28 @@ ip_addresses = false
 
     #[test]
     fn wildcard_cors_and_out_of_range_limits_are_refused() {
-        let mut config = RelayConfig::default();
-        config.cors_origins = vec!["*".to_string()];
+        let mut config = RelayConfig {
+            cors_origins: vec!["*".to_string()],
+            ..RelayConfig::default()
+        };
         assert_eq!(
             config.validate().expect_err("wildcard"),
             ConfigError::InvalidCorsOrigin
         );
 
-        let mut config = RelayConfig::default();
-        config.max_body_bytes = 0;
+        let mut config = RelayConfig {
+            max_body_bytes: 0,
+            ..RelayConfig::default()
+        };
         assert_eq!(
             config.validate().expect_err("zero"),
             ConfigError::OutOfRange
         );
 
-        let mut config = RelayConfig::default();
-        config.max_ops_per_push = 10_000;
+        let mut config = RelayConfig {
+            max_ops_per_push: 10_000,
+            ..RelayConfig::default()
+        };
         assert_eq!(
             config.validate().expect_err("huge"),
             ConfigError::OutOfRange
