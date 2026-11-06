@@ -24,6 +24,7 @@ pub use store::RelayStore;
 
 use axum::Router;
 use std::time::Duration;
+use tower_http::cors::{AllowHeaders, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 
 /// Applies the headers every response carries (SPEC §7 hardening).
@@ -66,11 +67,41 @@ pub(crate) async fn request_timeout(
     }
 }
 
-/// Builds the full application: routes and the body limit. The security
-/// headers and the timeout live inside the router.
+/// Builds the full application: routes, body limit, and optional CORS.
+///
+/// If `config.cors_origins` is non-empty each origin is added to a strict
+/// `CorsLayer` (no wildcard, only the methods and headers the relay actually
+/// uses). If the list is empty the layer is omitted — the relay is typically
+/// deployed behind a reverse proxy that enforces CORS at the edge.
 pub fn app(state: RelayState) -> Router {
+    use axum::http::{HeaderValue, Method};
+
     let config = state.config().clone();
-    routes::router(state).layer(RequestBodyLimitLayer::new(config.max_body_bytes))
+    let router = routes::router(state).layer(RequestBodyLimitLayer::new(config.max_body_bytes));
+
+    if config.cors_origins.is_empty() {
+        router
+    } else {
+        let origins: Vec<HeaderValue> = config
+            .cors_origins
+            .iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+        let cors = CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::DELETE,
+                Method::OPTIONS,
+            ])
+            .allow_headers(AllowHeaders::list([
+                axum::http::header::AUTHORIZATION,
+                axum::http::header::CONTENT_TYPE,
+            ]));
+        router.layer(cors)
+    }
 }
 
 /// Helpers for integration tests in `relay/tests/`. Always compiled so that
@@ -131,5 +162,89 @@ mod tests {
             .map(|value| value.to_str().expect("ascii"))
             .unwrap_or("");
         assert_eq!(value, "nosniff");
+    }
+
+    /// An allowed origin gets `access-control-allow-origin` back.
+    #[tokio::test]
+    async fn cors_layer_is_wired_when_origins_are_configured() {
+        let store = store::RelayStore::open_in_memory().await.expect("store");
+        let setup = studge_core::crypto::opaque::ServerSetupKey::generate().expect("setup");
+        let config = RelayConfig {
+            cors_origins: vec!["https://client.example".to_string()],
+            ..RelayConfig::default()
+        };
+        let the_app = app(RelayState::new(config, store, setup));
+        let response = the_app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/health")
+                    .header("origin", "https://client.example")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let acao = response
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert_eq!(acao, "https://client.example");
+    }
+
+    /// Without configured origins the layer is absent, so no CORS header appears.
+    #[tokio::test]
+    async fn no_cors_header_when_origins_list_is_empty() {
+        let store = store::RelayStore::open_in_memory().await.expect("store");
+        let setup = studge_core::crypto::opaque::ServerSetupKey::generate().expect("setup");
+        let the_app = app(RelayState::new(RelayConfig::default(), store, setup));
+        let response = the_app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .header("origin", "https://attacker.example")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert!(
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .is_none(),
+            "CORS header must be absent when no origins are configured"
+        );
+    }
+
+    /// A disallowed origin does not get `access-control-allow-origin` back.
+    #[tokio::test]
+    async fn cors_disallowed_origin_gets_no_header() {
+        let store = store::RelayStore::open_in_memory().await.expect("store");
+        let setup = studge_core::crypto::opaque::ServerSetupKey::generate().expect("setup");
+        let config = RelayConfig {
+            cors_origins: vec!["https://allowed.example".to_string()],
+            ..RelayConfig::default()
+        };
+        let the_app = app(RelayState::new(config, store, setup));
+        let response = the_app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/health")
+                    .header("origin", "https://attacker.example")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert!(
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .is_none(),
+            "disallowed origin must not receive ACAO"
+        );
     }
 }

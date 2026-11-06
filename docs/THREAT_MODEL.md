@@ -341,5 +341,6 @@ Each "Blocked" row names the test that verifies it.
 | R-0402 — No sliding inactivity timeout; 24-hour hard expiry only (D-0112) | low | Accepted |
 | R-0403 — A malicious relay operator can delete the OPAQUE password file, forcing re-registration or account abandonment | medium | Open — Phase 13 (OPAQUE credential transparency) |
 | R-0404 — A malicious relay operator can serve a forged account record with a different identity key; new device enrolments would fail, but existing sessions continue | low | Open — Phase 11 (key transparency) |
+| R-0405 — `crypto-bigint v0.5.5` (transitive via `opaque-ke v4.0.1`) has a timing side-channel in big-integer arithmetic (RUSTSEC-2026-0387). Not a plaintext-exposure flaw; affects OPAQUE server-side computation. Blocked on an upstream `opaque-ke` release pinning `crypto-bigint ≥ 0.7.6`. Ignored in `deny.toml` with justification. | medium | Open — upgrade when opaque-ke ships fix |
 
 <!-- THREAT-END -->
