@@ -12,12 +12,14 @@
 //! - [`config`] — the TOML file and `STUDGE_RELAY_*` variables;
 //! - [`error`] — the closed error set of §7.8;
 //! - [`routes`] — the endpoints of §7.4;
-//! - [`state`] — what the handlers share.
+//! - [`state`] — what the handlers share;
+//! - [`store`] — the SQLite layer of §7.9.
 
 mod config;
 mod error;
 mod routes;
 mod state;
+mod store;
 
 use axum::Router;
 use config::RelayConfig;
