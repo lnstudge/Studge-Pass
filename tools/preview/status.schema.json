@@ -7,6 +7,40 @@
   "additionalProperties": false,
   "required": ["phase", "steps", "checks", "commits", "screenshots", "try_it", "risks", "links"],
   "properties": {
+    "oplog": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The demo op log from `vault_tour`, rendered as a graph. Metadata only: no item content.",
+      "required": ["vault", "heads", "nodes"],
+      "properties": {
+        "vault": { "type": "string", "pattern": "^[0-9a-f]{8}$" },
+        "heads": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9a-f]{8}$" }
+        },
+        "note": { "type": "string" },
+        "nodes": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hash", "kind", "lamport", "device", "parents"],
+            "properties": {
+              "hash": { "type": "string", "pattern": "^[0-9a-f]{8}$" },
+              "kind": { "enum": ["create", "update", "delete"] },
+              "lamport": { "type": "integer", "minimum": 1, "maximum": 1000 },
+              "device": { "type": "string", "pattern": "^[0-9a-f]{8}$" },
+              "parents": {
+                "type": "array",
+                "maxItems": 16,
+                "items": { "type": "string", "pattern": "^[0-9a-f]{8}$" }
+              }
+            }
+          }
+        }
+      }
+    },
     "phase": {
       "type": "object",
       "additionalProperties": false,

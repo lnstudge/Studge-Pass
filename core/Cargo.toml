@@ -24,9 +24,23 @@ unicode-normalization = "0.1.26"
 x25519-dalek = { version = "3.0.0", features = ["static_secrets", "getrandom"] }
 zeroize = { version = "1.9.1", features = ["derive"] }
 
+# Phase 3 additions. None of these implements cryptography itself except
+# ml-kem and p256, which are on the AGENTS.md approved list; every choice is
+# justified in docs/DECISIONS.md (D-0301).
+ml-kem = { version = "0.3.4", features = ["getrandom", "zeroize"] }
+p256 = { version = "0.14.0", features = ["pkcs8"] }
+quick-xml = { version = "0.42.0", default-features = false }
+serde_json = "1.0.154"
+totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otpauth", "zeroize"] }
+
+# SQLite is native-only: the browser extension builds core for
+# wasm32-unknown-unknown, where a C SQLite cannot go. The browser keeps vaults
+# in the extension's own storage instead (Phase 8).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+
 [dev-dependencies]
 proptest = "1.12.0"
-serde_json = "1.0.154"
 
 [features]
 # Exposes fixed-input constructors (nonce, seed, key bytes) so the known-answer

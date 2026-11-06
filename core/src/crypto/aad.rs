@@ -43,6 +43,19 @@ impl BundleEntry {
             Self::BundleVersion => "bundle_version",
         }
     }
+
+    /// Parses a wire name; an unknown entry is rejected, never defaulted.
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "identity_signing" => Self::IdentitySigning,
+            "identity_encryption" => Self::IdentityEncryption,
+            "identity_kem" => Self::IdentityKem,
+            "head_pins" => Self::HeadPins,
+            "device_list" => Self::DeviceList,
+            "bundle_version" => Self::BundleVersion,
+            _ => return None,
+        })
+    }
 }
 
 /// The closed set of record types from SPEC §5.3.

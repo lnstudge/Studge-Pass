@@ -200,6 +200,21 @@ fn bytes(value: &[u8]) -> Value {
     Value::Bytes(value.to_vec())
 }
 
+fn fixed16(value: &Value) -> CryptoResult<[u8; 16]> {
+    let Value::Bytes(raw) = value else {
+        return Err(CryptoError::MalformedCbor);
+    };
+    if raw.len() != 16 {
+        return Err(CryptoError::InvalidLength {
+            expected: 16,
+            actual: raw.len(),
+        });
+    }
+    let mut out = [0u8; 16];
+    out.copy_from_slice(raw);
+    Ok(out)
+}
+
 /// BLAKE3-256 over a canonical body — what signatures actually cover
 /// (SPEC §4.7, §4.8, consistent with the operation hash in §6.3).
 fn signing_digest(body: &[u8]) -> [u8; 32] {
@@ -286,6 +301,127 @@ impl DeviceCertificate {
     /// The certification time.
     pub fn created_at(&self) -> &Timestamp {
         &self.created_at
+    }
+
+    /// Rebuilds a certificate from stored parts. The signature is not checked
+    /// here; [`DeviceCertificate::verify`] is the only thing that decides
+    /// whether a certificate is trusted.
+    pub fn from_parts(
+        account_id: [u8; 16],
+        device_id: [u8; 16],
+        device_public_key: [u8; PUBLIC_KEY_BYTES],
+        created_at: Timestamp,
+        signature: [u8; SIGNATURE_BYTES],
+    ) -> Self {
+        Self {
+            account_id,
+            device_id,
+            device_public_key,
+            created_at,
+            signature,
+        }
+    }
+
+    /// The stored form: the signed body map plus `sig`.
+    pub fn to_cbor(&self) -> CryptoResult<Vec<u8>> {
+        let map = canonical_map(vec![
+            ("suite", text(SUITE_V1)),
+            ("type", text("device-cert")),
+            ("account_id", bytes(&self.account_id)),
+            ("device_id", bytes(&self.device_id)),
+            ("device_pubkey", bytes(&self.device_public_key)),
+            ("created_at", text(self.created_at.as_str())),
+            ("sig", bytes(&self.signature)),
+        ]);
+        canonical_bytes(&map)
+    }
+
+    /// Parses the stored form, rejecting anything outside the exact key set.
+    pub fn from_cbor(bytes: &[u8]) -> CryptoResult<Self> {
+        let value = crate::crypto::aad::parse_strict(bytes)?;
+        let Value::Map(entries) = value else {
+            return Err(CryptoError::MalformedCbor);
+        };
+        let mut account_id: Option<[u8; 16]> = None;
+        let mut device_id: Option<[u8; 16]> = None;
+        let mut public_key: Option<[u8; PUBLIC_KEY_BYTES]> = None;
+        let mut created_at: Option<Timestamp> = None;
+        let mut signature: Option<[u8; SIGNATURE_BYTES]> = None;
+        let mut suite: Option<String> = None;
+        let mut kind: Option<String> = None;
+        if entries.len() != 7 {
+            return Err(CryptoError::MalformedCbor);
+        }
+        for (key, value) in entries {
+            let Value::Text(name) = key else {
+                return Err(CryptoError::MalformedCbor);
+            };
+            let set_once = |slot: &mut Option<String>| -> CryptoResult<()> {
+                let Value::Text(text) = value.clone() else {
+                    return Err(CryptoError::MalformedCbor);
+                };
+                *slot = Some(text);
+                Ok(())
+            };
+            match name.as_str() {
+                "suite" => set_once(&mut suite)?,
+                "type" => set_once(&mut kind)?,
+                "account_id" => account_id = Some(fixed16(&value)?),
+                "device_id" => device_id = Some(fixed16(&value)?),
+                "device_pubkey" => {
+                    let Value::Bytes(raw) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    if raw.len() != PUBLIC_KEY_BYTES {
+                        return Err(CryptoError::InvalidLength {
+                            expected: PUBLIC_KEY_BYTES,
+                            actual: raw.len(),
+                        });
+                    }
+                    let mut out = [0u8; PUBLIC_KEY_BYTES];
+                    out.copy_from_slice(&raw);
+                    public_key = Some(out);
+                }
+                "created_at" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    created_at = Some(Timestamp::parse(&text)?);
+                }
+                "sig" => {
+                    let Value::Bytes(raw) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    if raw.len() != SIGNATURE_BYTES {
+                        return Err(CryptoError::InvalidLength {
+                            expected: SIGNATURE_BYTES,
+                            actual: raw.len(),
+                        });
+                    }
+                    let mut out = [0u8; SIGNATURE_BYTES];
+                    out.copy_from_slice(&raw);
+                    signature = Some(out);
+                }
+                _ => return Err(CryptoError::MalformedCbor),
+            }
+        }
+        if suite.as_deref() != Some(SUITE_V1) {
+            return Err(CryptoError::UnknownSuite);
+        }
+        if kind.as_deref() != Some("device-cert") {
+            return Err(CryptoError::MalformedCbor);
+        }
+        let cert = Self::from_parts(
+            account_id.ok_or(CryptoError::MalformedCbor)?,
+            device_id.ok_or(CryptoError::MalformedCbor)?,
+            public_key.ok_or(CryptoError::MalformedCbor)?,
+            created_at.ok_or(CryptoError::MalformedCbor)?,
+            signature.ok_or(CryptoError::MalformedCbor)?,
+        );
+        if cert.to_cbor()? != bytes {
+            return Err(CryptoError::NonCanonicalCbor);
+        }
+        Ok(cert)
     }
 
     /// Verifies the certificate.
@@ -400,6 +536,120 @@ impl DeviceRevocation {
     /// The revocation signature (storage, vectors).
     pub fn signature_bytes(&self) -> &[u8; SIGNATURE_BYTES] {
         &self.signature
+    }
+
+    /// Rebuilds a revocation from stored parts; verification is separate.
+    pub fn from_parts(
+        account_id: [u8; 16],
+        device_id: [u8; 16],
+        revoked_at: Timestamp,
+        reason: &str,
+        signature: [u8; SIGNATURE_BYTES],
+    ) -> Self {
+        Self {
+            account_id,
+            device_id,
+            revoked_at,
+            reason: reason.to_string(),
+            signature,
+        }
+    }
+
+    /// The stored form: the signed body map plus `sig`.
+    pub fn to_cbor(&self) -> CryptoResult<Vec<u8>> {
+        let map = canonical_map(vec![
+            ("suite", text(SUITE_V1)),
+            ("type", text("device-revocation")),
+            ("account_id", bytes(&self.account_id)),
+            ("device_id", bytes(&self.device_id)),
+            ("revoked_at", text(self.revoked_at.as_str())),
+            ("reason", text(&self.reason)),
+            ("sig", bytes(&self.signature)),
+        ]);
+        canonical_bytes(&map)
+    }
+
+    /// Parses the stored form, rejecting anything outside the exact key set.
+    pub fn from_cbor(bytes: &[u8]) -> CryptoResult<Self> {
+        let value = crate::crypto::aad::parse_strict(bytes)?;
+        let Value::Map(entries) = value else {
+            return Err(CryptoError::MalformedCbor);
+        };
+        if entries.len() != 7 {
+            return Err(CryptoError::MalformedCbor);
+        }
+        let mut suite: Option<String> = None;
+        let mut kind: Option<String> = None;
+        let mut account_id: Option<[u8; 16]> = None;
+        let mut device_id: Option<[u8; 16]> = None;
+        let mut revoked_at: Option<Timestamp> = None;
+        let mut reason: Option<String> = None;
+        let mut signature: Option<[u8; SIGNATURE_BYTES]> = None;
+        for (key, value) in entries {
+            let Value::Text(name) = key else {
+                return Err(CryptoError::MalformedCbor);
+            };
+            match name.as_str() {
+                "suite" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    suite = Some(text);
+                }
+                "type" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    kind = Some(text);
+                }
+                "account_id" => account_id = Some(fixed16(&value)?),
+                "device_id" => device_id = Some(fixed16(&value)?),
+                "revoked_at" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    revoked_at = Some(Timestamp::parse(&text)?);
+                }
+                "reason" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    reason = Some(text);
+                }
+                "sig" => {
+                    let Value::Bytes(raw) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    if raw.len() != SIGNATURE_BYTES {
+                        return Err(CryptoError::InvalidLength {
+                            expected: SIGNATURE_BYTES,
+                            actual: raw.len(),
+                        });
+                    }
+                    let mut out = [0u8; SIGNATURE_BYTES];
+                    out.copy_from_slice(&raw);
+                    signature = Some(out);
+                }
+                _ => return Err(CryptoError::MalformedCbor),
+            }
+        }
+        if suite.as_deref() != Some(SUITE_V1) {
+            return Err(CryptoError::UnknownSuite);
+        }
+        if kind.as_deref() != Some("device-revocation") {
+            return Err(CryptoError::MalformedCbor);
+        }
+        let revocation = Self::from_parts(
+            account_id.ok_or(CryptoError::MalformedCbor)?,
+            device_id.ok_or(CryptoError::MalformedCbor)?,
+            revoked_at.ok_or(CryptoError::MalformedCbor)?,
+            &reason.ok_or(CryptoError::MalformedCbor)?,
+            signature.ok_or(CryptoError::MalformedCbor)?,
+        );
+        if revocation.to_cbor()? != bytes {
+            return Err(CryptoError::NonCanonicalCbor);
+        }
+        Ok(revocation)
     }
 
     /// Verifies the revocation against the pinned identity key.
@@ -669,6 +919,65 @@ mod tests {
             "2028 is a leap year"
         );
         assert!(Timestamp::parse("2026-04-30T23:59:59Z").is_ok());
+    }
+
+    #[test]
+    fn certificates_round_trip_through_storage_cbor() {
+        let identity = identity();
+        let device_public = device().public_bytes();
+        let cert = DeviceCertificate::create(&identity, ACCOUNT, DEVICE, device_public, now())
+            .expect("cert");
+        let bytes = cert.to_cbor().expect("encode");
+        let parsed = DeviceCertificate::from_cbor(&bytes).expect("parse");
+        assert_eq!(
+            parsed.body_bytes().expect("body"),
+            cert.body_bytes().expect("body")
+        );
+        assert_eq!(parsed.to_cbor().expect("re-encode"), bytes);
+        parsed
+            .verify(&identity.public_bytes(), &ACCOUNT, &now(), None)
+            .expect("verify");
+
+        // A flipped byte either breaks the encoding or breaks verification;
+        // it never yields a certificate that both parses and verifies.
+        for index in [0, 5, bytes.len() / 2, bytes.len() - 1] {
+            let mut tampered = bytes.clone();
+            tampered[index] ^= 0x01;
+            let parsed = DeviceCertificate::from_cbor(&tampered);
+            let trusted = parsed.map(|cert| {
+                cert.verify(&identity.public_bytes(), &ACCOUNT, &now(), None)
+                    .is_ok()
+            });
+            assert!(
+                !matches!(trusted, Ok(true)),
+                "byte {index} produced a trusted certificate"
+            );
+        }
+    }
+
+    #[test]
+    fn revocations_round_trip_through_storage_cbor() {
+        let identity = identity();
+        let revocation = DeviceRevocation::create(&identity, ACCOUNT, DEVICE, now(), "lost phone")
+            .expect("revocation");
+        let bytes = revocation.to_cbor().expect("encode");
+        let parsed = DeviceRevocation::from_cbor(&bytes).expect("parse");
+        assert_eq!(parsed.reason(), revocation.reason());
+        assert_eq!(parsed.to_cbor().expect("re-encode"), bytes);
+        parsed
+            .verify(&identity.public_bytes(), &ACCOUNT)
+            .expect("verify");
+    }
+
+    #[test]
+    fn storage_parsers_reject_a_replayed_certificate_type() {
+        // A certificate body relabelled as a revocation must not parse.
+        let identity = identity();
+        let cert =
+            DeviceCertificate::create(&identity, ACCOUNT, DEVICE, device().public_bytes(), now())
+                .expect("cert");
+        let bytes = cert.to_cbor().expect("encode");
+        assert!(DeviceRevocation::from_cbor(&bytes).is_err());
     }
 
     #[test]

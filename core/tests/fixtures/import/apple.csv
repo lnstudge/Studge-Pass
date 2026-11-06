@@ -1,0 +1,3 @@
+Title,URL,Username,Password,Notes,OTPAuth
+Demo Bank,https://demo-bank.example/login,demo@example.test,demo-password-six,DEMO ONLY,otpauth://totp/Demo%20Bank:demo%40example.test?secret=JBSWY3DPEHPK3PXP&issuer=Demo%20Bank&algorithm=SHA1&digits=6&period=30
+Demo Note,https://note.example,demo@example.test,demo-password-seven,,,

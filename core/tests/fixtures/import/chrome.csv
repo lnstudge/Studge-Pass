@@ -1,0 +1,4 @@
+name,url,username,password
+demo.example,https://demo.example/login,demo@example.test,demo-password-four
+Demo Mail,https://mail.example,demo@example.test,demo-password-five
+,https://empty.example,no-title,ignored
