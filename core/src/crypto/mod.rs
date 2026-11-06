@@ -18,6 +18,7 @@ pub mod hpke;
 pub mod kdf;
 pub mod keys;
 pub mod labels;
+pub mod opaque;
 pub mod random;
 pub mod secret_key;
 pub mod signing;
