@@ -388,7 +388,7 @@ the founder approves them by merging the Phase 3 pull request.
   which is a large data payload for a small feature. Kept anyway because
   hand-rolling percent-decoding and query parsing is a worse trade for a
   password manager; trimming it is a Phase 8 size decision, not a v1 one.
-- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Proposed.
+- **Affects:** `core/Cargo.toml`, `Cargo.lock`. **Status:** Approved by founder.
 
 ## D-0302 — KeePass XML: quick-xml with every dangerous feature switched off
 
@@ -436,7 +436,7 @@ the founder approves them by merging the Phase 3 pull request.
   re-encrypts it under the destination vault rather than re-wrapping an item
   key. Recorded as a follow-up.
 - **Affects:** SPEC §5.5, §6.1; `core/src/vault`, `core/src/oplog`.
-  **Status:** Proposed.
+  **Status:** Approved by founder.
 
 ## D-0304 — 1PUX import takes the extracted `export.data` JSON
 
@@ -449,7 +449,7 @@ the founder approves them by merging the Phase 3 pull request.
   The CLI and desktop clients (Phases 6–7) open the archive with platform
   tooling and hand core the bytes; the importer documents exactly that contract
   and rejects anything that is not the 1PUX JSON shape.
-- **Affects:** `core/src/import/onepassword.rs`. **Status:** Proposed.
+- **Affects:** `core/src/import/onepassword.rs`. **Status:** Approved by founder.
 
 ## D-0305 — `move` ops are rejected in v1
 
@@ -465,7 +465,7 @@ the founder approves them by merging the Phase 3 pull request.
   than showing a state nobody agreed on. Phase 5/6 defines folders if the
   design needs them.
 - **Affects:** SPEC §6.1 (note), `core/src/oplog/materialise.rs`, THREAT_MODEL
-  R-0303. **Status:** Proposed.
+  R-0303. **Status:** Approved by founder.
 
 ## D-0306 — The local SQLite store keeps only ciphertext and public metadata
 
@@ -483,7 +483,7 @@ the founder approves them by merging the Phase 3 pull request.
 - **Cost:** materialising a vault decrypts every op it needs; SQLite indexes on
   `vault_id` and `lamport` keep the scan bounded, and Phase 5 adds a decrypted
   in-memory cache that is dropped on lock.
-- **Affects:** `core/src/storage`, THREAT_MODEL R-0304. **Status:** Proposed.
+- **Affects:** `core/src/storage`, THREAT_MODEL R-0304. **Status:** Approved by founder.
 
 ## Phase 3 decisions, continued (D-0307 … D-0311)
 
@@ -505,7 +505,7 @@ the founder approves them by merging the Phase 3 pull request.
   needs: the password and the Secret Key (SPEC §10.1).
 - **Consequence:** the header (account id, vault ids, counts, creation time) is
   visible, the same metadata class as R-0101.
-- **Affects:** `core/src/export/backup.rs`. **Status:** Proposed.
+- **Affects:** `core/src/export/backup.rs`. **Status:** Approved by founder.
 
 ## D-0308 — The EFF large wordlist is bundled, with attribution
 
@@ -518,7 +518,7 @@ the founder approves them by merging the Phase 3 pull request.
   redistribution with attribution. Four of its words contain a hyphen
   (`drop-down`, `felt-tip`, `t-shirt`, `yo-yo`), which is why the default `-`
   separator is documented as ambiguous for splitting (not for security).
-- **Affects:** `core/data/`, `core/src/generate.rs`. **Status:** Proposed.
+- **Affects:** `core/data/`, `core/src/generate.rs`. **Status:** Approved by founder.
 
 ## D-0309 — TOTP secrets shorter than 128 bits are accepted, and flagged
 
@@ -532,7 +532,7 @@ the founder approves them by merging the Phase 3 pull request.
   user's account, and silently accepting one would hide a weakness the user
   cannot fix. The flag is the honest middle: the code still yields unguessable
   values (2^80), and the UI can explain where it came from.
-- **Affects:** `core/src/totp.rs`. **Status:** Proposed.
+- **Affects:** `core/src/totp.rs`. **Status:** Approved by founder.
 
 ## D-0310 — The conflict order is total: hash breaks a (lamport, device) tie
 
@@ -548,7 +548,7 @@ the founder approves them by merging the Phase 3 pull request.
   failure the hash-chained log exists to prevent. The hash is random-looking and
   cannot be steered to pick a winner in advance.
 - **Affects:** SPEC §6.6 (clarification), `core/src/oplog/materialise.rs`.
-  **Status:** Proposed.
+  **Status:** Approved by founder.
 
 ## D-0311 — KDF policy is enforced where the key is derived, not where the file is parsed
 
@@ -562,4 +562,4 @@ the founder approves them by merging the Phase 3 pull request.
   which is the message a user needs. The security property is unchanged because
   there is no path to a key without `derive_muk`; the tests use a crate-internal
   raw derivation that is unreachable from outside the crate (D-0204).
-- **Affects:** `core/src/account.rs`, `core/src/crypto/kdf.rs`. **Status:** Proposed.
+- **Affects:** `core/src/account.rs`, `core/src/crypto/kdf.rs`. **Status:** Approved by founder.
