@@ -1,14 +1,16 @@
-//! The relay's storage layer: sqlx + SQLite (Postgres optional), SPEC ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§7.9.
+//! The relay's storage layer: rusqlite (bundled SQLite), SPEC §7.9.
 //!
 //! Every column holds public metadata or ciphertext. Ops are stored **exactly
 //! as received** and never updated; the only destructive path is deleting a
 //! whole account, which cascades.
+//!
+//! All rusqlite calls are synchronous and dispatched via
+//! `tokio::task::spawn_blocking` so the async runtime is never blocked.
 
 use crate::error::ApiError;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use sqlx::{Row, SqlitePool};
+use rusqlite::Connection;
 use std::path::Path;
-use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 /// A stored account.
 #[derive(Debug, Clone)]
@@ -68,48 +70,177 @@ pub struct OpRow {
     pub size: i64,
 }
 
-/// The database handle.
+/// The database handle — cheaply `Clone`able.
 #[derive(Debug, Clone)]
 pub struct RelayStore {
-    pool: SqlitePool,
+    conn: Arc<Mutex<Connection>>,
+}
+
+// ──────────────────────────────────────────────────── migration SQL ──────────
+
+/// Each entry is one migration. Applied in order once, tracked via
+/// `schema_version`. The index in the slice is the migration number (0-based).
+const MIGRATIONS: &[&str] = &[
+    // 0001 — initial schema
+    "-- Studge Pass relay schema (SPEC §7.9).
+-- Every byte stored here is public metadata or ciphertext (§3.2).
+
+CREATE TABLE IF NOT EXISTS accounts (
+    account_id    BLOB PRIMARY KEY,
+    record        BLOB NOT NULL,
+    record_version INTEGER NOT NULL,
+    password_file BLOB NOT NULL,
+    created_at    TEXT NOT NULL,
+    deleted_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+    account_id  BLOB NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,
+    device_id   BLOB NOT NULL,
+    public_key  BLOB NOT NULL,
+    certificate BLOB NOT NULL,
+    created_at  TEXT NOT NULL,
+    revoked_at  TEXT,
+    PRIMARY KEY (account_id, device_id)
+);
+
+CREATE TABLE IF NOT EXISTS vaults (
+    account_id    BLOB NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,
+    vault_id      BLOB NOT NULL,
+    head          BLOB,
+    head_hash     BLOB,
+    op_count      INTEGER NOT NULL DEFAULT 0,
+    lamport_max   INTEGER NOT NULL DEFAULT 0,
+    storage_bytes INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, vault_id)
+);
+
+CREATE TABLE IF NOT EXISTS ops (
+    op_hash    BLOB PRIMARY KEY,
+    vault_id   BLOB NOT NULL,
+    op_id      BLOB NOT NULL,
+    lamport    INTEGER NOT NULL,
+    kind       TEXT NOT NULL,
+    item_id    BLOB,
+    device_id  BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    body       BLOB NOT NULL,
+    size       INTEGER NOT NULL,
+    UNIQUE (vault_id, op_id)
+);
+
+CREATE INDEX IF NOT EXISTS ops_vault_order ON ops (vault_id, lamport, op_hash);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash BLOB PRIMARY KEY,
+    account_id BLOB NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,
+    device_id  BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sessions_device ON sessions (account_id, device_id);
+
+CREATE TABLE IF NOT EXISTS audit (
+    counter_key  TEXT PRIMARY KEY,
+    count        INTEGER NOT NULL,
+    window_start TEXT NOT NULL
+);",
+    // 0002 — login states
+    "CREATE TABLE IF NOT EXISTS login_states (
+    account_id BLOB NOT NULL,
+    device_id  BLOB NOT NULL,
+    state      BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, device_id)
+);",
+];
+
+/// Opens a connection, sets pragmas and applies pending migrations.
+fn open_connection(path: Option<&Path>) -> rusqlite::Result<Connection> {
+    let conn = match path {
+        Some(p) => Connection::open(p)?,
+        None => Connection::open_in_memory()?,
+    };
+    // WAL journal mode: readers don't block writers, writers don't block readers.
+    conn.execute_batch(
+        "PRAGMA journal_mode = WAL;
+         PRAGMA foreign_keys = ON;
+         PRAGMA busy_timeout = 5000;",
+    )?;
+    run_migrations(&conn)?;
+    Ok(conn)
+}
+
+/// Applies any migration whose number is higher than the current schema version.
+fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema_version (
+             version INTEGER NOT NULL
+         );",
+    )?;
+    let current: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    for (i, sql) in MIGRATIONS.iter().enumerate() {
+        let version = i as i64 + 1;
+        if version > current {
+            conn.execute_batch(sql)?;
+            conn.execute("INSERT INTO schema_version (version) VALUES (?1)", [version])?;
+        }
+    }
+    Ok(())
+}
+
+/// Converts a rusqlite error into the relay's generic `ApiError::Unavailable`.
+fn db_err(e: rusqlite::Error) -> ApiError {
+    tracing::error!(error = %e, "database error");
+    ApiError::Unavailable
 }
 
 impl RelayStore {
-    /// Opens (or creates) the database, applies pragmas and runs migrations.
+    /// Opens (or creates) the database at `path`, applies pragmas and migrations.
     pub async fn open(path: &Path) -> Result<Self, ApiError> {
-        let options = SqliteConnectOptions::from_str(&format!("sqlite://{}", path.display()))
+        let path = path.to_path_buf();
+        let conn = tokio::task::spawn_blocking(move || open_connection(Some(&path)))
+            .await
             .map_err(|_| ApiError::Unavailable)?
-            .create_if_missing(true)
-            .journal_mode(SqliteJournalMode::Wal)
-            .foreign_keys(true)
-            .busy_timeout(std::time::Duration::from_secs(5));
-        let pool = SqlitePoolOptions::new()
-            .max_connections(8)
-            .connect_with(options)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(Self { pool })
+            .map_err(db_err)?;
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     /// An in-memory database for tests.
     pub async fn open_in_memory() -> Result<Self, ApiError> {
-        let options = SqliteConnectOptions::from_str("sqlite::memory:")
+        let conn = tokio::task::spawn_blocking(|| open_connection(None))
+            .await
             .map_err(|_| ApiError::Unavailable)?
-            .foreign_keys(true);
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect_with(options)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(Self { pool })
+            .map_err(db_err)?;
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
+    }
+
+    /// Acquires the lock and runs `f` on the connection inside `spawn_blocking`.
+    async fn with_conn<F, T>(&self, f: F) -> Result<T, ApiError>
+    where
+        F: FnOnce(&Connection) -> Result<T, rusqlite::Error> + Send + 'static,
+        T: Send + 'static,
+    {
+        let conn = Arc::clone(&self.conn);
+        tokio::task::spawn_blocking(move || {
+            let guard = conn.lock().map_err(|_| rusqlite::Error::ExecuteReturnedResults)?;
+            f(&guard)
+        })
+        .await
+        .map_err(|_| ApiError::Unavailable)?
+        .map_err(db_err)
     }
 
     // ------------------------------------------------------------- accounts
@@ -122,35 +253,43 @@ impl RelayStore {
         password_file: &[u8],
         created_at: &str,
     ) -> Result<bool, ApiError> {
-        let result = sqlx::query(
-            "INSERT OR IGNORE INTO accounts (account_id, record, record_version, password_file, created_at)
-             VALUES (?1, ?2, 1, ?3, ?4)",
-        )
-        .bind(account_id)
-        .bind(record)
-        .bind(password_file)
-        .bind(created_at)
-        .execute(&self.pool)
+        let account_id = account_id.to_vec();
+        let record = record.to_vec();
+        let password_file = password_file.to_vec();
+        let created_at = created_at.to_string();
+        self.with_conn(move |conn| {
+            let n = conn.execute(
+                "INSERT OR IGNORE INTO accounts
+                     (account_id, record, record_version, password_file, created_at)
+                 VALUES (?1, ?2, 1, ?3, ?4)",
+                rusqlite::params![account_id, record, password_file, created_at],
+            )?;
+            Ok(n == 1)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected() == 1)
     }
 
     /// Reads an account, including tombstoned ones.
     pub async fn account(&self, account_id: &[u8]) -> Result<Option<AccountRow>, ApiError> {
-        let row = sqlx::query(
-            "SELECT record, record_version, password_file, deleted_at FROM accounts WHERE account_id = ?1",
-        )
-        .bind(account_id)
-        .fetch_optional(&self.pool)
+        let account_id = account_id.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT record, record_version, password_file, deleted_at
+                 FROM accounts WHERE account_id = ?1",
+            )?;
+            let mut rows = stmt.query([&account_id as &dyn rusqlite::ToSql])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some(AccountRow {
+                    record: row.get(0)?,
+                    record_version: row.get(1)?,
+                    password_file: row.get(2)?,
+                    deleted_at: row.get(3)?,
+                }))
+            } else {
+                Ok(None)
+            }
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| AccountRow {
-            record: row.get("record"),
-            record_version: row.get("record_version"),
-            password_file: row.get("password_file"),
-            deleted_at: row.get("deleted_at"),
-        }))
     }
 
     /// Replaces the account record when `expected_version` still holds.
@@ -160,50 +299,50 @@ impl RelayStore {
         record: &[u8],
         expected_version: i64,
     ) -> Result<bool, ApiError> {
-        let result = sqlx::query(
-            "UPDATE accounts SET record = ?1, record_version = record_version + 1
-             WHERE account_id = ?2 AND record_version = ?3 AND deleted_at IS NULL",
-        )
-        .bind(record)
-        .bind(account_id)
-        .bind(expected_version)
-        .execute(&self.pool)
+        let account_id = account_id.to_vec();
+        let record = record.to_vec();
+        self.with_conn(move |conn| {
+            let n = conn.execute(
+                "UPDATE accounts SET record = ?1, record_version = record_version + 1
+                 WHERE account_id = ?2 AND record_version = ?3 AND deleted_at IS NULL",
+                rusqlite::params![record, account_id, expected_version],
+            )?;
+            Ok(n == 1)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected() == 1)
     }
 
     /// Tombstones an account and drops every session at once.
     pub async fn tombstone_account(&self, account_id: &[u8], at: &str) -> Result<(), ApiError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| ApiError::Unavailable)?;
-        sqlx::query(
-            "UPDATE accounts SET deleted_at = ?1 WHERE account_id = ?2 AND deleted_at IS NULL",
-        )
-        .bind(at)
-        .bind(account_id)
-        .execute(&mut *transaction)
+        let account_id = account_id.to_vec();
+        let at = at.to_string();
+        self.with_conn(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            tx.execute(
+                "UPDATE accounts SET deleted_at = ?1
+                 WHERE account_id = ?2 AND deleted_at IS NULL",
+                rusqlite::params![at, account_id],
+            )?;
+            tx.execute(
+                "DELETE FROM sessions WHERE account_id = ?1",
+                [&account_id as &dyn rusqlite::ToSql],
+            )?;
+            tx.commit()
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        sqlx::query("DELETE FROM sessions WHERE account_id = ?1")
-            .bind(account_id)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| ApiError::Unavailable)
     }
 
     /// Deletes tombstoned accounts whose tombstone is older than `before`.
     pub async fn purge_tombstones_before(&self, before: &str) -> Result<u64, ApiError> {
-        let result =
-            sqlx::query("DELETE FROM accounts WHERE deleted_at IS NOT NULL AND deleted_at < ?1")
-                .bind(before)
-                .execute(&self.pool)
-                .await
-                .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected())
+        let before = before.to_string();
+        self.with_conn(move |conn| {
+            let n = conn.execute(
+                "DELETE FROM accounts WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
+                [&before],
+            )?;
+            Ok(n as u64)
+        })
+        .await
     }
 
     // -------------------------------------------------------------- devices
@@ -217,19 +356,21 @@ impl RelayStore {
         certificate: &[u8],
         created_at: &str,
     ) -> Result<bool, ApiError> {
-        let result = sqlx::query(
-            "INSERT OR IGNORE INTO devices (account_id, device_id, public_key, certificate, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .bind(account_id)
-        .bind(device_id)
-        .bind(public_key)
-        .bind(certificate)
-        .bind(created_at)
-        .execute(&self.pool)
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        let public_key = public_key.to_vec();
+        let certificate = certificate.to_vec();
+        let created_at = created_at.to_string();
+        self.with_conn(move |conn| {
+            let n = conn.execute(
+                "INSERT OR IGNORE INTO devices
+                     (account_id, device_id, public_key, certificate, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![account_id, device_id, public_key, certificate, created_at],
+            )?;
+            Ok(n == 1)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected() == 1)
     }
 
     /// Marks a device revoked and deletes its sessions in one transaction.
@@ -239,27 +380,24 @@ impl RelayStore {
         device_id: &[u8],
         revoked_at: &str,
     ) -> Result<bool, ApiError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| ApiError::Unavailable)?;
-        let result = sqlx::query(
-            "UPDATE devices SET revoked_at = ?1 WHERE account_id = ?2 AND device_id = ?3 AND revoked_at IS NULL",
-        )
-        .bind(revoked_at)
-        .bind(account_id)
-        .bind(device_id)
-        .execute(&mut *transaction)
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        let revoked_at = revoked_at.to_string();
+        self.with_conn(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            let n = tx.execute(
+                "UPDATE devices SET revoked_at = ?1
+                 WHERE account_id = ?2 AND device_id = ?3 AND revoked_at IS NULL",
+                rusqlite::params![revoked_at, account_id, device_id],
+            )?;
+            tx.execute(
+                "DELETE FROM sessions WHERE account_id = ?1 AND device_id = ?2",
+                rusqlite::params![account_id, device_id],
+            )?;
+            tx.commit()?;
+            Ok(n == 1)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        sqlx::query("DELETE FROM sessions WHERE account_id = ?1 AND device_id = ?2")
-            .bind(account_id)
-            .bind(device_id)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected() == 1)
     }
 
     /// Reads one device.
@@ -268,22 +406,28 @@ impl RelayStore {
         account_id: &[u8],
         device_id: &[u8],
     ) -> Result<Option<DeviceRow>, ApiError> {
-        let row = sqlx::query(
-            "SELECT device_id, public_key, certificate, created_at, revoked_at
-             FROM devices WHERE account_id = ?1 AND device_id = ?2",
-        )
-        .bind(account_id)
-        .bind(device_id)
-        .fetch_optional(&self.pool)
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT device_id, public_key, certificate, created_at, revoked_at
+                 FROM devices WHERE account_id = ?1 AND device_id = ?2",
+            )?;
+            let mut rows =
+                stmt.query(rusqlite::params![account_id, device_id])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some(DeviceRow {
+                    device_id: row.get(0)?,
+                    public_key: row.get(1)?,
+                    certificate: row.get(2)?,
+                    created_at: row.get(3)?,
+                    revoked_at: row.get(4)?,
+                }))
+            } else {
+                Ok(None)
+            }
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| DeviceRow {
-            device_id: row.get("device_id"),
-            public_key: row.get("public_key"),
-            certificate: row.get("certificate"),
-            created_at: row.get("created_at"),
-            revoked_at: row.get("revoked_at"),
-        }))
     }
 
     // -------------------------------------------------------------- sessions
@@ -297,29 +441,25 @@ impl RelayStore {
         created_at: &str,
         expires_at: &str,
     ) -> Result<(), ApiError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| ApiError::Unavailable)?;
-        sqlx::query("DELETE FROM sessions WHERE account_id = ?1 AND device_id = ?2")
-            .bind(account_id)
-            .bind(device_id)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        sqlx::query(
-            "INSERT INTO sessions (token_hash, account_id, device_id, created_at, expires_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .bind(token_hash)
-        .bind(account_id)
-        .bind(device_id)
-        .bind(created_at)
-        .bind(expires_at)
-        .execute(&mut *transaction)
+        let token_hash = token_hash.to_vec();
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        let created_at = created_at.to_string();
+        let expires_at = expires_at.to_string();
+        self.with_conn(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            tx.execute(
+                "DELETE FROM sessions WHERE account_id = ?1 AND device_id = ?2",
+                rusqlite::params![account_id, device_id],
+            )?;
+            tx.execute(
+                "INSERT INTO sessions (token_hash, account_id, device_id, created_at, expires_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![token_hash, account_id, device_id, created_at, expires_at],
+            )?;
+            tx.commit()
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| ApiError::Unavailable)
     }
 
     /// Reads a session by token hash.
@@ -327,53 +467,62 @@ impl RelayStore {
         &self,
         token_hash: &[u8],
     ) -> Result<Option<(Vec<u8>, Vec<u8>, String)>, ApiError> {
-        let row = sqlx::query(
-            "SELECT account_id, device_id, expires_at FROM sessions WHERE token_hash = ?1",
-        )
-        .bind(token_hash)
-        .fetch_optional(&self.pool)
+        let token_hash = token_hash.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT account_id, device_id, expires_at
+                 FROM sessions WHERE token_hash = ?1",
+            )?;
+            let mut rows = stmt.query([&token_hash as &dyn rusqlite::ToSql])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some((row.get(0)?, row.get(1)?, row.get(2)?)))
+            } else {
+                Ok(None)
+            }
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| {
-            (
-                row.get::<Vec<u8>, _>("account_id"),
-                row.get::<Vec<u8>, _>("device_id"),
-                row.get::<String, _>("expires_at"),
-            )
-        }))
     }
 
     /// Deletes one session by token hash.
     pub async fn delete_session(&self, token_hash: &[u8]) -> Result<(), ApiError> {
-        sqlx::query("DELETE FROM sessions WHERE token_hash = ?1")
-            .bind(token_hash)
-            .execute(&self.pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(())
+        let token_hash = token_hash.to_vec();
+        self.with_conn(move |conn| {
+            conn.execute(
+                "DELETE FROM sessions WHERE token_hash = ?1",
+                [&token_hash as &dyn rusqlite::ToSql],
+            )?;
+            Ok(())
+        })
+        .await
     }
 
     /// Deletes expired sessions (the sweeper in `main`).
     pub async fn delete_expired_sessions(&self, now: &str) -> Result<u64, ApiError> {
-        let result = sqlx::query("DELETE FROM sessions WHERE expires_at <= ?1")
-            .bind(now)
-            .execute(&self.pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected())
+        let now = now.to_string();
+        self.with_conn(move |conn| {
+            let n = conn.execute(
+                "DELETE FROM sessions WHERE expires_at <= ?1",
+                [&now],
+            )?;
+            Ok(n as u64)
+        })
+        .await
     }
 
     // ----------------------------------------------------------------- vaults
 
     /// Creates the vault row if it does not exist yet.
     pub async fn ensure_vault(&self, account_id: &[u8], vault_id: &[u8]) -> Result<(), ApiError> {
-        sqlx::query("INSERT OR IGNORE INTO vaults (account_id, vault_id) VALUES (?1, ?2)")
-            .bind(account_id)
-            .bind(vault_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(())
+        let account_id = account_id.to_vec();
+        let vault_id = vault_id.to_vec();
+        self.with_conn(move |conn| {
+            conn.execute(
+                "INSERT OR IGNORE INTO vaults (account_id, vault_id) VALUES (?1, ?2)",
+                rusqlite::params![account_id, vault_id],
+            )?;
+            Ok(())
+        })
+        .await
     }
 
     /// Reads a vault that belongs to `account_id`.
@@ -382,44 +531,53 @@ impl RelayStore {
         account_id: &[u8],
         vault_id: &[u8],
     ) -> Result<Option<VaultRow>, ApiError> {
-        let row = sqlx::query(
-            "SELECT head, head_hash, op_count, lamport_max, storage_bytes
-             FROM vaults WHERE account_id = ?1 AND vault_id = ?2",
-        )
-        .bind(account_id)
-        .bind(vault_id)
-        .fetch_optional(&self.pool)
+        let account_id = account_id.to_vec();
+        let vault_id = vault_id.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT head, head_hash, op_count, lamport_max, storage_bytes
+                 FROM vaults WHERE account_id = ?1 AND vault_id = ?2",
+            )?;
+            let mut rows = stmt.query(rusqlite::params![account_id, vault_id])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some(VaultRow {
+                    head: row.get(0)?,
+                    head_hash: row.get(1)?,
+                    op_count: row.get(2)?,
+                    lamport_max: row.get(3)?,
+                    storage_bytes: row.get(4)?,
+                }))
+            } else {
+                Ok(None)
+            }
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| VaultRow {
-            head: row.get("head"),
-            head_hash: row.get("head_hash"),
-            op_count: row.get("op_count"),
-            lamport_max: row.get("lamport_max"),
-            storage_bytes: row.get("storage_bytes"),
-        }))
     }
 
     /// Total vault bytes for an account (the quota counter).
     pub async fn account_storage_bytes(&self, account_id: &[u8]) -> Result<i64, ApiError> {
-        let row = sqlx::query(
-            "SELECT COALESCE(SUM(storage_bytes), 0) AS total FROM vaults WHERE account_id = ?1",
-        )
-        .bind(account_id)
-        .fetch_one(&self.pool)
+        let account_id = account_id.to_vec();
+        self.with_conn(move |conn| {
+            conn.query_row(
+                "SELECT COALESCE(SUM(storage_bytes), 0) FROM vaults WHERE account_id = ?1",
+                [&account_id as &dyn rusqlite::ToSql],
+                |row| row.get::<_, i64>(0),
+            )
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.get::<i64, _>("total"))
     }
 
     /// Number of vaults an account has.
     pub async fn vault_count(&self, account_id: &[u8]) -> Result<i64, ApiError> {
-        let row = sqlx::query("SELECT COUNT(*) AS n FROM vaults WHERE account_id = ?1")
-            .bind(account_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.get::<i64, _>("n"))
+        let account_id = account_id.to_vec();
+        self.with_conn(move |conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM vaults WHERE account_id = ?1",
+                [&account_id as &dyn rusqlite::ToSql],
+                |row| row.get::<_, i64>(0),
+            )
+        })
+        .await
     }
 
     /// Inserts ops for one vault. Returns the number actually stored.
@@ -435,51 +593,42 @@ impl RelayStore {
         kind_max_lamport: i64,
         now: &str,
     ) -> Result<usize, ApiError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| ApiError::Unavailable)?;
-        let mut inserted = 0usize;
-        let mut bytes = 0i64;
-        for op in ops {
-            let result = sqlx::query(
-                "INSERT OR IGNORE INTO ops
-                 (op_hash, vault_id, op_id, lamport, kind, item_id, device_id, created_at, body, size)
-                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)",
-            )
-            .bind(&op.op_hash)
-            .bind(vault_id)
-            .bind(&op.op_id)
-            .bind(op.lamport)
-            .bind("create")
-            .bind(account_id)
-            .bind(now)
-            .bind(&op.body)
-            .bind(op.size)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-            if result.rows_affected() == 1 {
-                inserted += 1;
-                bytes += op.size;
+        let account_id = account_id.to_vec();
+        let vault_id = vault_id.to_vec();
+        let ops = ops.to_vec();
+        let now = now.to_string();
+        self.with_conn(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            let mut inserted = 0usize;
+            let mut bytes = 0i64;
+            for op in &ops {
+                let n = tx.execute(
+                    "INSERT OR IGNORE INTO ops
+                         (op_hash, vault_id, op_id, lamport, kind, item_id, device_id,
+                          created_at, body, size)
+                     VALUES (?1, ?2, ?3, ?4, 'create', NULL, ?5, ?6, ?7, ?8)",
+                    rusqlite::params![
+                        op.op_hash, vault_id, op.op_id, op.lamport,
+                        account_id, now, op.body, op.size
+                    ],
+                )?;
+                if n == 1 {
+                    inserted += 1;
+                    bytes += op.size;
+                }
             }
-        }
-        sqlx::query(
-            "UPDATE vaults SET op_count = op_count + ?1,
-                               lamport_max = MAX(lamport_max, ?2),
-                               storage_bytes = storage_bytes + ?3
-             WHERE account_id = ?4 AND vault_id = ?5",
-        )
-        .bind(inserted as i64)
-        .bind(kind_max_lamport)
-        .bind(bytes)
-        .bind(account_id)
-        .bind(vault_id)
-        .execute(&mut *transaction)
+            tx.execute(
+                "UPDATE vaults
+                 SET op_count     = op_count + ?1,
+                     lamport_max  = MAX(lamport_max, ?2),
+                     storage_bytes = storage_bytes + ?3
+                 WHERE account_id = ?4 AND vault_id = ?5",
+                rusqlite::params![inserted as i64, kind_max_lamport, bytes, account_id, vault_id],
+            )?;
+            tx.commit()?;
+            Ok(inserted)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(inserted)
     }
 
     /// The stored op hash for an `(vault_id, op_id)`, if any.
@@ -488,13 +637,19 @@ impl RelayStore {
         vault_id: &[u8],
         op_id: &[u8],
     ) -> Result<Option<Vec<u8>>, ApiError> {
-        let row = sqlx::query("SELECT op_hash FROM ops WHERE vault_id = ?1 AND op_id = ?2")
-            .bind(vault_id)
-            .bind(op_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| row.get::<Vec<u8>, _>("op_hash")))
+        let vault_id = vault_id.to_vec();
+        let op_id = op_id.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn
+                .prepare_cached("SELECT op_hash FROM ops WHERE vault_id = ?1 AND op_id = ?2")?;
+            let mut rows = stmt.query(rusqlite::params![vault_id, op_id])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some(row.get(0)?))
+            } else {
+                Ok(None)
+            }
+        })
+        .await
     }
 
     /// Ops of a vault after a cursor, in `(lamport, op_hash)` order.
@@ -504,43 +659,53 @@ impl RelayStore {
         cursor: Option<(i64, Vec<u8>)>,
         limit: i64,
     ) -> Result<Vec<OpRow>, ApiError> {
-        let rows = match cursor {
-            None => {
-                sqlx::query(
-                    "SELECT op_hash, op_id, lamport, body, size FROM ops
-                     WHERE vault_id = ?1 ORDER BY lamport, op_hash LIMIT ?2",
-                )
-                .bind(vault_id)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await
-            }
-            Some((lamport, hash)) => {
-                sqlx::query(
-                    "SELECT op_hash, op_id, lamport, body, size FROM ops
-                     WHERE vault_id = ?1
-                       AND (lamport > ?2 OR (lamport = ?2 AND op_hash > ?3))
-                     ORDER BY lamport, op_hash LIMIT ?4",
-                )
-                .bind(vault_id)
-                .bind(lamport)
-                .bind(hash)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await
-            }
-        }
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(rows
-            .into_iter()
-            .map(|row| OpRow {
-                op_hash: row.get("op_hash"),
-                op_id: row.get("op_id"),
-                lamport: row.get("lamport"),
-                body: row.get("body"),
-                size: row.get("size"),
-            })
-            .collect())
+        let vault_id = vault_id.to_vec();
+        self.with_conn(move |conn| {
+            let rows: Vec<OpRow> = match cursor {
+                None => {
+                    let mut stmt = conn.prepare_cached(
+                        "SELECT op_hash, op_id, lamport, body, size FROM ops
+                         WHERE vault_id = ?1
+                         ORDER BY lamport, op_hash LIMIT ?2",
+                    )?;
+                    let mut rows = stmt.query(rusqlite::params![vault_id, limit])?;
+                    let mut out = Vec::new();
+                    while let Some(row) = rows.next()? {
+                        out.push(OpRow {
+                            op_hash: row.get(0)?,
+                            op_id: row.get(1)?,
+                            lamport: row.get(2)?,
+                            body: row.get(3)?,
+                            size: row.get(4)?,
+                        });
+                    }
+                    out
+                }
+                Some((lamport, hash)) => {
+                    let mut stmt = conn.prepare_cached(
+                        "SELECT op_hash, op_id, lamport, body, size FROM ops
+                         WHERE vault_id = ?1
+                           AND (lamport > ?2 OR (lamport = ?2 AND op_hash > ?3))
+                         ORDER BY lamport, op_hash LIMIT ?4",
+                    )?;
+                    let mut rows =
+                        stmt.query(rusqlite::params![vault_id, lamport, hash, limit])?;
+                    let mut out = Vec::new();
+                    while let Some(row) = rows.next()? {
+                        out.push(OpRow {
+                            op_hash: row.get(0)?,
+                            op_id: row.get(1)?,
+                            lamport: row.get(2)?,
+                            body: row.get(3)?,
+                            size: row.get(4)?,
+                        });
+                    }
+                    out
+                }
+            };
+            Ok(rows)
+        })
+        .await
     }
 
     /// The `(lamport, op_hash)` of one op, for cursor resolution.
@@ -549,19 +714,20 @@ impl RelayStore {
         vault_id: &[u8],
         op_hash: &[u8],
     ) -> Result<Option<(i64, Vec<u8>)>, ApiError> {
-        let row =
-            sqlx::query("SELECT lamport, op_hash FROM ops WHERE vault_id = ?1 AND op_hash = ?2")
-                .bind(vault_id)
-                .bind(op_hash)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| {
-            (
-                row.get::<i64, _>("lamport"),
-                row.get::<Vec<u8>, _>("op_hash"),
-            )
-        }))
+        let vault_id = vault_id.to_vec();
+        let op_hash = op_hash.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT lamport, op_hash FROM ops WHERE vault_id = ?1 AND op_hash = ?2",
+            )?;
+            let mut rows = stmt.query(rusqlite::params![vault_id, op_hash])?;
+            if let Some(row) = rows.next()? {
+                Ok(Some((row.get(0)?, row.get(1)?)))
+            } else {
+                Ok(None)
+            }
+        })
+        .await
     }
 
     /// Compare-and-swap the head: `expected` is the hash being replaced, or
@@ -574,35 +740,27 @@ impl RelayStore {
         head: &[u8],
         head_hash: &[u8],
     ) -> Result<bool, ApiError> {
-        let result = match expected {
-            None => {
-                sqlx::query(
+        let account_id = account_id.to_vec();
+        let vault_id = vault_id.to_vec();
+        let head = head.to_vec();
+        let head_hash = head_hash.to_vec();
+        let expected = expected.map(|e| e.to_vec());
+        self.with_conn(move |conn| {
+            let n = match expected {
+                None => conn.execute(
                     "UPDATE vaults SET head = ?1, head_hash = ?2
                      WHERE account_id = ?3 AND vault_id = ?4 AND head_hash IS NULL",
-                )
-                .bind(head)
-                .bind(head_hash)
-                .bind(account_id)
-                .bind(vault_id)
-                .execute(&self.pool)
-                .await
-            }
-            Some(expected) => {
-                sqlx::query(
+                    rusqlite::params![head, head_hash, account_id, vault_id],
+                )?,
+                Some(exp) => conn.execute(
                     "UPDATE vaults SET head = ?1, head_hash = ?2
                      WHERE account_id = ?3 AND vault_id = ?4 AND head_hash = ?5",
-                )
-                .bind(head)
-                .bind(head_hash)
-                .bind(account_id)
-                .bind(vault_id)
-                .bind(expected)
-                .execute(&self.pool)
-                .await
-            }
-        }
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(result.rows_affected() == 1)
+                    rusqlite::params![head, head_hash, account_id, vault_id, exp],
+                )?,
+            };
+            Ok(n == 1)
+        })
+        .await
     }
 
     // ---------------------------------------------------------------- login states
@@ -615,18 +773,20 @@ impl RelayStore {
         state_bytes: &[u8],
         created_at: &str,
     ) -> Result<(), ApiError> {
-        sqlx::query(
-            "INSERT OR REPLACE INTO login_states (account_id, device_id, state, created_at)
-             VALUES (?1, ?2, ?3, ?4)",
-        )
-        .bind(account_id)
-        .bind(device_id)
-        .bind(state_bytes)
-        .bind(created_at)
-        .execute(&self.pool)
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        let state_bytes = state_bytes.to_vec();
+        let created_at = created_at.to_string();
+        self.with_conn(move |conn| {
+            conn.execute(
+                "INSERT OR REPLACE INTO login_states
+                     (account_id, device_id, state, created_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![account_id, device_id, state_bytes, created_at],
+            )?;
+            Ok(())
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(())
     }
 
     /// Takes (reads and deletes) the login state for one login exchange. A
@@ -636,15 +796,27 @@ impl RelayStore {
         account_id: &[u8],
         device_id: &[u8],
     ) -> Result<Option<Vec<u8>>, ApiError> {
-        let row = sqlx::query(
-            "DELETE FROM login_states WHERE account_id = ?1 AND device_id = ?2 RETURNING state",
-        )
-        .bind(account_id)
-        .bind(device_id)
-        .fetch_optional(&self.pool)
+        let account_id = account_id.to_vec();
+        let device_id = device_id.to_vec();
+        self.with_conn(move |conn| {
+            // Read first, then delete (rusqlite doesn't support RETURNING on DELETE).
+            let state: Option<Vec<u8>> = {
+                let mut stmt = conn.prepare_cached(
+                    "SELECT state FROM login_states
+                     WHERE account_id = ?1 AND device_id = ?2",
+                )?;
+                let mut rows = stmt.query(rusqlite::params![account_id, device_id])?;
+                rows.next()?.map(|row| row.get(0)).transpose()?
+            };
+            if state.is_some() {
+                conn.execute(
+                    "DELETE FROM login_states WHERE account_id = ?1 AND device_id = ?2",
+                    rusqlite::params![account_id, device_id],
+                )?;
+            }
+            Ok(state)
+        })
         .await
-        .map_err(|_| ApiError::Unavailable)?;
-        Ok(row.map(|row| row.get::<Vec<u8>, _>("state")))
     }
 
     // ---------------------------------------------------------------- counters
@@ -656,28 +828,25 @@ impl RelayStore {
         window_start: &str,
         limit: i64,
     ) -> Result<i64, ApiError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| ApiError::Unavailable)?;
-        sqlx::query(
-            "INSERT INTO audit (counter_key, count, window_start) VALUES (?1, 1, ?2)
-             ON CONFLICT(counter_key) DO UPDATE SET count = count + 1",
-        )
-        .bind(counter_key)
-        .bind(window_start)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| ApiError::Unavailable)?;
-        let row = sqlx::query("SELECT count FROM audit WHERE counter_key = ?1")
-            .bind(counter_key)
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        let count: i64 = row.get("count");
-        transaction
-            .commit()
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
+        let counter_key = counter_key.to_string();
+        let window_start = window_start.to_string();
         let _ = limit;
-        Ok(count)
+        self.with_conn(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            tx.execute(
+                "INSERT INTO audit (counter_key, count, window_start) VALUES (?1, 1, ?2)
+                 ON CONFLICT(counter_key) DO UPDATE SET count = count + 1",
+                rusqlite::params![counter_key, window_start],
+            )?;
+            let count: i64 = tx.query_row(
+                "SELECT count FROM audit WHERE counter_key = ?1",
+                [&counter_key],
+                |row| row.get(0),
+            )?;
+            tx.commit()?;
+            Ok(count)
+        })
+        .await
     }
 }
 
