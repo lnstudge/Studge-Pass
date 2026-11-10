@@ -191,7 +191,10 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
         let version = i as i64 + 1;
         if version > current {
             conn.execute_batch(sql)?;
-            conn.execute("INSERT INTO schema_version (version) VALUES (?1)", [version])?;
+            conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?1)",
+                [version],
+            )?;
         }
     }
     Ok(())
@@ -235,7 +238,9 @@ impl RelayStore {
     {
         let conn = Arc::clone(&self.conn);
         tokio::task::spawn_blocking(move || {
-            let guard = conn.lock().map_err(|_| rusqlite::Error::ExecuteReturnedResults)?;
+            let guard = conn
+                .lock()
+                .map_err(|_| rusqlite::Error::ExecuteReturnedResults)?;
             f(&guard)
         })
         .await
@@ -413,8 +418,7 @@ impl RelayStore {
                 "SELECT device_id, public_key, certificate, created_at, revoked_at
                  FROM devices WHERE account_id = ?1 AND device_id = ?2",
             )?;
-            let mut rows =
-                stmt.query(rusqlite::params![account_id, device_id])?;
+            let mut rows = stmt.query(rusqlite::params![account_id, device_id])?;
             if let Some(row) = rows.next()? {
                 Ok(Some(DeviceRow {
                     device_id: row.get(0)?,
@@ -500,10 +504,7 @@ impl RelayStore {
     pub async fn delete_expired_sessions(&self, now: &str) -> Result<u64, ApiError> {
         let now = now.to_string();
         self.with_conn(move |conn| {
-            let n = conn.execute(
-                "DELETE FROM sessions WHERE expires_at <= ?1",
-                [&now],
-            )?;
+            let n = conn.execute("DELETE FROM sessions WHERE expires_at <= ?1", [&now])?;
             Ok(n as u64)
         })
         .await
@@ -608,8 +609,8 @@ impl RelayStore {
                           created_at, body, size)
                      VALUES (?1, ?2, ?3, ?4, 'create', NULL, ?5, ?6, ?7, ?8)",
                     rusqlite::params![
-                        op.op_hash, vault_id, op.op_id, op.lamport,
-                        account_id, now, op.body, op.size
+                        op.op_hash, vault_id, op.op_id, op.lamport, account_id, now, op.body,
+                        op.size
                     ],
                 )?;
                 if n == 1 {
@@ -623,7 +624,13 @@ impl RelayStore {
                      lamport_max  = MAX(lamport_max, ?2),
                      storage_bytes = storage_bytes + ?3
                  WHERE account_id = ?4 AND vault_id = ?5",
-                rusqlite::params![inserted as i64, kind_max_lamport, bytes, account_id, vault_id],
+                rusqlite::params![
+                    inserted as i64,
+                    kind_max_lamport,
+                    bytes,
+                    account_id,
+                    vault_id
+                ],
             )?;
             tx.commit()?;
             Ok(inserted)
@@ -640,8 +647,8 @@ impl RelayStore {
         let vault_id = vault_id.to_vec();
         let op_id = op_id.to_vec();
         self.with_conn(move |conn| {
-            let mut stmt = conn
-                .prepare_cached("SELECT op_hash FROM ops WHERE vault_id = ?1 AND op_id = ?2")?;
+            let mut stmt =
+                conn.prepare_cached("SELECT op_hash FROM ops WHERE vault_id = ?1 AND op_id = ?2")?;
             let mut rows = stmt.query(rusqlite::params![vault_id, op_id])?;
             if let Some(row) = rows.next()? {
                 Ok(Some(row.get(0)?))
@@ -688,8 +695,7 @@ impl RelayStore {
                            AND (lamport > ?2 OR (lamport = ?2 AND op_hash > ?3))
                          ORDER BY lamport, op_hash LIMIT ?4",
                     )?;
-                    let mut rows =
-                        stmt.query(rusqlite::params![vault_id, lamport, hash, limit])?;
+                    let mut rows = stmt.query(rusqlite::params![vault_id, lamport, hash, limit])?;
                     let mut out = Vec::new();
                     while let Some(row) = rows.next()? {
                         out.push(OpRow {

@@ -214,18 +214,21 @@ mod tests {
             .await
             .expect("create");
         // Widen the permissions to simulate an operator mistake.
-        std::fs::set_permissions(
-            &path,
-            std::fs::Permissions::from_mode(0o644),
-        )
-        .expect("chmod");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
         // Load should succeed (warning, not error).
         let loaded = RelayState::load_or_create_setup(&path)
             .await
             .expect("load with loose perms");
-        assert_eq!(original.to_bytes(), loaded.to_bytes(), "key bytes unchanged");
+        assert_eq!(
+            original.to_bytes(),
+            loaded.to_bytes(),
+            "key bytes unchanged"
+        );
         // The relay does NOT silently fix the mode — that is an operator decision.
         let mode = std::fs::metadata(&path).expect("meta").permissions().mode() & 0o777;
-        assert_eq!(mode, 0o644, "relay must not silently chmod an existing file");
+        assert_eq!(
+            mode, 0o644,
+            "relay must not silently chmod an existing file"
+        );
     }
 }

@@ -484,7 +484,7 @@ mod tests {
     fn trusted_proxy_extracts_client_from_xff() {
         let proxies = vec![proxy("172.20.0.2"), proxy("172.20.0.3")];
         let peer = ip("172.20.0.3"); // trusted
-        // Chain: real-client, middle-proxy, peer (all appended left-to-right)
+                                     // Chain: real-client, middle-proxy, peer (all appended left-to-right)
         let headers = xff("203.0.113.5, 172.20.0.2");
         // Rightmost non-trusted = 203.0.113.5
         assert_eq!(client_ip(peer, &headers, &proxies), ip("203.0.113.5"));
