@@ -133,7 +133,7 @@ pub async fn finish(
     opaque::server_login_finish(&server_state, &finalization)
         .map_err(|_| ApiError::Unauthorized)?;
 
-    // A revoked device cannot log in, even with a valid password (SPEC Â§7.3).
+    // A revoked device cannot log in, even with a valid password (SPEC §7.3).
     let device = state
         .store()
         .device(&account_id, &device_id)
