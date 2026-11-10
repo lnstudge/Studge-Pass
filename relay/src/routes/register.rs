@@ -1,15 +1,16 @@
-//! Registration (SPEC Â§7.2): two OPAQUE messages plus the account record.
+//! Registration (SPEC §7.2): two OPAQUE messages plus the account record.
 //!
-//! The start endpoint never consults the account table â€” registration cannot
+//! The start endpoint never consults the account table — registration cannot
 //! enumerate accounts. The finish endpoint creates the account atomically and
 //! answers `409` for a duplicate (the one place existence is visible, as the
 //! SPEC sanctions).
 
 use crate::error::{ApiError, ApiResult};
-use crate::extract::{hex_id16, AccountRecordIn};
+use crate::extract::{client_ip, hex_id16, AccountRecordIn};
 use crate::routes::shared::{b64_decode, b64_encode};
 use crate::state::RelayState;
 use axum::extract::{ConnectInfo, State};
+use axum::http::HeaderMap;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -35,13 +36,16 @@ pub struct RegisterStartOut {
 pub async fn start(
     State(state): State<RelayState>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(body): Json<RegisterStartIn>,
 ) -> ApiResult<Json<RegisterStartOut>> {
-    // SPEC Â§7.7: five registrations per hour per IP, checked before any work.
+    // SPEC §7.7: five registrations per hour per IP, checked before any work.
+    // Uses the real client IP via X-Forwarded-For when the peer is a trusted proxy.
+    let ip = client_ip(peer.ip(), &headers, &state.config().trusted_proxies);
     state
         .check_rate(
             "register",
-            &peer.ip().to_string(),
+            &ip.to_string(),
             3600,
             state.config().register_per_ip_hour,
         )
@@ -61,7 +65,7 @@ pub struct RegisterFinishIn {
     pub account_id: String,
     /// Hex OPAQUE RegistrationUpload.
     pub registration_upload: String,
-    /// The account record (SPEC Â§7.5), validated strictly.
+    /// The account record (SPEC §7.5), validated strictly.
     pub account_record: AccountRecordIn,
     /// The first device: id, public key and certificate, all hex.
     pub first_device: FirstDeviceIn,
@@ -74,7 +78,7 @@ pub struct FirstDeviceIn {
     pub device_id: String,
     /// Hex Ed25519 public key.
     pub device_pubkey: String,
-    /// Hex device certificate (SPEC Â§4.7).
+    /// Hex device certificate (SPEC §4.7).
     pub certificate: String,
 }
 
@@ -95,7 +99,7 @@ pub async fn finish(
     let password_file = opaque::server_registration_finish(&upload)?;
 
     // The first device is stored with its certificate; the relay checks that
-    // the certificate chains to the account's identity key (SPEC Â§4.7) using
+    // the certificate chains to the account's identity key (SPEC §4.7) using
     // the identity public key from the account record.
     let device_id = hex_id16(&body.first_device.device_id)?;
     let public_key = crate::extract::hex_bytes(&body.first_device.device_pubkey, 32)?;

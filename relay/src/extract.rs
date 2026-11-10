@@ -4,12 +4,14 @@
 //! with `studge-core`'s strict parser, which refuses non-canonical encodings
 //! and unknown keys. Everything is validated before any expensive work.
 
+use crate::config::{is_trusted_proxy, TrustedProxy};
 use crate::error::ApiError;
 use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 use serde::Deserialize;
 use sha2::Digest;
+use std::net::IpAddr;
 use studge_core::crypto::signing::Timestamp;
 use studge_core::oplog::op::StoredOp;
 
@@ -278,6 +280,42 @@ fn hex(bytes: &[u8]) -> String {
     out
 }
 
+/// Resolves the real client IP for rate-limiting.
+///
+/// When the TCP peer is in `trusted_proxies`, the rightmost address in
+/// `X-Forwarded-For` that is **not itself** a trusted proxy is used. When the
+/// peer is untrusted (or the list is empty), the peer IP is returned directly
+/// and the `X-Forwarded-For` header is ignored.
+///
+/// Using the rightmost non-trusted address prevents a malicious client from
+/// prepending arbitrary IPs to the chain.
+pub fn client_ip(
+    peer: IpAddr,
+    headers: &axum::http::HeaderMap,
+    trusted_proxies: &[TrustedProxy],
+) -> IpAddr {
+    if !is_trusted_proxy(trusted_proxies, peer) {
+        return peer;
+    }
+    // Collect all addresses from X-Forwarded-For, rightmost first.
+    let xff = headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    let candidates: Vec<IpAddr> = xff
+        .split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .rev()
+        .collect();
+    for ip in candidates {
+        if !is_trusted_proxy(trusted_proxies, ip) {
+            return ip;
+        }
+    }
+    // All forwarded IPs are trusted proxies — fall back to the peer.
+    peer
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,5 +441,81 @@ mod tests {
         assert!(parents_sorted_unique(&[[1u8; 32], [2u8; 32]]));
         assert!(!parents_sorted_unique(&[[2u8; 32], [1u8; 32]]));
         assert!(!parents_sorted_unique(&[[1u8; 32], [1u8; 32]]));
+    }
+
+    // ── client_ip / trusted-proxy tests ────────────────────────────────────
+
+    fn proxy(s: &str) -> TrustedProxy {
+        s.parse().expect("proxy")
+    }
+
+    fn ip(s: &str) -> IpAddr {
+        s.parse().expect("ip")
+    }
+
+    fn xff(value: &str) -> axum::http::HeaderMap {
+        let mut map = axum::http::HeaderMap::new();
+        map.insert(
+            "x-forwarded-for",
+            axum::http::HeaderValue::from_str(value).expect("header"),
+        );
+        map
+    }
+
+    /// No trusted proxies: the peer IP is always used; X-Forwarded-For ignored.
+    #[test]
+    fn no_trusted_proxies_uses_peer_ip() {
+        let peer = ip("1.2.3.4");
+        let headers = xff("10.0.0.1");
+        assert_eq!(client_ip(peer, &headers, &[]), peer);
+    }
+
+    /// Spoofed X-Forwarded-For from an untrusted peer is ignored.
+    #[test]
+    fn spoofed_xff_from_untrusted_peer_is_ignored() {
+        let proxies = vec![proxy("172.20.0.2")];
+        let peer = ip("1.2.3.4"); // NOT a trusted proxy
+        let headers = xff("9.9.9.9");
+        assert_eq!(client_ip(peer, &headers, &proxies), peer);
+    }
+
+    /// Trusted proxy: rightmost non-proxy address in XFF is the client.
+    #[test]
+    fn trusted_proxy_extracts_client_from_xff() {
+        let proxies = vec![proxy("172.20.0.2"), proxy("172.20.0.3")];
+        let peer = ip("172.20.0.3"); // trusted
+        // Chain: real-client, middle-proxy, peer (all appended left-to-right)
+        let headers = xff("203.0.113.5, 172.20.0.2");
+        // Rightmost non-trusted = 203.0.113.5
+        assert_eq!(client_ip(peer, &headers, &proxies), ip("203.0.113.5"));
+    }
+
+    /// Two clients behind the same trusted proxy have independent rate-limit IPs.
+    #[test]
+    fn two_clients_behind_proxy_get_separate_ips() {
+        let proxies = vec![proxy("10.0.0.1")];
+        let peer = ip("10.0.0.1"); // the proxy itself
+        let h1 = xff("192.168.1.10");
+        let h2 = xff("192.168.1.20");
+        assert_eq!(client_ip(peer, &h1, &proxies), ip("192.168.1.10"));
+        assert_eq!(client_ip(peer, &h2, &proxies), ip("192.168.1.20"));
+    }
+
+    /// When every forwarded address is itself a trusted proxy, fall back to peer.
+    #[test]
+    fn all_forwarded_ips_trusted_falls_back_to_peer() {
+        let proxies = vec![proxy("10.0.0.0/24")];
+        let peer = ip("10.0.0.1");
+        let headers = xff("10.0.0.5, 10.0.0.6"); // all trusted
+        assert_eq!(client_ip(peer, &headers, &proxies), peer);
+    }
+
+    /// TrustedProxy CIDR matching.
+    #[test]
+    fn trusted_proxy_cidr_matching() {
+        let p = proxy("172.20.0.0/16");
+        assert!(p.contains(ip("172.20.5.99")));
+        assert!(!p.contains(ip("172.21.0.1")));
+        assert!(!p.contains(ip("10.0.0.1")));
     }
 }

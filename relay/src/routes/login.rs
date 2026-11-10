@@ -1,21 +1,22 @@
-//! Login and sessions (SPEC Â§7.3).
+//! Login and sessions (SPEC §7.3).
 //!
 //! Two OPAQUE messages, then a 256-bit bearer token stored only as its
 //! SHA-256. Unknown accounts get a dummy exchange (D-0113): the response shape
 //! and status are identical, and only the finish step fails.
 
 use crate::error::{ApiError, ApiResult};
-use crate::extract::{hex_id16, Session};
+use crate::extract::{client_ip, hex_id16, Session};
 use crate::routes::shared::{b64_decode, b64_encode};
 use crate::state::RelayState;
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use studge_core::crypto::opaque;
 use studge_core::crypto::random;
 
-/// Session lifetime (SPEC Â§7.3): 24 hours.
+/// Session lifetime (SPEC §7.3): 24 hours.
 pub const SESSION_SECONDS: i64 = 24 * 3600;
 
 #[derive(Debug, Deserialize)]
@@ -39,10 +40,14 @@ pub struct LoginStartOut {
 pub async fn start(
     State(state): State<RelayState>,
     axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: HeaderMap,
     Json(body): Json<LoginStartIn>,
 ) -> ApiResult<Json<LoginStartOut>> {
-    // SPEC Â§7.7: 10 login attempts per hour per account, 60 per IP. Counting
+    // SPEC §7.7: 10 login attempts per hour per account, 60 per IP. Counting
     // every attempt (not only failures) is stricter and cannot be probed.
+    // Uses the real client IP, taking X-Forwarded-For into account only when
+    // the TCP peer is a configured trusted proxy.
+    let ip = client_ip(peer.ip(), &headers, &state.config().trusted_proxies);
     state
         .check_rate(
             "login-account",
@@ -54,7 +59,7 @@ pub async fn start(
     state
         .check_rate(
             "login-ip",
-            &peer.ip().to_string(),
+            &ip.to_string(),
             3600,
             state.config().login_per_ip_hour,
         )
@@ -124,7 +129,7 @@ pub async fn finish(
         .await?
         .ok_or(ApiError::Unauthorized)?;
     // A wrong password, an unknown account and a replayed finalization all
-    // look the same from here (SPEC Â§7.8).
+    // look the same from here (SPEC §7.8).
     opaque::server_login_finish(&server_state, &finalization)
         .map_err(|_| ApiError::Unauthorized)?;
 

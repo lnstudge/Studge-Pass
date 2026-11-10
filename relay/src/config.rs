@@ -5,7 +5,7 @@
 //! win over the file, and the file is optional: with no file and no variables
 //! the relay listens on loopback with a database beside its working directory.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 
 /// Default listen address (loopback only, per Phase 0).
@@ -32,6 +32,65 @@ pub const DEFAULT_PUSH_PER_ACCOUNT_MINUTE: u32 = 60;
 pub const DEFAULT_READ_PER_ACCOUNT_MINUTE: u32 = 300;
 /// SPEC §7.1: a stalled request is dropped rather than held open.
 pub const DEFAULT_REQUEST_TIMEOUT_SECONDS: u64 = 30;
+
+/// A trusted reverse-proxy: an exact IP address or a CIDR prefix.
+///
+/// Only requests from a trusted proxy are allowed to supply `X-Forwarded-For`.
+/// This prevents an untrusted client from spoofing its IP to evade rate limits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrustedProxy {
+    /// The network address (host bits zeroed).
+    pub addr: IpAddr,
+    /// Prefix length (32 for IPv4 host, 128 for IPv6 host).
+    pub prefix_len: u8,
+}
+
+impl TrustedProxy {
+    /// Returns `true` when `ip` falls inside this prefix.
+    pub fn contains(&self, ip: IpAddr) -> bool {
+        match (self.addr, ip) {
+            (IpAddr::V4(net), IpAddr::V4(candidate)) => {
+                let mask = if self.prefix_len == 0 {
+                    0u32
+                } else {
+                    u32::MAX << (32 - self.prefix_len)
+                };
+                (u32::from(net) & mask) == (u32::from(candidate) & mask)
+            }
+            (IpAddr::V6(net), IpAddr::V6(candidate)) => {
+                let mask = if self.prefix_len == 0 {
+                    0u128
+                } else {
+                    u128::MAX << (128 - self.prefix_len)
+                };
+                (u128::from(net) & mask) == (u128::from(candidate) & mask)
+            }
+            // IPv4 and IPv6 never mix.
+            _ => false,
+        }
+    }
+}
+
+impl std::str::FromStr for TrustedProxy {
+    type Err = ConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((addr_str, len_str)) = s.split_once('/') {
+            let addr: IpAddr = addr_str.parse().map_err(|_| ConfigError::Invalid)?;
+            let prefix_len: u8 = len_str.parse().map_err(|_| ConfigError::Invalid)?;
+            let max = if addr.is_ipv4() { 32 } else { 128 };
+            if prefix_len > max {
+                return Err(ConfigError::Invalid);
+            }
+            Ok(Self { addr, prefix_len })
+        } else {
+            // Single IP: treat as /32 or /128.
+            let addr: IpAddr = s.parse().map_err(|_| ConfigError::Invalid)?;
+            let prefix_len = if addr.is_ipv4() { 32 } else { 128 };
+            Ok(Self { addr, prefix_len })
+        }
+    }
+}
 
 /// The whole relay configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +119,9 @@ pub struct RelayConfig {
     pub read_per_account_minute: u32,
     /// `Access-Control-Allow-Origin` allowlist (desktop app and extension IDs).
     pub cors_origins: Vec<String>,
+    /// Trusted reverse-proxy addresses/CIDRs. Only these peers may supply
+    /// `X-Forwarded-For`; others are ignored. Default: empty (direct mode).
+    pub trusted_proxies: Vec<TrustedProxy>,
     /// Whether client IP addresses may appear in logs.
     pub log_ip_addresses: bool,
     /// Whether logs are JSON.
@@ -87,6 +149,7 @@ impl Default for RelayConfig {
             push_per_account_minute: DEFAULT_PUSH_PER_ACCOUNT_MINUTE,
             read_per_account_minute: DEFAULT_READ_PER_ACCOUNT_MINUTE,
             cors_origins: Vec::new(),
+            trusted_proxies: Vec::new(),
             log_ip_addresses: true,
             log_json: false,
             request_timeout_seconds: DEFAULT_REQUEST_TIMEOUT_SECONDS,
@@ -182,6 +245,19 @@ impl RelayConfig {
                 }
                 self.cors_origins = out;
             }
+            if let Some(proxies) = cors.get("trusted_proxies") {
+                let list = proxies.as_array().ok_or(ConfigError::Invalid)?;
+                let mut out = Vec::with_capacity(list.len());
+                for proxy in list {
+                    out.push(
+                        proxy
+                            .as_str()
+                            .ok_or(ConfigError::Invalid)?
+                            .parse::<TrustedProxy>()?,
+                    );
+                }
+                self.trusted_proxies = out;
+            }
         }
         if let Some(log) = section(&table, "log")? {
             if let Some(ip) = log.get("ip_addresses") {
@@ -245,6 +321,16 @@ impl RelayConfig {
                         .map(|origin| origin.to_string())
                         .collect();
                 }
+                "TRUSTED_PROXIES" => {
+                    let mut out = Vec::new();
+                    for item in value.split(',') {
+                        let item = item.trim();
+                        if !item.is_empty() {
+                            out.push(item.parse::<TrustedProxy>()?);
+                        }
+                    }
+                    self.trusted_proxies = out;
+                }
                 "REQUEST_TIMEOUT_SECONDS" => {
                     self.request_timeout_seconds =
                         value.parse().map_err(|_| ConfigError::Invalid)?
@@ -285,6 +371,11 @@ impl RelayConfig {
 const KNOWN_SECTIONS: [&str; 7] = [
     "server", "database", "opaque", "limits", "rates", "cors", "log",
 ];
+
+/// Returns `true` when `ip` is covered by any entry in `proxies`.
+pub fn is_trusted_proxy(proxies: &[TrustedProxy], ip: IpAddr) -> bool {
+    proxies.iter().any(|p| p.contains(ip))
+}
 
 fn section<'a>(table: &'a toml::Table, name: &str) -> Result<Option<&'a toml::Table>, ConfigError> {
     match table.get(name) {

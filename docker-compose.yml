@@ -22,6 +22,11 @@ services:
       STUDGE_RELAY_LISTEN: "0.0.0.0:8787"
       STUDGE_RELAY_DATABASE_PATH: "/data/relay.db"
       STUDGE_RELAY_SERVER_SETUP_PATH: "/data/setup.bin"
+      # Caddy is the only reverse proxy in the internal Docker network.
+      # The default bridge subnet is 172.20.0.0/16; Caddy's container IP
+      # is in that range, so per-IP rate limits see the real client address
+      # (extracted from X-Forwarded-For) rather than Caddy's Docker IP.
+      STUDGE_RELAY_TRUSTED_PROXIES: "172.20.0.0/16"
       # Optional: STUDGE_RELAY_LOG_LEVEL=info STUDGE_RELAY_LOG_JSON=true
     volumes:
       - studge-data:/data
@@ -53,6 +58,9 @@ services:
 networks:
   internal:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   studge-data:
