@@ -474,3 +474,25 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 [#47: Phase 4: studge-relay (zero-knowledge sync relay)](https://github.com/lnstudge/Studge-Pass/pull/47) — awaiting founder review.
 
+### Review fixes
+
+Applied in response to founder review of PR #47:
+
+| Fix | Commit | Detail |
+|---|---|---|
+| 1 — SQLite advisory (RUSTSEC-2026-0459) | `b4f9175` | Replaced `sqlx 0.9` with `rusqlite 0.41.1` in relay; restored `rusqlite 0.41.1` in core; advisory gone from `cargo deny`. |
+| 2 — Proxy IP spoofing | `5110f9f` | Added `trusted_proxies` to `RelayConfig`; `client_ip()` extracts real IP from `X-Forwarded-For` only when TCP peer is trusted; 6 unit tests; Docker compose subnet set. |
+| 3 — DECISIONS.md D-0401/D-0402 | `cb92d6c` | Wrote relay crate table (D-0401) and RUSTSEC-2026-0387 call-path investigation (D-0402). R-0405 downgraded from medium to low — ristretto255 hot paths use `curve25519-dalek`, not `crypto-bigint`. |
+| 4 — Atomic setup key creation | `d1d407a` | `create_new(true)` + Unix `mode(0o600)` at open; `Zeroizing` bytes; warn on loose perms; `create_dir_all` error propagated. |
+| 5 — Cleanup | `9999d83` | Removed `tower_governor`; fixed last garbled `§`; deleted `docs/pr-body-phase04.md`; created `.bob/rules/00-studge-pass.md`. |
+| fmt | `f04a597` | `cargo fmt` pass after review fixes. |
+
+**Final counts after review fixes:**
+- `cargo test --all -- --include-ignored`: **310 passed, 0 failed**
+- `cargo fmt --all -- --check`: pass
+- `cargo clippy --all-targets --all-features -- -D warnings`: pass
+- `cargo deny check`: advisories ok, bans ok, licenses ok, sources ok
+- wasm build (`studge-core-wasm`): pass
+
+
+
