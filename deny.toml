@@ -15,13 +15,15 @@ version = 2
 yanked = "deny"
 
 # RUSTSEC-2026-0387: timing side-channel in crypto-bigint < 0.7.6.
-# Pulled in transitively by opaque-ke v4.0.1 → elliptic-curve 0.13 → crypto-bigint 0.5.5.
-# opaque-ke has not yet released a version that pins crypto-bigint ≥ 0.7.6.
-# Risk: timing side-channel in server-side OPAQUE key-exchange arithmetic, not a
-# plaintext-exposure or correctness flaw. Accepted until opaque-ke ships a fix.
-# Tracked in THREAT_MODEL.md §18 as open risk R-0405.
+# Call path: opaque-ke v4.0.1 → voprf v0.5.0 → elliptic-curve v0.13 → crypto-bigint 0.5.5.
+# elliptic-curve v0.13 provides the hash2curve abstraction; the actual ristretto255
+# scalar arithmetic goes through curve25519-dalek, not crypto-bigint (see D-0402).
+# Severity revised to low: the vulnerable big-integer code is compiled but not executed
+# on the critical OPAQUE path for our ristretto255 suite.
+# Exit condition: upgrade when opaque-ke ships a version pinning crypto-bigint ≥ 0.7.6.
+# Tracked in THREAT_MODEL.md §18 as R-0405 (low). Decision in docs/DECISIONS.md D-0402.
 ignore = [
-    { id = "RUSTSEC-2026-0387", reason = "transitive via opaque-ke v4.0.1; fix blocked on opaque-ke upstream release" },
+    { id = "RUSTSEC-2026-0387", reason = "transitive via opaque-ke v4.0.1; ristretto255 hot paths use curve25519-dalek; see D-0402" },
 ]
 
 [licenses]

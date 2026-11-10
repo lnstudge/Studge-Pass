@@ -167,8 +167,8 @@
       "status": "open"
     },
     {
-      "title": "R-0405 — crypto-bigint 0.5.5 timing side-channel (RUSTSEC-2026-0387) via opaque-ke; excepted in deny.toml; upgrade when upstream fixes (issue #46)",
-      "severity": "medium",
+      "title": "R-0405 — crypto-bigint 0.5.5 timing side-channel (RUSTSEC-2026-0387) via opaque-ke; ristretto255 hot paths use curve25519-dalek not crypto-bigint (D-0402); excepted in deny.toml (issue #46)",
+      "severity": "low",
       "status": "open"
     }
   ],
