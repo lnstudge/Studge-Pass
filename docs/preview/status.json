@@ -3,7 +3,7 @@
     "id": 5,
     "name": "Sync engine and evil-relay harness",
     "branch": "phase-05-sync",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/48"
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/54"
   },
   "steps": [
     {
@@ -64,10 +64,10 @@
     },
     {
       "n": 9,
-      "title": "cargo deny check, commit, push, PR #48",
-      "state": "in-progress",
-      "summary": "Final checks and PR opening.",
-      "commit_sha": null
+      "title": "cargo deny check, commit, push, PR #54",
+      "state": "done",
+      "summary": "CDLA-Permissive-2.0 added to deny.toml allowlist (webpki-roots via reqwest). All checks pass: fmt, clippy, test --all (335/0/2), cargo deny. Committed fb35665, pushed. PR #54 opened (Closes #11).",
+      "commit_sha": "fb35665"
     }
   ],
   "checks": {
@@ -78,8 +78,8 @@
       "failed": 0,
       "ignored": 2
     },
-    "deny": "pending",
-    "updated_at": "2026-11-06T05:00:00Z"
+    "deny": "pass",
+    "updated_at": "2026-11-06T06:00:00Z"
   },
   "commits": [],
   "screenshots": [],
