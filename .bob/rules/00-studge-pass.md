@@ -54,7 +54,8 @@ Never run `sudo`; never `apt-get` without providing the exact `wsl -u root` comm
 
 - Do only the phase/task asked for. Anything outside scope → `docs/PROGRESS.md`
   "Follow-ups" section.
-- Helper scripts → `.work/` only (gitignored). Use `docs/` for temp docs.
+- Helper scripts, task notes and any other temporary files → `.work/` only
+  (gitignored). Never put temporary files in `docs/` or anywhere else that is tracked.
 - Stop and ask on any security ambiguity, unapproved crate, or unclear decision.
 - Self-attack review required at end of every phase: list ≥ 10 concrete attacks,
   prove each is blocked by a test, or record it in `docs/THREAT_MODEL.md`.

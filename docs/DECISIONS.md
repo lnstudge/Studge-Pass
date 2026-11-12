@@ -583,7 +583,7 @@ with the approved SPEC; the founder approves them by merging PR #47.
 - **Reason for dropping sqlx:** `sqlx 0.9.0` requires `libsqlite3-sys ^0.37`,
   which resolves to `libsqlite3-sys 0.37.0`; that version carries
   **RUSTSEC-2026-0459** (use-after-free in bundled SQLite). Using `rusqlite 0.41.1`
-  (the same version as `studge-core`) keeps only one copy of `libsqlite3-sys 0.40+`
+  (the same version as `studge-core`) keeps only one copy of `libsqlite3-sys` (0.39.1)
   in the binary and eliminates the advisory without an ignore entry.
 
 - **Remaining relay crates and why:**
@@ -605,7 +605,7 @@ with the approved SPEC; the founder approves them by merging PR #47.
   | `tempfile` (dev) | 3.23.0 | Temp dirs for setup-key tests | Standard |
 
 - **Affects:** `relay/Cargo.toml`, `core/Cargo.toml`, `Cargo.lock`.
-  **Status:** Proposed — awaiting founder approval.
+  **Status:** Approved by founder (at the merge of PR #47).
 
 ## D-0402 — RUSTSEC-2026-0387: crypto-bigint 0.5.5 timing side-channel via opaque-ke
 
@@ -637,4 +637,4 @@ with the approved SPEC; the founder approves them by merging PR #47.
   inline justification and tracked as R-0405 in `THREAT_MODEL.md`.
 
 - **Affects:** `deny.toml`, `THREAT_MODEL.md` R-0405.
-  **Status:** Proposed — awaiting founder approval.
+  **Status:** Approved by founder (at the merge of PR #47).
