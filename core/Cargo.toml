@@ -28,8 +28,17 @@ zeroize = { version = "1.9.1", features = ["derive"] }
 # ml-kem and p256, which are on the AGENTS.md approved list; every choice is
 # justified in docs/DECISIONS.md (D-0301).
 ml-kem = { version = "0.3.4", features = ["getrandom", "zeroize"] }
+# OPAQUE (SPEC 4.4, approved crate; version approved with the founder for the
+# relay phase). Identity KSF per D-0102, so the argon2 feature stays off.
+opaque-ke = { version = "4.0.1", default-features = false, features = ["ristretto255", "std"] }
 p256 = { version = "0.14.0", features = ["pkcs8"] }
 quick-xml = { version = "0.42.0", default-features = false }
+# The OS-RNG handle opaque-ke's API demands comes from rand 0.8 (rand_core
+# 0.6); it is the same OS source, OsRng, with no software fallback.
+rand = { version = "0.8.5", default-features = false, features = ["std", "getrandom"] }
+# The key-exchange hash TripleDh takes (digest 0.10; core's own SHA-256 for
+# HKDF is sha2 0.11, which cannot implement it).
+sha2_kex = { version = "0.10.9", package = "sha2" }
 serde_json = "1.0.154"
 totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otpauth", "zeroize"] }
 
@@ -37,6 +46,8 @@ totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otp
 # wasm32-unknown-unknown, where a C SQLite cannot go. The browser keeps vaults
 # in the extension's own storage instead (Phase 8).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# bundled SQLite, same version as the relay so one copy of libsqlite3-sys
+# compiles into the workspace. sqlx has been removed from the relay (D-0401).
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 
 [dev-dependencies]
