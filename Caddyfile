@@ -1,0 +1,23 @@
+# Caddyfile for Studge Pass relay
+#
+# Used by docker-compose.yml. Replace {$CADDY_DOMAIN} with your domain,
+# or pass CADDY_DOMAIN as an environment variable.
+#
+# For a self-hosted setup without a public domain, use a local CA:
+#   https://caddyserver.com/docs/caddyfile/directives/tls#auto
+
+{$CADDY_DOMAIN} {
+    encode gzip
+
+    # Proxy everything to the relay.
+    reverse_proxy relay:8787
+
+    # HSTS (enforce HTTPS from the browser side).
+    header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+    # No logging of request bodies. Log only method, path, status and latency.
+    log {
+        format json
+        output file /var/log/caddy/access.log
+    }
+}

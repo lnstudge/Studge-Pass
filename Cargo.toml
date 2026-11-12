@@ -12,5 +12,5 @@ repository = "https://github.com/lnstudge/Studge-Pass"
 axum = "0.8.9"
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
-tokio = { version = "1.54.1", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.54.1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 wasm-bindgen = "0.2.130"

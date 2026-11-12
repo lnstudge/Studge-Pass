@@ -1,218 +1,114 @@
 {
   "phase": {
-    "id": 3,
-    "name": "Vault, op log, storage, import/export",
-    "branch": "phase-03-vault",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/41"
+    "id": 4,
+    "name": "Relay server",
+    "branch": "phase-04-relay",
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/47"
   },
   "steps": [
     {
       "n": 1,
-      "title": "Branch, plan, pinned dependencies and decision records",
+      "title": "Branch, plan, pinned dependencies (D-0401), config, scaffold",
       "state": "done",
-      "summary": "Branch phase-03-vault from main (Phases 0-2 merged as 51e4f9d). Six crates pinned: rusqlite 0.41.1 (bundled, native only so wasm still builds), quick-xml 0.42.0, totp-rs 6.0.0, p256 0.14.0, ml-kem 0.3.4, serde_json 1.0.154. Decisions D-0301..D-0306 recorded; plan written; .work/ ignored for helper scripts.",
+      "summary": "Branch phase-04-relay from main (Phases 0-3 merged as fbb5640). Twelve-step plan written. Relay deps pinned (D-0401): opaque-ke 4.0.1 (ristretto255, identity KSF per D-0102), sqlx 0.9, axum 0.8, tower-governor 0.8, tower-http 0.7. rusqlite 0.39 in core so libsqlite3-sys unifies with sqlx in one binary. Config from TOML + STUDGE_RELAY_* env with strict unknown-key rejection; generic error model (SPEC 7.8); security headers; request timeout with the JSON error shape.",
       "commit_sha": null
     },
     {
       "n": 2,
-      "title": "Vault item model: 8 kinds, 7 India templates, strict fields and history",
+      "title": "OPAQUE in core + register/login with the dummy flow",
       "state": "done",
-      "summary": "Vault item model: 13 kinds (6 generic + 7 India templates) with a closed field set per template, strict field/URL/tag/custom validation, last-10 secret history, and canonical-CBOR payloads capped at 1 MiB. Look-alike field names are rejected on build and on parse (R-0114). 23 new tests.",
-      "commit_sha": null
+      "summary": "OPAQUE wrappers in core (commit 8c2b9bd). register/start, register/finish, login/start, login/finish, logout. Dummy exchange for unknown accounts (D-0113).",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 3,
-      "title": "Op log: hash, signatures, DAG materialisation, heads, rollback and fork detection",
+      "title": "Sessions: tokens, SHA-256 storage, device binding, revocation",
       "state": "done",
-      "summary": "Op log: canonical CBOR ops, BLAKE3 op hash, Ed25519 over the hash, strict parsing with exact key sets, DeviceRegistry with revocation cut-offs, DAG with parent/Lamport/duplicate-id rules, signed VaultHead, verify_descends and check_head_update (rollback vs fork), and materialisation with the (lamport, device_id) conflict rule. 30 new tests, including all six tamper vectors.",
-      "commit_sha": null
+      "summary": "256-bit OsRng tokens, stored as SHA-256. 24-hour expiry. Device-bound. Login-state table (0002). take_login_state is atomic DELETE-RETURNING.",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 4,
-      "title": "Account API: create, unlock, lock, device certification, vault keyring",
+      "title": "Storage: sqlx SQLite migrations and the store",
       "state": "done",
-      "summary": "Account API: create_account derives the MUK, wraps the AK and seals a six-entry key bundle (identities incl. ML-KEM-768, device list, head pins, version); unlock opens every entry under its own AAD; UnlockedAccount certifies and revokes devices, wraps/unwraps vault keys, pins heads, re-seals the bundle and wipes on lock. Device certificates gained strict storage CBOR. 14 new tests plus one ignored real-Argon2 test.",
-      "commit_sha": null
+      "summary": "migrations/0001 (accounts, devices, vaults, ops, sessions, counters) + 0002 (login_states). RelayStore with all required methods.",
+      "commit_sha": "79eb93f"
     },
     {
       "n": 5,
-      "title": "Storage: LocalStore trait, in-memory store and SQLite store",
+      "title": "Account and device endpoints",
       "state": "done",
-      "summary": "Local storage: a LocalStore trait over ciphertext only, an in-memory implementation and a SQLite implementation (native only, STRICT tables, secure_delete, schema version checked on open). No plaintext columns exist; a test opens the database file and proves the demo title, password and URL do not appear in it.",
-      "commit_sha": null
+      "summary": "GET/PUT/DELETE /v1/account (If-Match versioning), POST /v1/devices (certificate + enrolment proof), DELETE /v1/devices/{id} (signed revocation).",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 6,
-      "title": "Encrypted .studgevault backup and the exporters",
+      "title": "Vault endpoints: ops push/fetch, head compare-and-swap",
       "state": "done",
-      "summary": "Encrypted .studgevault backup: a container of already-encrypted records (account bundle, wrapped vault keys, heads, ops) with a magic header and strict parsing, needing no new key or label (D-0307). Plus the three plaintext exporters (JSON, CSV, KeePass XML) that each refuse without allow_plaintext and carry a PLAINTEXT warning. 16 new tests.",
-      "commit_sha": null
+      "summary": "POST/GET /v1/vaults/{id}/ops (append-only, idempotent, paginated, implicit vault creation). GET/PUT /v1/vaults/{id}/head (CAS with If-Match).",
+      "commit_sha": "9d6205b"
     },
     {
       "n": 7,
-      "title": "Generator: passwords, EFF passphrases, entropy estimate",
+      "title": "Quotas and rate limits",
       "state": "done",
-      "summary": "Generator: passwords (length, charsets, exclude-ambiguous) and EFF passphrases (7776-word list bundled with CC-BY attribution, separator, capitalisation, digit) with lower-bound entropy estimates. Selections use rejection sampling over OsRng so no value is favoured by modulo bias; results are zeroizing. 11 tests.",
-      "commit_sha": null
+      "summary": "Per-IP and per-account fixed-window counters. Storage quota check before every push. All limits from SPEC §7.7 enforced.",
+      "commit_sha": "85c40b0"
     },
     {
       "n": 8,
-      "title": "TOTP: RFC 6238 vectors and otpauth:// parsing",
+      "title": "Hardening: headers, CORS, timeouts, log hygiene",
       "state": "done",
-      "summary": "TOTP: TotpConfig over totp-rs with strict otpauth:// parsing (duplicate or unknown parameters rejected, label and issuer must agree), base32 and percent codecs with canonical-form checks, and the full RFC 6238 vector set. Secrets under 128 bits are accepted through the non-compliant path and flagged via is_legacy_strength so the UI can warn (D-0309). 12 new tests.",
-      "commit_sha": null
+      "summary": "Security headers on every response (nosniff, no-store, no-referrer, DENY, CSP). 30-second request timeout. Generic errors (§7.8). CorsLayer wired in app() with strict allowlist (8363cd3).",
+      "commit_sha": "8363cd3"
     },
     {
       "n": 9,
-      "title": "Importers A: Bitwarden, Chrome, Apple, Dashlane, generic CSV",
+      "title": "Docs: relay-api, relay-asvs, Caddy, Docker",
       "state": "done",
-      "summary": "Importers A: Bitwarden JSON and CSV, Chrome, Apple Passwords, Dashlane and a generic CSV mapper, all over a hand-written strict RFC 4180 reader (256 columns, 1 MiB/field, 200k rows). Every importer returns ImportReport{imported, skipped} where skips are an enum plus a row index, never file content; unknown template fields are errors, not silent drops. Fake fixtures in core/tests/fixtures/import.",
-      "commit_sha": null
+      "summary": "docs/relay-api.md (all endpoints, examples). docs/relay-asvs.md (ASVS 4.0 Level 3). Dockerfile (multi-stage, non-root). docker-compose.yml + Caddyfile.",
+      "commit_sha": "0d2a8c7"
     },
     {
       "n": 10,
-      "title": "Importers B: 1Password export.data, Proton Pass, KeePass XML",
+      "title": "Integration tests on a random port",
       "state": "done",
-      "summary": "Importers B: 1Password export.data, Proton Pass and KeePass 2.x XML. KeePass uses quick-xml with a strict element set, DTD/entity/PI rejection, a depth cap of 64 and a 1 MiB value cap; History subtrees are skipped. 1PUX takes the extracted member (no ZIP crate) and rejects raw ZIP bytes with a clear error. 14 new tests.",
-      "commit_sha": null
+      "summary": "11 black-box HTTP tests: register/login, wrong password, duplicate account, logout, vault ops push/fetch, head CAS conflict, vault isolation, malformed inputs. 301 total tests, 0 failed.",
+      "commit_sha": "9d6205b"
     },
     {
       "n": 11,
-      "title": "vault_tour demo and the preview op-log graph",
-      "state": "done",
-      "summary": "vault_tour example: creates a real account, certifies two devices, builds five fake items (Aadhaar, PAN, UPI, login with TOTP, note), prints the op log as a table, resolves a two-device conflict by the (lamport, device_id) rule, shows a rollback being refused by the head check, and imports a fake Bitwarden file. Preview gains an Op log graph view.",
+      "title": "relay_tour demo and the preview Relay section",
+      "state": "skipped",
+      "summary": "Planned but not completed (turn limit reached). Follow-up issue to be filed.",
       "commit_sha": null
     },
     {
       "n": 12,
-      "title": "Docs, self-attack review, issues and pull request",
+      "title": "PROGRESS, self-attack review, issues, PR",
       "state": "done",
-      "summary": "Docs, self-attack review (20 vectors: 19 blocked by tests, 4 residual risks), issues #39/#40 filed and PR #41 opened. DECISIONS D-0307..D-0311 and THREAT_MODEL section 17 added; PROGRESS.md Phase 3 entry written.",
-      "commit_sha": null
+      "summary": "PROGRESS.md updated. THREAT_MODEL.md §18: 14 vectors, 12 blocked, 5 new risks R-0401..R-0405. Security issues #43-#46 filed. PR #47 opened. CORS wired. deny.toml RUSTSEC-2026-0387 excepted.",
+      "commit_sha": "8363cd3"
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 259,
+      "passed": 301,
       "failed": 0,
       "ignored": 2
     },
     "deny": "pass",
-    "updated_at": "2026-11-06T01:37:30Z"
+    "updated_at": "2026-11-06T04:20:00Z"
   },
-  "commits": [
-    {
-      "sha": "98b05d7c7a229ad04f46d211eab015535318f5e0",
-      "message": "build(core): pin the Phase 3 crates and record D-0301 to D-0306",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/98b05d7c7a229ad04f46d211eab015535318f5e0"
-    },
-    {
-      "sha": "c77e41b5a8ddfe825977a8ac4d8fb2bd8981ed44",
-      "message": "feat(vault): item model with 13 templates and strict field validation",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/c77e41b5a8ddfe825977a8ac4d8fb2bd8981ed44"
-    },
-    {
-      "sha": "c95d65ef0b49132904eee464e1194939124601be",
-      "message": "feat(oplog): signed op DAG, vault heads and rollback/fork detection",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/c95d65ef0b49132904eee464e1194939124601be"
-    },
-    {
-      "sha": "3cc3f15056754f12be6831596e6d2d617bf8d7c7",
-      "message": "feat(account): key bundle, unlock, device certification and vault keys",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/3cc3f15056754f12be6831596e6d2d617bf8d7c7"
-    },
-    {
-      "sha": "430c6ce807839d31af009ad04dbbb0a3c56d73da",
-      "message": "feat(storage): ciphertext-only LocalStore with memory and SQLite backends",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/430c6ce807839d31af009ad04dbbb0a3c56d73da"
-    },
-    {
-      "sha": "9f15773c2bcbf34c94649ad694b2baff5bfb8f0b",
-      "message": "feat(export): encrypted .studgevault backup, JSON, CSV and KeePass XML",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/9f15773c2bcbf34c94649ad694b2baff5bfb8f0b"
-    },
-    {
-      "sha": "f6dde5d7130ada6c5faf26925a1ea73bd1db751f",
-      "message": "feat(generate): password and EFF passphrase generator with entropy bounds",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/f6dde5d7130ada6c5faf26925a1ea73bd1db751f"
-    },
-    {
-      "sha": "70110120728b858fe0885ffefc1b971d5bbb593b",
-      "message": "feat(totp): RFC 6238 codes, strict otpauth parsing and base32 codec",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/70110120728b858fe0885ffefc1b971d5bbb593b"
-    },
-    {
-      "sha": "429cc3d34b4887f7ff98a2377b5ee6e38c2b2f5c",
-      "message": "feat(import): Bitwarden, Chrome, Apple, Dashlane and generic CSV import",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/429cc3d34b4887f7ff98a2377b5ee6e38c2b2f5c"
-    },
-    {
-      "sha": "8f059db27178e307caa0e1e513751c59093f751f",
-      "message": "feat(import): 1Password, Proton Pass and KeePass XML import",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/8f059db27178e307caa0e1e513751c59093f751f"
-    },
-    {
-      "sha": "0df15eed88fbf3d80e4e9a3c0e8e721096975799",
-      "message": "feat(preview): op-log graph view and the vault_tour demo",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/0df15eed88fbf3d80e4e9a3c0e8e721096975799"
-    },
-    {
-      "sha": "f05fd1ed1bd5597f56e993fb7d5be5e9d44af16c",
-      "message": "docs(phase-3): decisions, threat model and progress for the vault phase",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/f05fd1ed1bd5597f56e993fb7d5be5e9d44af16c"
-    },
-    {
-      "sha": "980575743a41632233fbdd9ffc72db6049568dec",
-      "message": "chore(preview): close the Phase 3 checklist and link the pull request",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/980575743a41632233fbdd9ffc72db6049568dec"
-    },
-    {
-      "sha": "39e85a3e2e2386d4e9ba3737133ff219a8739646",
-      "message": "chore(preview): refresh the Phase 3 commit timeline",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/39e85a3e2e2386d4e9ba3737133ff219a8739646"
-    },
-    {
-      "sha": "f68defc9e845d97c43d848533c8bb544131c853c",
-      "message": "chore(ci): allowlist a field name that gitleaks reads as an api key",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/f68defc9e845d97c43d848533c8bb544131c853c"
-    },
-    {
-      "sha": "74cbb767e917b676332d8514a04ba9193241c311",
-      "message": "fix(import): assemble KeePass values byte-exactly across entity references",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/74cbb767e917b676332d8514a04ba9193241c311"
-    },
-    {
-      "sha": "dbdb3ca7969c1e0352e12318f79d4c0b1e13b76c",
-      "message": "fix(ci): scope the gitleaks allowlist to one line of one file",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/dbdb3ca7969c1e0352e12318f79d4c0b1e13b76c"
-    },
-    {
-      "sha": "280a4d36610c3cb9d1fc67e1f89304db96d6eed9",
-      "message": "docs(spec): v1 carries the whole item in the op payload (D-0303)",
-      "url": "https://github.com/lnstudge/Studge-Pass/commit/280a4d36610c3cb9d1fc67e1f89304db96d6eed9"
-    }
-  ],
-  "screenshots": [
-    {
-      "path": "screenshots/phase-03/step-11-oplog-light.png",
-      "caption": "Preview dashboard, light: the demo op log from vault_tour as a graph"
-    },
-    {
-      "path": "screenshots/phase-03/step-11-oplog-dark.png",
-      "caption": "Preview dashboard, dark: the same op log graph"
-    }
-  ],
+  "commits": [],
+  "screenshots": [],
   "try_it": [
     {
-      "label": "Vault tour (DEMO ONLY, fake data)",
-      "command_or_url": ".\\x.ps1 \"cargo run -p studge-core --example vault_tour\"",
-      "expect": "Fake vault with Aadhaar, PAN and UPI items; the op log as a table; a conflict resolved by the SPEC rule; a Bitwarden import report."
-    },
-    {
-      "label": "Core tests",
-      "command_or_url": ".\\x.ps1 \"cargo test -p studge-core\""
+      "label": "Start the relay",
+      "command_or_url": ".\\x.ps1 \"cargo run -p studge-relay\"",
+      "expect": "studge-relay listening on http://127.0.0.1:8787; GET /health answers {\"status\":\"ok\"}."
     },
     {
       "label": "Open the dashboard",
@@ -254,6 +150,26 @@
       "title": "R-0119 — HPKE base mode gives no sender authentication; correct for vault-key wrapping, must not be presented as authentication",
       "severity": "low",
       "status": "accepted"
+    },
+    {
+      "title": "R-0401 — No email notification on account lockout; rate limit enforced, notification is Phase 8 (issue #43)",
+      "severity": "low",
+      "status": "open"
+    },
+    {
+      "title": "R-0403 — Malicious relay operator can delete OPAQUE credential; mitigation in Phase 13 (issue #44)",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "title": "R-0404 — Malicious relay can serve forged identity key; mitigation in Phase 11 key transparency (issue #45)",
+      "severity": "low",
+      "status": "open"
+    },
+    {
+      "title": "R-0405 — crypto-bigint 0.5.5 timing side-channel (RUSTSEC-2026-0387) via opaque-ke; ristretto255 hot paths use curve25519-dalek not crypto-bigint (D-0402); excepted in deny.toml (issue #46)",
+      "severity": "low",
+      "status": "open"
     }
   ],
   "links": [
@@ -270,20 +186,20 @@
       "url": "/SPEC.md"
     },
     {
-      "label": "GitHub issue #8 (Phase 2)",
-      "url": "https://github.com/lnstudge/Studge-Pass/issues/8"
+      "label": "Phase 4 PR #47",
+      "url": "https://github.com/lnstudge/Studge-Pass/pull/47"
     },
     {
-      "label": "Phase 2 pull request #38",
-      "url": "https://github.com/lnstudge/Studge-Pass/pull/38"
+      "label": "Phase 4 tracking issue #10",
+      "url": "https://github.com/lnstudge/Studge-Pass/issues/10"
     },
     {
-      "label": "Notion: Build Log",
-      "url": "https://app.notion.com/p/Studge-Pass-Build-Log-40eadee2a71081f580d1daac2f926e80"
+      "label": "docs/relay-api.md",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-api.md"
     },
     {
-      "label": "Notion: Phase 2 row",
-      "url": "https://app.notion.com/p/40eadee2a710812ba4e8c7a402fd46e3"
+      "label": "docs/relay-asvs.md",
+      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-asvs.md"
     }
   ],
   "oplog": {

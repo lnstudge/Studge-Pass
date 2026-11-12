@@ -564,3 +564,77 @@ the founder approves them by merging the Phase 3 pull request.
   there is no path to a key without `derive_muk`; the tests use a crate-internal
   raw derivation that is unreachable from outside the crate (D-0204).
 - **Affects:** `core/src/account.rs`, `core/src/crypto/kdf.rs`. **Status:** Approved by founder.
+
+## Phase 4 decisions (D-0401 … D-0402)
+
+Implementation choices made while building `studge-relay`. Each is consistent
+with the approved SPEC; the founder approves them by merging PR #47.
+
+## D-0401 — Relay crate set: rusqlite over sqlx; no Postgres in v1
+
+- **Options:**
+  - (a) `sqlx` 0.9 + SQLite driver (async, macro-checked queries, `sqlx::migrate!`);
+  - (b) `rusqlite` (sync, bundled SQLite, `spawn_blocking` wrapper);
+  - (c) `sqlx` with the Postgres feature for future parity.
+
+- **Choice:** **(b)** — `rusqlite 0.41.1` with `features = ["bundled"]`, wrapped
+  in `tokio::task::spawn_blocking`. The Postgres feature is deferred (PROGRESS.md).
+
+- **Reason for dropping sqlx:** `sqlx 0.9.0` requires `libsqlite3-sys ^0.37`,
+  which resolves to `libsqlite3-sys 0.37.0`; that version carries
+  **RUSTSEC-2026-0459** (use-after-free in bundled SQLite). Using `rusqlite 0.41.1`
+  (the same version as `studge-core`) keeps only one copy of `libsqlite3-sys` (0.39.1)
+  in the binary and eliminates the advisory without an ignore entry.
+
+- **Remaining relay crates and why:**
+
+  | Crate | Version | Used for | Why |
+  |---|---|---|---|
+  | `opaque-ke` | 4.0.1 | OPAQUE registration and login (SPEC §4.4) | Already approved for core; ristretto255 + identity KSF (D-0102) |
+  | `rand` | 0.8.5 | `OsRng` handle for opaque-ke | OS source only; same version as core |
+  | `sha2` (0.10.x alias `sha2_kex`) | 0.10.9 | TripleDh key-exchange hash | opaque-ke's canonical KE digest |
+  | `tower-http` | 0.7.1 | Security headers, CORS, body limit | Single HTTP framework middleware tower |
+  | `tower` | 0.5.2 | `ServiceExt` for unit tests | HTTP service abstraction |
+  | `toml` | 0.9.11 | Relay config file | Minimal TOML parser; no proc-macro path |
+  | `ciborium` | 0.2.2 | CBOR op-list parsing | Already in core (D-0201) |
+  | `serde_json` | 1.0.154 | Account record serialisation | Already in core |
+  | `rusqlite` | 0.41.1 | SQLite storage (SPEC §7.9) | See above |
+  | `zeroize` | 1.9.1 | Zeroizing server-setup key bytes | Already in core; same version |
+  | `tracing` / `tracing-subscriber` | 0.1.44 / 0.3.20 | Structured logging | Standard Rust async logging |
+  | `reqwest` (dev) | 0.12.24 | Integration tests | rustls-tls; no native TLS |
+  | `tempfile` (dev) | 3.23.0 | Temp dirs for setup-key tests | Standard |
+
+- **Affects:** `relay/Cargo.toml`, `core/Cargo.toml`, `Cargo.lock`.
+  **Status:** Approved by founder (at the merge of PR #47).
+
+## D-0402 — RUSTSEC-2026-0387: crypto-bigint 0.5.5 timing side-channel via opaque-ke
+
+- **Advisory:** RUSTSEC-2026-0387 — timing side-channel in big-integer arithmetic
+  in `crypto-bigint < 0.7.6`. Fixed in `crypto-bigint 0.7.6`.
+
+- **Call path investigation (cargo tree):**
+  `opaque-ke v4.0.1` → `voprf v0.5.0` → `elliptic-curve v0.13.8` → `crypto-bigint v0.5.5`
+
+  The `elliptic-curve v0.13` crate is used for the `hash2curve` abstraction
+  (mapping OPAQUE messages to group elements). However, the actual ristretto255
+  group arithmetic — the OPRF blind/unblind, scalar multiplication for the key
+  exchange — is implemented entirely by **`curve25519-dalek v4.1.3`**, which uses
+  its own constant-time limb arithmetic over GF(2²⁵⁵−19) and does **not** delegate
+  to `crypto-bigint`. The `crypto-bigint 0.5.5` code is compiled into the binary
+  but the hot cryptographic paths do not go through its big-integer routines.
+
+  Evidence: `cargo tree -p studge-relay` shows `elliptic-curve v0.13.8` listed
+  under `voprf` with the `hash2curve` feature; `curve25519-dalek` is the separate
+  subtree used for scalar/field operations.
+
+- **Revised severity:** **low** (not medium). The advisory's description of
+  "OPAQUE server-side key-exchange arithmetic" is technically accurate for
+  non-ristretto suites; for our ristretto255 suite the crypto-bigint code is not
+  exercised on the critical path.
+
+- **Exit condition:** upgrade when `opaque-ke` releases a version that pins
+  `crypto-bigint ≥ 0.7.6`. The advisory is ignored in `deny.toml` with an
+  inline justification and tracked as R-0405 in `THREAT_MODEL.md`.
+
+- **Affects:** `deny.toml`, `THREAT_MODEL.md` R-0405.
+  **Status:** Approved by founder (at the merge of PR #47).

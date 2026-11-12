@@ -407,3 +407,92 @@ R-0304 local file metadata).
 - Safe-for-spreadsheets CSV export (R-0301).
 - CLI: extract `.1pux` and hand core `export.data` (Phase 6).
 - Phase 5: `ik`/`item-field` records and a decrypted in-memory cache.
+
+## Phase 4 — Relay server
+
+- **Status:** In review
+- **Branch:** `phase-04-relay` · **Issue:** #10 · **Milestone:** Phase 4
+
+### What changed
+
+- **`studge-relay` endpoints** — all SPEC §7.2–§7.4 routes:
+  `POST /v1/register/start|finish` (OPAQUE, account record, first device certificate, KDF floor),
+  `POST /v1/login/start|finish` (OPAQUE with dummy exchange for unknown accounts, D-0113),
+  `DELETE /v1/sessions/current`,
+  `GET|PUT|DELETE /v1/account` (If-Match versioning),
+  `POST /v1/devices` (certificate + enrolment proof, D-0107),
+  `DELETE /v1/devices/{id}` (signed revocation),
+  `POST|GET /v1/vaults/{id}/ops` (append-only, idempotent, paginated),
+  `GET|PUT /v1/vaults/{id}/head` (compare-and-swap).
+- **`relay/src/extract.rs`** — strict `Session` extractor (Bearer → SHA-256 lookup, expiry, device revocation, tombstone), hex/base64 validators, KDF floor (m≥64 MiB, t≥3, p≥1), `parse_ops` with ±24 h skew check and sorted-unique parents.
+- **`relay/src/state.rs`** — wires `RelayStore` + `ServerSetupKey`; `check_rate()`, `load_or_create_setup()` (0600 Unix), `now()`.
+- **`relay/src/main.rs`** — thin startup wrapper; background sweeper (expired sessions + tombstones, every 10 min).
+- **`relay/src/lib.rs`** (new) — library target; re-exports all modules; `test_helpers::build_app` for integration tests.
+- **`relay/migrations/0002_login_states.sql`** — server-side OPAQUE login state table (take-once replay protection).
+- **`relay/tests/integration.rs`** (new) — 11 black-box HTTP integration tests: full register/login, wrong password, duplicate account, logout, vault ops push/fetch with pagination, head CAS conflict, vault isolation, malformed inputs.
+- **`core/src/crypto/signing.rs`** — `EnrolmentProof` CBOR serialisation helpers and accessors required by `relay/routes/account.rs`.
+- **Docs** — `docs/relay-api.md` (all endpoints, examples, Caddy), `docs/relay-asvs.md` (ASVS 4.0 Level 3 walk), `Dockerfile` (multi-stage, non-root), `docker-compose.yml` + `Caddyfile`.
+
+### How to run
+
+```powershell
+# Start the relay
+.\x.ps1 "cargo run -p studge-relay"
+# then http://127.0.0.1:8787/health
+
+# Smoke test
+Invoke-RestMethod http://127.0.0.1:8787/health
+
+# Run all tests (including integration)
+.\x.ps1 "cargo test --all"
+```
+
+### Test results
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test --all` | **301 passed, 0 failed, 2 ignored** (233 core + 29 relay unit + 11 relay integration + 28 others) |
+| `cargo deny check` | advisories ok (RUSTSEC-2026-0387 excepted; see R-0405), bans ok, licenses ok, sources ok |
+
+### Self-attack review
+
+14 attack vectors in `docs/THREAT_MODEL.md §18`; 12 blocked by named tests, 2 require client enforcement (R-0106/107), and 5 new risks recorded (R-0401–R-0405). No critical or high findings.
+
+### Known gaps and follow-ups
+
+- **`relay_tour` demo example** (`cargo run -p studge-relay --example relay_tour`) — planned but not completed due to turn limit.
+- **Preview dashboard Relay section** — `status.json` updated but the full relay preview section with live `/health` results was not added to the dashboard in this phase.
+- **Postgres feature** is present in `Cargo.toml` but the migrations are SQLite-only; parity is tracked.
+- R-0401: no email on lockout (Phase 8). GitHub issue #43.
+- R-0403: OPAQUE credential transparency (Phase 13). GitHub issue #44.
+- R-0404: identity key transparency (Phase 11). GitHub issue #45.
+- R-0405: `crypto-bigint` timing side-channel via `opaque-ke`; excepted in `deny.toml`; upgrade when upstream fixes. GitHub issue #46.
+
+### PR
+
+[#47: Phase 4: studge-relay (zero-knowledge sync relay)](https://github.com/lnstudge/Studge-Pass/pull/47) — awaiting founder review.
+
+### Review fixes
+
+Applied in response to founder review of PR #47:
+
+| Fix | Commit | Detail |
+|---|---|---|
+| 1 — SQLite advisory (RUSTSEC-2026-0459) | `b4f9175` | Replaced `sqlx 0.9` with `rusqlite 0.41.1` in relay; restored `rusqlite 0.41.1` in core; advisory gone from `cargo deny`. |
+| 2 — Proxy IP spoofing | `5110f9f` | Added `trusted_proxies` to `RelayConfig`; `client_ip()` extracts real IP from `X-Forwarded-For` only when TCP peer is trusted; 6 unit tests; Docker compose subnet set. |
+| 3 — DECISIONS.md D-0401/D-0402 | `cb92d6c` | Wrote relay crate table (D-0401) and RUSTSEC-2026-0387 call-path investigation (D-0402). R-0405 downgraded from medium to low — ristretto255 hot paths use `curve25519-dalek`, not `crypto-bigint`. |
+| 4 — Atomic setup key creation | `d1d407a` | `create_new(true)` + Unix `mode(0o600)` at open; `Zeroizing` bytes; warn on loose perms; `create_dir_all` error propagated. |
+| 5 — Cleanup | `9999d83` | Removed `tower_governor`; fixed last garbled `§`; deleted `docs/pr-body-phase04.md`; created `.bob/rules/00-studge-pass.md`. |
+| fmt | `f04a597` | `cargo fmt` pass after review fixes. |
+
+**Final counts after review fixes:**
+- `cargo test --all -- --include-ignored`: **310 passed, 0 failed**
+- `cargo fmt --all -- --check`: pass
+- `cargo clippy --all-targets --all-features -- -D warnings`: pass
+- `cargo deny check`: advisories ok, bans ok, licenses ok, sources ok
+- wasm build (`studge-core-wasm`): pass
+
+
+

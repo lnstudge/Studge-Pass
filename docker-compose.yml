@@ -1,0 +1,68 @@
+# Studge Pass relay + Caddy (HTTPS termination)
+#
+# Usage (from the repository root):
+#   docker compose up -d
+#
+# The relay listens on loopback only; Caddy handles HTTPS and proxies to it.
+# Put your domain in the CADDY_DOMAIN variable (or a .env file):
+#   CADDY_DOMAIN=relay.example.com docker compose up -d
+#
+# Data is stored in named volumes:
+#   studge-data   — the SQLite database and the OPAQUE server-setup key
+#   caddy-data    — TLS certificates (Caddy's ACME state)
+#   caddy-config  — Caddy's runtime config
+
+services:
+  relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      STUDGE_RELAY_LISTEN: "0.0.0.0:8787"
+      STUDGE_RELAY_DATABASE_PATH: "/data/relay.db"
+      STUDGE_RELAY_SERVER_SETUP_PATH: "/data/setup.bin"
+      # Caddy is the only reverse proxy in the internal Docker network.
+      # The default bridge subnet is 172.20.0.0/16; Caddy's container IP
+      # is in that range, so per-IP rate limits see the real client address
+      # (extracted from X-Forwarded-For) rather than Caddy's Docker IP.
+      STUDGE_RELAY_TRUSTED_PROXIES: "172.20.0.0/16"
+      # Optional: STUDGE_RELAY_LOG_LEVEL=info STUDGE_RELAY_LOG_JSON=true
+    volumes:
+      - studge-data:/data
+    # Never expose the port directly; Caddy is the only thing that should
+    # reach the relay.
+    expose:
+      - "8787"
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      CADDY_DOMAIN: "${CADDY_DOMAIN:-relay.localhost}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+    depends_on:
+      - relay
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  studge-data:
+  caddy-data:
+  caddy-config:

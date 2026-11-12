@@ -311,4 +311,36 @@ removed; the rest are the four new risks above.
 | 20 | Unsupported op kind used to smuggle an ACL change | Rejected with `UnsupportedOpKind` (D-0305) | R-0303 |
 | 21 | An XML entity reference splits a value so the last piece wins (found in review: `p&lt;a&amp;s&gt;s"1` imported as `1`) | Values accumulate across `Text` and `GeneralRef` events and commit on the element close; round trips are byte-exact (`entity_references_no_longer_truncate_values`, `keepass_export_import_round_trip_is_byte_exact`) | Blocked (was R-0305, now fixed) |
 
+## 18. Phase 4 self-attack review (relay server)
+
+Attacking the relay as a malicious client and as a malicious relay operator.
+Each "Blocked" row names the test that verifies it.
+
+| # | Vector | Attacker | Mitigation | Verdict |
+| --- | --- | --- | --- | --- |
+| 1 | Send a `POST /v1/login/finish` before doing `POST /v1/login/start`, or replay a finalization | Malicious client | `take_login_state` is atomic DELETE-RETURNING; a replayed or orphaned finalization finds no state and returns 401 (`logout_and_token_revocation`, integration test) | Blocked |
+| 2 | Brute-force passwords from different IPs to avoid per-account limits | Malicious client | Per-IP rate limit (60/hour) is enforced independently from per-account limit (10/hour); both fire (`state::tests::rate_counters_refuse_after_the_limit`) | Blocked, residual R-0401 (no lockout email) |
+| 3 | Register with a fake `account_id` and certificate pointing to a different identity key, to impersonate another account | Malicious client | `register/finish` verifies the certificate against `identity_keys.ed25519` from the same request; a mismatch is 400 (`the_account_record_rejects_every_wrong_field`) | Blocked |
+| 4 | Push ops to another account's vault (`account_id A` with `vault_id` of `account_id B`) | Malicious client | Vault ownership is checked before every op; a missing or foreign vault is 404, indistinguishable (`another_accounts_vault_is_404`) | Blocked |
+| 5 | Send a `PUT /v1/vaults/:id/head` with `If-Match: *` to overwrite an existing head silently | Malicious client | `*` is only accepted when no head row exists; an existing head with a non-matching hash is 409 (`head_compare_and_swap_conflict`) | Blocked |
+| 6 | Inject a token in a query string or URL to capture it in server logs | Malicious client | Bearer token is only accepted in the `Authorization` header; the relay never logs headers (SPEC §7.8); query string tokens are not parsed | Blocked |
+| 7 | Submit an op with a `created_at` 25 hours in the past to slip under revocation cut-offs | Malicious client | `parse_ops` rejects any `created_at` outside ±24 h of server time (`extract::tests::parents_must_be_sorted_and_unique`, `append_and_fetch_ops_with_cursors`) | Blocked, residual R-0107 (±24 h still permits some post-revocation ops) |
+| 8 | Submit an op with a future `created_at` to survive a later revocation | Malicious client | Same ±24 h check catches future timestamps too | Blocked (same residual) |
+| 9 | Replay a valid `op_id` with different bytes to corrupt a vault | Malicious client | `op_hash_for_id` compares hashes; different bytes for the same `op_id` is 409 (`idempotent_op_push_is_accepted`) | Blocked |
+| 10 | Send a non-canonical CBOR op body to exploit a differential parser | Malicious client | `StoredOp::from_cbor` uses a strict re-encode check; any deviation is 400 | Blocked |
+| 11 | Serve a stale (old) head to a client to roll back its view | Malicious relay operator | A client that pins its last verified head detects rollback via `check_head_update` (§6.9); recorded as R-0106 | Partially blocked (requires client enforcement; relay side cannot prevent it) |
+| 12 | Serve a subset of ops (withhold some) to hide an edit | Malicious relay operator | Missing parents are detected by the client on the next sync; the relay cannot make a missing parent invisible | Blocked at client layer |
+| 13 | Delete the OPAQUE password file and reset a user's credential | Malicious relay operator | The relay controls the OPAQUE file; clients have no way to detect this without out-of-band notification | R-0403 (open) |
+| 14 | Forge the account record to change `identity_keys.ed25519` and revoke all devices | Malicious relay operator | New devices verify the certificate chain; a forged key would fail certificate verification on any future `POST /v1/devices`. Existing sessions still work until they expire or are revoked | R-0404 (open, low — requires relay to simultaneously forge and the user to notice) |
+
+### New risks recorded
+
+| Risk | Severity | Status |
+| --- | --- | --- |
+| R-0401 — No email notification on account lockout (2.2.3) | low | Open — Phase 8 |
+| R-0402 — No sliding inactivity timeout; 24-hour hard expiry only (D-0112) | low | Accepted |
+| R-0403 — A malicious relay operator can delete the OPAQUE password file, forcing re-registration or account abandonment | medium | Open — Phase 13 (OPAQUE credential transparency) |
+| R-0404 — A malicious relay operator can serve a forged account record with a different identity key; new device enrolments would fail, but existing sessions continue | low | Open — Phase 11 (key transparency) |
+| R-0405 — `crypto-bigint v0.5.5` (transitive via `opaque-ke v4.0.1`) has a timing side-channel in big-integer arithmetic (RUSTSEC-2026-0387). Not a plaintext-exposure flaw. For our ristretto255 suite the hot cryptographic paths go through `curve25519-dalek`, not `crypto-bigint`; see D-0402. Ignored in `deny.toml` with justification. | low | Open — upgrade when opaque-ke ships fix |
+
 <!-- THREAT-END -->

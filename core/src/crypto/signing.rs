@@ -712,6 +712,119 @@ impl EnrolmentProof {
         canonical_bytes(&map)
     }
 
+    /// The exact bytes the device signed.
+    pub fn body_bytes(&self) -> CryptoResult<Vec<u8>> {
+        Self::body(&self.account_id, &self.device_id, &self.nonce)
+    }
+
+    /// The account the proof is for.
+    pub fn account_id(&self) -> &[u8; 16] {
+        &self.account_id
+    }
+
+    /// The device the proof is for.
+    pub fn device_id(&self) -> &[u8; 16] {
+        &self.device_id
+    }
+
+    /// The approving device's single-use nonce (opaque to the relay).
+    pub fn nonce(&self) -> &[u8; 32] {
+        &self.nonce
+    }
+
+    /// The stored form: the signed body map plus `sig`.
+    pub fn to_cbor(&self) -> CryptoResult<Vec<u8>> {
+        let map = canonical_map(vec![
+            ("suite", text(SUITE_V1)),
+            ("type", text("device-enroll")),
+            ("account_id", bytes(&self.account_id)),
+            ("device_id", bytes(&self.device_id)),
+            ("nonce", bytes(&self.nonce)),
+            ("sig", bytes(&self.signature)),
+        ]);
+        canonical_bytes(&map)
+    }
+
+    /// Parses the stored form, rejecting anything outside the exact key set.
+    pub fn from_cbor(bytes: &[u8]) -> CryptoResult<Self> {
+        let value = crate::crypto::aad::parse_strict(bytes)?;
+        let Value::Map(entries) = value else {
+            return Err(CryptoError::MalformedCbor);
+        };
+        if entries.len() != 6 {
+            return Err(CryptoError::MalformedCbor);
+        }
+        let mut suite = None;
+        let mut kind = None;
+        let mut account_id = None;
+        let mut device_id = None;
+        let mut nonce = None;
+        let mut signature = None;
+        for (key, value) in entries {
+            let Value::Text(name) = key else {
+                return Err(CryptoError::MalformedCbor);
+            };
+            match name.as_str() {
+                "suite" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    suite = Some(text);
+                }
+                "type" => {
+                    let Value::Text(text) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    kind = Some(text);
+                }
+                "account_id" => account_id = Some(fixed16(&value)?),
+                "device_id" => device_id = Some(fixed16(&value)?),
+                "nonce" => {
+                    let Value::Bytes(raw) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    if raw.len() != 32 {
+                        return Err(CryptoError::InvalidLength {
+                            expected: 32,
+                            actual: raw.len(),
+                        });
+                    }
+                    let mut out = [0u8; 32];
+                    out.copy_from_slice(&raw);
+                    nonce = Some(out);
+                }
+                "sig" => {
+                    let Value::Bytes(raw) = value else {
+                        return Err(CryptoError::MalformedCbor);
+                    };
+                    if raw.len() != SIGNATURE_BYTES {
+                        return Err(CryptoError::InvalidLength {
+                            expected: SIGNATURE_BYTES,
+                            actual: raw.len(),
+                        });
+                    }
+                    let mut out = [0u8; SIGNATURE_BYTES];
+                    out.copy_from_slice(&raw);
+                    signature = Some(out);
+                }
+                _ => return Err(CryptoError::MalformedCbor),
+            }
+        }
+        if suite.as_deref() != Some(SUITE_V1) || kind.as_deref() != Some("device-enroll") {
+            return Err(CryptoError::MalformedCbor);
+        }
+        let proof = Self {
+            account_id: account_id.ok_or(CryptoError::MalformedCbor)?,
+            device_id: device_id.ok_or(CryptoError::MalformedCbor)?,
+            nonce: nonce.ok_or(CryptoError::MalformedCbor)?,
+            signature: signature.ok_or(CryptoError::MalformedCbor)?,
+        };
+        if proof.to_cbor()? != bytes {
+            return Err(CryptoError::NonCanonicalCbor);
+        }
+        Ok(proof)
+    }
+
     /// Verifies the proof against the new device's public key and the expected
     /// account, device and nonce.
     pub fn verify(
