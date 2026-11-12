@@ -43,6 +43,10 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "CC0-1.0",
+    # CDLA-Permissive-2.0: Community Data License Agreement — Permissive.
+    # Used by webpki-roots (Mozilla trust store, transitive via reqwest → hyper-rustls).
+    # This is a permissive, GPL-3.0-compatible licence.
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]

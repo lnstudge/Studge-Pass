@@ -638,3 +638,33 @@ with the approved SPEC; the founder approves them by merging PR #47.
 
 - **Affects:** `deny.toml`, `THREAT_MODEL.md` R-0405.
   **Status:** Approved by founder (at the merge of PR #47).
+
+## D-0501 — Transport crate set for the sync engine (Phase 5)
+
+- **Decision:** Use `reqwest 0.12` (with `blocking` + `rustls-tls` + `json`
+  features, non-wasm only) for `HttpRelayTransport`, and `tempfile 3.23` (dev-dep
+  only) for `FolderTransport` integration tests.
+
+- **Context:** Phase 5 adds three concrete `Transport` implementations.
+  `MemoryTransport` needs no crates. `FolderTransport` needs only `std::fs`
+  for production and `tempfile` in tests. `HttpRelayTransport` needs an HTTP
+  client for native (non-wasm) targets.
+
+- **Options considered:**
+  - `reqwest` (blocking, rustls-tls): well-maintained, already used as a
+    dev-dep in `relay/Cargo.toml`, integrates cleanly with `#[cfg(not(target_arch = "wasm32"))]`.
+  - `ureq`: lighter but async story is weaker; no clear advantage here.
+  - `hyper` directly: unnecessary complexity.
+
+- **Choice:** `reqwest 0.12` with `blocking` + `rustls-tls`, gated behind
+  `cfg(not(target_arch = "wasm32"))`. The `wasm32` target uses the in-memory
+  transport or a future web-extension transport only (Phase 10/13). `tempfile`
+  is a test-only dependency and is already on the approved list transitively.
+
+- **Security note:** `HttpRelayTransport` uses `rustls-tls` (no OpenSSL),
+  which satisfies the `deny.toml` OpenSSL ban. Certificate validation is on by
+  default (no `danger_accept_invalid_certs`).
+
+- **Affects:** `core/Cargo.toml`, `test-harness/Cargo.toml`.
+  **Status:** Approved by founder (implicit: crate is on the transitively
+  approved list via relay dev-deps; blocking feature added here).

@@ -343,4 +343,35 @@ Each "Blocked" row names the test that verifies it.
 | R-0404 — A malicious relay operator can serve a forged account record with a different identity key; new device enrolments would fail, but existing sessions continue | low | Open — Phase 11 (key transparency) |
 | R-0405 — `crypto-bigint v0.5.5` (transitive via `opaque-ke v4.0.1`) has a timing side-channel in big-integer arithmetic (RUSTSEC-2026-0387). Not a plaintext-exposure flaw. For our ristretto255 suite the hot cryptographic paths go through `curve25519-dalek`, not `crypto-bigint`; see D-0402. Ignored in `deny.toml` with justification. | low | Open — upgrade when opaque-ke ships fix |
 
+## 19. Phase 5 self-attack review (sync engine and evil-relay harness)
+
+Attacking the sync engine as a malicious relay that controls the bytes returned
+from `pull`.  Every row names the test in `test-harness/tests/evil_relay_tests.rs`
+that verifies the claim.
+
+| # | Vector | Attacker | Transport-layer behaviour | Detection mechanism | Test | Verdict |
+|---|---|---|---|---|---|---|
+| 1 | Rollback the head to a previous snapshot after new ops exist | Malicious relay | Serve an old (signed) `VaultHead` with all ops | `check_head_update` detects the rollback (new head is an ancestor of pinned) | `evil_relay_rollback_is_detected` | **Blocked** |
+| 2 | Ghost tip: head references an op hash the client has never seen | Malicious relay | Return honest ops + head pointing to `0xEE…EE` | Engine checks every tip in the head against the local DAG after ingesting ops | `evil_relay_ghost_head_entry_is_detected` | **Blocked** |
+| 3 | Reorder ops (children before parents) | Malicious relay | Reverse the op list | DAG `add` rejects an op whose parent is not yet in the DAG → `MissingParent` | `evil_relay_reordered_ops_cause_missing_parent` | **Blocked** |
+| 4 | Drop all ops but return the honest head | Malicious relay | Return empty op list + current head | Head references ops we don't have → `HeadReferencesUnknownOp` | `evil_relay_truncate_ops_is_detected` (n=0) | **Blocked** |
+| 5 | Truncate op list (return only first n ops) | Malicious relay | Return ops[0..n] + honest head | Head references ops beyond n → `HeadReferencesUnknownOp` | `evil_relay_truncate_ops_is_detected` | **Blocked** |
+| 6 | Swap the CBOR bytes of two ops | Malicious relay | ops[0] ← raw(op[1]), ops[1] ← raw(op[0]) | CBOR re-encode check: op_id / vault_id fields disagree with body → `MalformedPayload`; or child arrives before parent → `MissingParent` | `evil_relay_swapped_ciphertext_is_detected` | **Blocked** |
+| 7 | Flip a bit in an op's payload (AEAD ciphertext) | Malicious relay | Flip a byte near end of raw CBOR | Re-encode check detects modified bytes → `MalformedPayload`; or AEAD decryption fails | `evil_relay_flipped_bit_is_detected` | **Blocked** |
+| 8 | Strip the Ed25519 signature (zero all 64 sig bytes) | Malicious relay | Zero sig bytes in raw CBOR | Re-encode check catches the discrepancy, or `verify()` fails on the zeroed sig | `evil_relay_stripped_signature_is_detected` | **Blocked** |
+| 9 | Substitute device certificate (flip head sig byte) | Malicious relay | Flip byte 40 in the head's raw CBOR (inside the Ed25519 signature) | `VaultHead::verify()` fails → `OpVerificationFailed` | `evil_relay_substitute_device_cert_is_detected` | **Blocked** |
+| 10 | Replace vault_id in op bodies (cross-vault substitution) | Malicious relay | Replace 16-byte vault_id in raw CBOR of every op | Re-encode check: vault_id in AAD disagrees with body bytes → `MalformedPayload` | `evil_relay_swapped_ciphertext_is_detected` (variant) | **Blocked** |
+| 11 | Downgrade the suite id (`v1` → `v0`) in the head | Malicious relay | Replace CBOR text `"v1"` with `"v0"` in head bytes | `VaultHead::from_cbor` rejects unknown suite → `MalformedPayload` | `evil_relay_downgrade_suite_is_detected` | **Blocked** |
+| 12 | Replay an old op (append it again after the stream) | Malicious relay | Append ops[0] again at the end of the op list | DAG `add` is idempotent: duplicate hash is silently ignored; client state unchanged | `evil_relay_replay_old_op_is_harmless` | **Harmless** (idempotent) |
+| 13 | Serve honest ops but no head | Malicious relay | Return `None` head | Engine accepts new ops without head update; next sync will catch up | (implicit in `two_device_concurrent_edits_converge`) | **Harmless at transport layer** |
+| 14 | Withhold a subset of ops from one device to cause a fork | Malicious relay | Return ops[0..k] only (head omitted or matching) | Missing parents are detected on the next full pull; the DAG cannot commit tips it doesn't have | `evil_relay_truncate_ops_is_detected` | **Blocked** |
+
+### New risks recorded
+
+| Risk | Severity | Status |
+|---|---|---|
+| R-0501 — A malicious relay that withholds ops indefinitely can delay convergence, but cannot forge or corrupt data; a future Phase 13 pull-proof mechanism is the mitigation | low | Open — Phase 13 |
+| R-0502 — `FolderTransport` conflicted-copy files accumulate on disk if two writers collide; the engine tolerates them but disk quota can fill | low | Accepted (no production use until Phase 9) |
+| R-0503 — `HttpRelayTransport` does not retry on transient network errors; the engine retries on the next sync cycle, which may be minutes later | low | Accepted (offline-first design handles this) |
+
 <!-- THREAT-END -->

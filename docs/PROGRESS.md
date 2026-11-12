@@ -496,3 +496,81 @@ Applied in response to founder review of PR #47:
 
 
 
+
+## Phase 5 — Sync engine and evil-relay harness
+
+- **Status:** In review
+- **Branch:** `phase-05-sync` · **Issue:** #11 · **Milestone:** Phase 5
+
+### What changed
+
+- **Sync engine (`core/src/sync/`).** Five modules:
+  - `transport.rs` — `Transport` trait (push/pull/put_head), `SyncError` (12
+    variants: `MissingParent`, `RollbackDetected`, `ForkDetected`,
+    `HeadReferencesUnknownOp`, `OpVerificationFailed`, `HeadVerificationFailed`,
+    `StorageFull`, `MalformedPayload`, `Conflict`, `Io`, `Network`,
+    `Unauthorized`), `VaultOps` return type, `NO_HEAD` sentinel.
+  - `memory.rs` — `MemoryTransport` with `inject_raw_op` (update-capable for
+    tamper tests) and `set_raw_head`; 5 unit tests.
+  - `folder.rs` — `FolderTransport` (non-wasm, atomic writes via temp file +
+    rename, conflicted-copy tolerance); 3 unit tests.
+  - `engine.rs` — `SyncEngine` + `VaultSyncState`; full
+    pull → verify → merge → check-head → push → put-head cycle; offline-first
+    pending queue (`enqueue`); 4 unit tests.
+  - `http.rs` — `HttpRelayTransport` (non-wasm, `reqwest` blocking + rustls-tls
+    + json; D-0501); no unit tests (integration only, Phase 6+).
+- **Evil-relay harness (`test-harness/`).**
+  - `src/fixture.rs` — two-device `Fixture` with `make_op`, `genesis`,
+    `engine`, `state1/2`, `two_op_history`, `loaded_dag`.
+  - `src/evil_relay.rs` — `EvilRelay` wrapping `MemoryTransport` with 14
+    `Attack` variants (Honest, DropOps, ReorderOps, ReplayOldOp, RollbackHead,
+    ForkHead, SwapCiphertext, FlipBit, StripSignature, SubstituteDeviceCert,
+    WrongVaultId, DowngradeSuite, TruncateOps, GhostHeadEntry) and snapshot
+    machinery for rollback tests.
+  - `tests/evil_relay_tests.rs` — **14 named evil-relay attack tests** (all
+    named `evil_relay_<attack>_is_detected` or `evil_relay_…_is_harmless`) plus
+    `offline_device_catches_up`, `two_device_concurrent_edits_converge`,
+    `three_device_concurrent_edits_converge`.
+  - `examples/evil_relay_show.rs` — coloured terminal table that runs every
+    attack variant against a fresh two-op history.
+- **Docs.**
+  - `docs/DECISIONS.md` D-0501 (transport crate set: reqwest/rustls-tls,
+    tempfile).
+  - `docs/THREAT_MODEL.md` §19 (14 evil-relay vectors, all with named tests;
+    R-0501–R-0503).
+
+### How to try it
+
+```powershell
+# Run all tests (246 core + 14 evil-relay + 3 multi-device + rest = 335 total)
+.\x.ps1 "CARGO_INCREMENTAL=0 cargo test --all"
+
+# Watch the attack table in colour
+.\x.ps1 "cargo run -p studge-test-harness --example evil_relay_show"
+```
+
+### Test results
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test --all` | **335 passed, 0 failed, 2 ignored** |
+| `cargo deny check` | advisories ok, bans ok, licenses ok, sources ok |
+| `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` | pass |
+
+### Self-attack review
+
+14 vectors in `docs/THREAT_MODEL.md §19`; 13 blocked by named tests (1 is
+harmless/idempotent by design); 3 new risks recorded (R-0501–R-0503), all low.
+
+### Known gaps and follow-ups
+
+- **`HttpRelayTransport` integration test** — requires a live relay; deferred to
+  Phase 6 (CLI). The unit structure is tested indirectly through `MemoryTransport`.
+- **`FolderTransport` is not yet wired to any user-facing component** — arrives
+  in Phase 9 (desktop local storage).
+- Phase 11 will add `ik`/`item-field` records and a decrypted in-memory cache
+  (Phase 3 follow-up).
+- R-0501 pull-proof mechanism deferred to Phase 13.
+

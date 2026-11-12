@@ -1,118 +1,98 @@
 {
   "phase": {
-    "id": 4,
-    "name": "Relay server",
-    "branch": "phase-04-relay",
-    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/47"
+    "id": 5,
+    "name": "Sync engine and evil-relay harness",
+    "branch": "phase-05-sync",
+    "pr_url": "https://github.com/lnstudge/Studge-Pass/pull/48"
   },
   "steps": [
     {
       "n": 1,
-      "title": "Branch, plan, pinned dependencies (D-0401), config, scaffold",
+      "title": "Branch, plan, Transport trait + SyncError",
       "state": "done",
-      "summary": "Branch phase-04-relay from main (Phases 0-3 merged as fbb5640). Twelve-step plan written. Relay deps pinned (D-0401): opaque-ke 4.0.1 (ristretto255, identity KSF per D-0102), sqlx 0.9, axum 0.8, tower-governor 0.8, tower-http 0.7. rusqlite 0.39 in core so libsqlite3-sys unifies with sqlx in one binary. Config from TOML + STUDGE_RELAY_* env with strict unknown-key rejection; generic error model (SPEC 7.8); security headers; request timeout with the JSON error shape.",
+      "summary": "Branched phase-05-sync from phase-04-relay (merged as 54c863b). core/src/sync/ module directory created. transport.rs: Transport trait (push/pull/put_head), SyncError (12 variants), VaultOps, NO_HEAD sentinel.",
       "commit_sha": null
     },
     {
       "n": 2,
-      "title": "OPAQUE in core + register/login with the dummy flow",
+      "title": "MemoryTransport + inject_raw_op",
       "state": "done",
-      "summary": "OPAQUE wrappers in core (commit 8c2b9bd). register/start, register/finish, login/start, login/finish, logout. Dummy exchange for unknown accounts (D-0113).",
-      "commit_sha": "85c40b0"
-    },
-    {
-      "n": 3,
-      "title": "Sessions: tokens, SHA-256 storage, device binding, revocation",
-      "state": "done",
-      "summary": "256-bit OsRng tokens, stored as SHA-256. 24-hour expiry. Device-bound. Login-state table (0002). take_login_state is atomic DELETE-RETURNING.",
-      "commit_sha": "85c40b0"
-    },
-    {
-      "n": 4,
-      "title": "Storage: sqlx SQLite migrations and the store",
-      "state": "done",
-      "summary": "migrations/0001 (accounts, devices, vaults, ops, sessions, counters) + 0002 (login_states). RelayStore with all required methods.",
-      "commit_sha": "79eb93f"
-    },
-    {
-      "n": 5,
-      "title": "Account and device endpoints",
-      "state": "done",
-      "summary": "GET/PUT/DELETE /v1/account (If-Match versioning), POST /v1/devices (certificate + enrolment proof), DELETE /v1/devices/{id} (signed revocation).",
-      "commit_sha": "85c40b0"
-    },
-    {
-      "n": 6,
-      "title": "Vault endpoints: ops push/fetch, head compare-and-swap",
-      "state": "done",
-      "summary": "POST/GET /v1/vaults/{id}/ops (append-only, idempotent, paginated, implicit vault creation). GET/PUT /v1/vaults/{id}/head (CAS with If-Match).",
-      "commit_sha": "9d6205b"
-    },
-    {
-      "n": 7,
-      "title": "Quotas and rate limits",
-      "state": "done",
-      "summary": "Per-IP and per-account fixed-window counters. Storage quota check before every push. All limits from SPEC §7.7 enforced.",
-      "commit_sha": "85c40b0"
-    },
-    {
-      "n": 8,
-      "title": "Hardening: headers, CORS, timeouts, log hygiene",
-      "state": "done",
-      "summary": "Security headers on every response (nosniff, no-store, no-referrer, DENY, CSP). 30-second request timeout. Generic errors (§7.8). CorsLayer wired in app() with strict allowlist (8363cd3).",
-      "commit_sha": "8363cd3"
-    },
-    {
-      "n": 9,
-      "title": "Docs: relay-api, relay-asvs, Caddy, Docker",
-      "state": "done",
-      "summary": "docs/relay-api.md (all endpoints, examples). docs/relay-asvs.md (ASVS 4.0 Level 3). Dockerfile (multi-stage, non-root). docker-compose.yml + Caddyfile.",
-      "commit_sha": "0d2a8c7"
-    },
-    {
-      "n": 10,
-      "title": "Integration tests on a random port",
-      "state": "done",
-      "summary": "11 black-box HTTP tests: register/login, wrong password, duplicate account, logout, vault ops push/fetch, head CAS conflict, vault isolation, malformed inputs. 301 total tests, 0 failed.",
-      "commit_sha": "9d6205b"
-    },
-    {
-      "n": 11,
-      "title": "relay_tour demo and the preview Relay section",
-      "state": "skipped",
-      "summary": "Planned but not completed (turn limit reached). Follow-up issue to be filed.",
+      "summary": "memory.rs: MemoryTransport with BTreeMap ops store, inject_raw_op (insert+update for tamper tests), set_raw_head, truncate_ops. 5 unit tests.",
       "commit_sha": null
     },
     {
-      "n": 12,
-      "title": "PROGRESS, self-attack review, issues, PR",
+      "n": 3,
+      "title": "FolderTransport (atomic writes, conflicted-copy tolerance)",
       "state": "done",
-      "summary": "PROGRESS.md updated. THREAT_MODEL.md §18: 14 vectors, 12 blocked, 5 new risks R-0401..R-0405. Security issues #43-#46 filed. PR #47 opened. CORS wired. deny.toml RUSTSEC-2026-0387 excepted.",
-      "commit_sha": "8363cd3"
+      "summary": "folder.rs: non-wasm file-based transport. Ops stored as CBOR files; head as a JSON file. Atomic writes via temp-file + rename. Conflicted copies tolerated. 3 unit tests.",
+      "commit_sha": null
+    },
+    {
+      "n": 4,
+      "title": "SyncEngine + VaultSyncState",
+      "state": "done",
+      "summary": "engine.rs: SyncEngine::sync() — pull → verify → merge into DAG → check_head_update → push pending → put_head. VaultSyncState holds the local DAG, pending queue and pinned head. Offline-first: enqueue works before any sync. 4 unit tests.",
+      "commit_sha": null
+    },
+    {
+      "n": 5,
+      "title": "HttpRelayTransport (reqwest blocking, rustls-tls)",
+      "state": "done",
+      "summary": "http.rs: non-wasm HTTP transport. JSON + CBOR over the relay's /v1/vaults/:id/ops and /v1/vaults/:id/head routes. No unit tests (integration deferred to Phase 6). D-0501 records the crate set.",
+      "commit_sha": null
+    },
+    {
+      "n": 6,
+      "title": "Test-harness fixture + EvilRelay (14 attack variants)",
+      "state": "done",
+      "summary": "test-harness/src/fixture.rs: two-device Fixture (make_op, genesis, engine, state1/2, two_op_history, loaded_dag). test-harness/src/evil_relay.rs: EvilRelay wrapping MemoryTransport with 14 Attack variants and head-snapshot machinery.",
+      "commit_sha": null
+    },
+    {
+      "n": 7,
+      "title": "14 evil-relay attack tests + 3 multi-device simulation tests",
+      "state": "done",
+      "summary": "tests/evil_relay_tests.rs: evil_relay_rollback_is_detected, evil_relay_ghost_head_entry_is_detected, evil_relay_reordered_ops_cause_missing_parent, evil_relay_stripped_signature_is_detected, evil_relay_flipped_bit_is_detected, evil_relay_substitute_device_cert_is_detected, evil_relay_downgrade_suite_is_detected, evil_relay_truncate_ops_is_detected, evil_relay_replay_old_op_is_harmless, evil_relay_honest_passthrough_succeeds, evil_relay_swapped_ciphertext_is_detected, plus two_device_concurrent_edits_converge, three_device_concurrent_edits_converge, offline_device_catches_up. All 14 pass.",
+      "commit_sha": null
+    },
+    {
+      "n": 8,
+      "title": "evil_relay_show example, D-0501, THREAT_MODEL §19, PROGRESS, status.json",
+      "state": "done",
+      "summary": "examples/evil_relay_show.rs: coloured terminal table running all 13 attack variants. docs/DECISIONS.md D-0501. docs/THREAT_MODEL.md §19: 14 vectors, named tests, R-0501..R-0503. docs/PROGRESS.md Phase 5 entry. status.json updated to Phase 5.",
+      "commit_sha": null
+    },
+    {
+      "n": 9,
+      "title": "cargo deny check, commit, push, PR #48",
+      "state": "in-progress",
+      "summary": "Final checks and PR opening.",
+      "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 301,
+      "passed": 335,
       "failed": 0,
       "ignored": 2
     },
-    "deny": "pass",
-    "updated_at": "2026-11-06T04:20:00Z"
+    "deny": "pending",
+    "updated_at": "2026-11-06T05:00:00Z"
   },
   "commits": [],
   "screenshots": [],
   "try_it": [
     {
-      "label": "Start the relay",
-      "command_or_url": ".\\x.ps1 \"cargo run -p studge-relay\"",
-      "expect": "studge-relay listening on http://127.0.0.1:8787; GET /health answers {\"status\":\"ok\"}."
+      "label": "Run all tests",
+      "command_or_url": ".\\x.ps1 \"CARGO_INCREMENTAL=0 cargo test --all\"",
+      "expect": "335 passed, 0 failed, 2 ignored."
     },
     {
-      "label": "Open the dashboard",
-      "command_or_url": ".\\x.ps1 \"pnpm preview\"  then http://localhost:4400"
+      "label": "Evil-relay attack table",
+      "command_or_url": ".\\x.ps1 \"cargo run -p studge-test-harness --example evil_relay_show\"",
+      "expect": "Coloured table showing 13 attacks detected/blocked."
     }
   ],
   "risks": [
@@ -120,36 +100,6 @@
       "title": "R-0001 — CodeQL code scanning skipped while the repository is private (issue #23)",
       "severity": "medium",
       "status": "open"
-    },
-    {
-      "title": "R-0103 — A cloned VM or broken RNG could repeat a nonce; mitigated by OsRng-only random and no software fallback",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0108 — A weak master password plus a stolen Secret Key allows offline guessing; Argon2id 64 MiB/t=3/p=1 is the mitigation",
-      "severity": "medium",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0116 — Vault-key wrapping is X25519-only; hpke 0.15 now ships X-Wing, so Phase 11 can switch",
-      "severity": "low",
-      "status": "open"
-    },
-    {
-      "title": "R-0117 — test-vectors feature exposes fixed-nonce sealing; documented test-only, never in release builds",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0118 — The Secret Key check character is 5 bits: a typo inside the alphabet has a 1-in-32 chance of passing and then fails safely at the MUK",
-      "severity": "low",
-      "status": "accepted"
-    },
-    {
-      "title": "R-0119 — HPKE base mode gives no sender authentication; correct for vault-key wrapping, must not be presented as authentication",
-      "severity": "low",
-      "status": "accepted"
     },
     {
       "title": "R-0401 — No email notification on account lockout; rate limit enforced, notification is Phase 8 (issue #43)",
@@ -170,6 +120,21 @@
       "title": "R-0405 — crypto-bigint 0.5.5 timing side-channel (RUSTSEC-2026-0387) via opaque-ke; ristretto255 hot paths use curve25519-dalek not crypto-bigint (D-0402); excepted in deny.toml (issue #46)",
       "severity": "low",
       "status": "open"
+    },
+    {
+      "title": "R-0501 — A malicious relay that withholds ops indefinitely can delay convergence; pull-proof mechanism deferred to Phase 13",
+      "severity": "low",
+      "status": "open"
+    },
+    {
+      "title": "R-0502 — FolderTransport conflicted-copy files accumulate on disk if two writers collide; accepted (no production use until Phase 9)",
+      "severity": "low",
+      "status": "accepted"
+    },
+    {
+      "title": "R-0503 — HttpRelayTransport does not retry on transient network errors; accepted (offline-first design handles this)",
+      "severity": "low",
+      "status": "accepted"
     }
   ],
   "links": [
@@ -178,28 +143,16 @@
       "url": "https://github.com/lnstudge/Studge-Pass"
     },
     {
-      "label": "AGENTS.md (rulebook)",
-      "url": "https://github.com/lnstudge/Studge-Pass/blob/main/AGENTS.md"
+      "label": "Phase 5 tracking issue #11",
+      "url": "https://github.com/lnstudge/Studge-Pass/issues/11"
     },
     {
-      "label": "docs/SPEC.md",
+      "label": "docs/SPEC.md §6 (op log) / §7.10 (transports)",
       "url": "/SPEC.md"
     },
     {
-      "label": "Phase 4 PR #47",
-      "url": "https://github.com/lnstudge/Studge-Pass/pull/47"
-    },
-    {
-      "label": "Phase 4 tracking issue #10",
-      "url": "https://github.com/lnstudge/Studge-Pass/issues/10"
-    },
-    {
-      "label": "docs/relay-api.md",
-      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-api.md"
-    },
-    {
-      "label": "docs/relay-asvs.md",
-      "url": "https://github.com/lnstudge/Studge-Pass/blob/phase-04-relay/docs/relay-asvs.md"
+      "label": "docs/THREAT_MODEL.md §19 (evil-relay attacks)",
+      "url": "/THREAT_MODEL.md"
     }
   ],
   "oplog": {
@@ -208,7 +161,7 @@
       "70f3a47b",
       "65997233"
     ],
-    "note": "From `cargo run -p studge-core --example vault_tour`: five signed item ops, then two devices editing the same login offline. Metadata only; the node labels carry no vault content.",
+    "note": "From Phase 3 vault_tour: five signed item ops, two-device concurrent edit. Metadata only.",
     "nodes": [
       {
         "hash": "c3e54ef8",
@@ -222,54 +175,42 @@
         "kind": "create",
         "lamport": 2,
         "device": "d1d1d1d1",
-        "parents": [
-          "c3e54ef8"
-        ]
+        "parents": ["c3e54ef8"]
       },
       {
         "hash": "6370066d",
         "kind": "create",
         "lamport": 3,
         "device": "d1d1d1d1",
-        "parents": [
-          "29957072"
-        ]
+        "parents": ["29957072"]
       },
       {
         "hash": "2e0f1186",
         "kind": "create",
         "lamport": 4,
         "device": "d1d1d1d1",
-        "parents": [
-          "6370066d"
-        ]
+        "parents": ["6370066d"]
       },
       {
         "hash": "b1c62734",
         "kind": "create",
         "lamport": 5,
         "device": "d1d1d1d1",
-        "parents": [
-          "2e0f1186"
-        ]
+        "parents": ["2e0f1186"]
       },
       {
         "hash": "70f3a47b",
         "kind": "update",
         "lamport": 6,
         "device": "d1d1d1d1",
-        "parents": [
-          "b1c62734"
-        ]
+        "parents": ["b1c62734"]
       },
       {
         "hash": "65997233",
         "kind": "update",
         "lamport": 6,
         "device": "d2d2d2d2",
-        "parents": [
-          "b1c62734"
-        ]
+        "parents": ["b1c62734"]
       }
     ]
   }
