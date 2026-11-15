@@ -110,10 +110,16 @@ impl Transport for HttpRelayTransport {
             return Err(SyncError::Io(format!("push: HTTP {}", resp.status())));
         }
         let body: serde_json::Value = resp.json().map_err(|_| SyncError::MalformedPayload)?;
+        // The "accepted" field is mandatory: a relay that omits it is malformed,
+        // and a count that does not match the ops we sent means some ops are
+        // still pending and must stay queued.
         let accepted = body
             .get("accepted")
             .and_then(|v| v.as_u64())
-            .unwrap_or(ops.len() as u64) as usize;
+            .ok_or(SyncError::MalformedPayload)? as usize;
+        if accepted != ops.len() {
+            return Err(SyncError::MalformedPayload);
+        }
         Ok(accepted)
     }
 
