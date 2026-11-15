@@ -673,3 +673,25 @@ with the approved SPEC; the founder approves them by merging PR #47.
 - **Affects:** `Cargo.toml` (workspace), `core/Cargo.toml`,
   `sync-transports/Cargo.toml`, `test-harness/Cargo.toml`.
   **Status:** Approved by founder (at the merge of PR #54).
+
+## D-0601 — Maximum 100 devices per account (proposed)
+
+- **Decision:** An account may have at most 100 enrolled (non-revoked) devices.
+  Enrolling the 101st device is refused with `413`/`quota_exceeded`.
+
+- **Context:** Device enrolment is the only path that grows per-account state
+  without a vault; an unbounded count lets an attacker exhaust storage and
+  session capacity.  The relay already caps vaults (SPEC §7.7); devices need
+  the same bound.
+
+- **Options considered:**
+  - No limit: simplest, but leaves a resource-exhaustion vector.
+  - 100 devices per account (proposed): matches the vault cap and is far above
+    any realistic household or small-team size.
+
+- **Choice:** Cap at 100 devices per account, enforced before any write, with
+  `413`/`quota_exceeded` when exceeded.
+
+- **Affects:** `relay/src/routes/account.rs` (`enrol_device`), `relay/src/store.rs`
+  (`add_device`, new `device_count`).
+  **Status:** Proposed

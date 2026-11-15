@@ -491,6 +491,24 @@ impl RelayStore {
         .await
     }
 
+    /// Number of devices enrolled for an account (revoked or not).
+    pub async fn device_count(&self, account_id: &[u8]) -> Result<i64, ApiError> {
+        let account_id = account_id.to_vec();
+        self.with_conn(move |conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM devices WHERE account_id = ?1",
+                [&account_id as &dyn rusqlite::ToSql],
+                |row| row.get::<_, i64>(0),
+            )
+        })
+        .await
+    }
+
+    /// Alias for [`device_count`].
+    pub async fn count_devices(&self, account_id: &[u8]) -> Result<i64, ApiError> {
+        self.device_count(account_id).await
+    }
+
     /// Marks a device revoked and deletes its sessions in one transaction.
     pub async fn revoke_device(
         &self,
