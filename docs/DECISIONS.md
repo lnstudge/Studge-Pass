@@ -695,3 +695,45 @@ with the approved SPEC; the founder approves them by merging PR #47.
 - **Affects:** `relay/src/routes/account.rs` (`enrol_device`), `relay/src/store.rs`
   (`add_device`, new `device_count`).
   **Status:** Approved by founder (at the merge of PR #57).
+
+## D-0602 - CLI crates
+
+- **Decision:** The `studge` CLI uses `clap 4` (derive), `rpassword 7`,
+  `arboard 3`, `keyring 4` (platform-native backends only), `anyhow 1`,
+  `blake3 1`, `zeroize 1`, `thiserror 2`, `serde`/`serde_json`. Dev-only:
+  `assert_cmd`, `predicates`, `tempfile`.
+
+- **Context:** Phase 6 command-line client.
+
+- **Choice:** Platform-native keyring backends only; no OpenSSL.
+
+- **Affects:** `cli/Cargo.toml`.
+  **Status:** Proposed.
+
+## D-0603 - CLI session design
+
+- **Decision:** A session stores only a random 32-byte session key in the OS
+  credential store, plus a session file holding the Account Key sealed under
+  that session key (record type `session/ak`, account-scoped) with an expiry
+  timestamp and device id inside the sealed plaintext. Default expiry 10
+  minutes, configurable. The master password is never stored. The Secret Key
+  may stay in the OS store and `lock` does not delete it.
+
+- **Context:** Review fix for PR #58.
+
+- **Choice:** Session key used only for this one record.
+
+- **Affects:** `cli/src/session.rs`, `core/src/crypto/aad.rs`.
+  **Status:** Proposed.
+
+## D-0604 - --password-stdin replaces STUDGE_PASSWORD
+
+- **Decision:** Remove the `STUDGE_PASSWORD` environment variable. Add
+  `--password-stdin` to password-reading commands.
+
+- **Context:** Review fix for PR #58.
+
+- **Choice:** `--password-stdin` flag.
+
+- **Affects:** `cli/src/commands/*.rs`.
+  **Status:** Proposed.

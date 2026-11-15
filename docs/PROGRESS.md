@@ -619,3 +619,13 @@ Applied in response to founder review of PR #54:
 - Relay follow-up: cap_audit_table no longer deletes active counters; returns RateLimited when over cap.
 - Tests: cargo test --all, clippy -D warnings, fmt, deny, wasm build all pass.
 - Known gaps: add/edit/rm/sync/import/export/devices/config not yet fully implemented; recorded as follow-ups.
+## Phase 6 review fixes
+
+- Removed master password storage; session now seals Account Key under a random
+  session key with authenticated expiry. lock keeps the Secret Key.
+- Clipboard clearing moved to a detached child process with hash compare.
+- Removed STUDGE_PASSWORD; added --password-stdin.
+- keyring uses platform-native backends only; cargo deny passes with no new
+  ignores.
+- Rate-limit purge window 1 hour, cap 100,000.
+- Added D-0602, D-0603, D-0604 (Proposed).

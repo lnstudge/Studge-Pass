@@ -419,3 +419,13 @@ The following bugs were found in the PR review and fixed before merge:
 8. Path traversal in home: STUDGE_HOME user-controlled; acceptable for local user.
 9. Clipboard thread panic: ignored.
 10. Device key seed stored as hex in config: config file on disk contains device signing seed; this is a secret at rest. Risk recorded: future work should move device key to OS keyring.
+## Phase 6 review fixes
+
+R-0601: Master password never stored; only a random session key and a sealed
+Account Key with authenticated expiry. Verified by design.
+R-0602: Clipboard cleared by detached child process comparing a blake3 hash;
+value never on command line or in env.
+R-0603: STUDGE_PASSWORD removed; --password-stdin added.
+R-0604: Rate-limit purge window shortened to 1 hour; cap raised to 100,000.
+R-0605: keyring uses platform-native backends; no zbus/zvariant compiled.
+R-0606: CodeQL alert in status.rs: account_id is not secret (SPEC section 3).
