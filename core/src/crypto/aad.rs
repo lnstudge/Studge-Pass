@@ -63,6 +63,8 @@ impl BundleEntry {
 pub enum RecordType {
     /// The wrapped Account Key.
     Ak,
+    /// A CLI session: the Account Key sealed under a per-session key.
+    Session,
     /// One entry of the account key bundle.
     Bundle(BundleEntry),
     /// A vault key wrapped for its owner.
@@ -96,6 +98,7 @@ impl RecordType {
     pub fn as_str(self) -> String {
         match self {
             Self::Ak => "ak".to_string(),
+            Self::Session => "session/ak".to_string(),
             Self::Bundle(entry) => format!("bundle/{}", entry.as_str()),
             Self::VkOwner => "vk-owner".to_string(),
             Self::VkShare => "vk-share".to_string(),
@@ -116,7 +119,12 @@ impl RecordType {
     fn account_scoped(self) -> bool {
         matches!(
             self,
-            Self::Ak | Self::Bundle(_) | Self::RecoveryShare | Self::EmergencyGrant | Self::KtEntry
+            Self::Ak
+                | Self::Session
+                | Self::Bundle(_)
+                | Self::RecoveryShare
+                | Self::EmergencyGrant
+                | Self::KtEntry
         )
     }
 

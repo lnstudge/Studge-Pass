@@ -375,6 +375,11 @@ impl UnlockedAccount {
         self.head_pins.get(vault_id)
     }
 
+    /// The raw Account Key bytes (used by the CLI to seal a session).
+    pub fn account_key_bytes(&self) -> [u8; 32] {
+        *self.account_key.as_bytes()
+    }
+
     /// Re-seals every bundle entry into a fresh [`AccountBundle`].
     pub fn seal(&self) -> CoreResult<AccountBundle> {
         let key = key_bundle_key(&self.account_key, &self.account_id)?;
@@ -446,6 +451,58 @@ impl UnlockedAccount {
 }
 
 /// Unlocks an account with the password and the Secret Key (SPEC §4.3–§4.5).
+/// Builds a device registry from a bundle using an already-unwrapped account key.
+pub fn device_registry_from_bundle(
+    account_key: &crate::crypto::keys::AccountKey,
+    bundle: &AccountBundle,
+) -> CoreResult<crate::oplog::devices::DeviceRegistry> {
+    let key = key_bundle_key(account_key, &bundle.account_id)?;
+    let open_entry = |entry: BundleEntry| -> CoreResult<Zeroizing<Vec<u8>>> {
+        let envelope = bundle.entry(entry).ok_or(CoreError::InvalidBundle)?;
+        let aad = Aad::builder(RecordType::Bundle(entry))
+            .account(bundle.account_id)
+            .build()?;
+        Ok(aead::open(&key, &aad, envelope)?)
+    };
+    let signing_bytes = open_entry(BundleEntry::IdentitySigning)?;
+    if signing_bytes.len() != 32 {
+        return Err(CoreError::InvalidLength {
+            expected: 32,
+            actual: signing_bytes.len(),
+        });
+    }
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&signing_bytes);
+    let identity_signing = SigningKeyPair::from_seed(seed);
+    let identity_public = identity_signing.public_bytes();
+
+    let mut devices = DeviceRegistry::new(bundle.account_id, identity_public);
+    let device_value = ciborium_value(&open_entry(BundleEntry::DeviceList)?)?;
+    let pairs = map_pairs(&device_value)?;
+    if pairs.len() != 2 {
+        return Err(CoreError::InvalidBundle);
+    }
+    let now = Timestamp::now()?;
+    for (name, value) in pairs {
+        match name.as_str() {
+            "certs" => {
+                for entry in as_array(value)? {
+                    let cert = DeviceCertificate::from_cbor(crate::cbor::as_bytes(entry)?)?;
+                    devices.certify(&cert, &now)?;
+                }
+            }
+            "revocations" => {
+                for entry in as_array(value)? {
+                    let revocation = DeviceRevocation::from_cbor(crate::cbor::as_bytes(entry)?)?;
+                    devices.revoke(&revocation)?;
+                }
+            }
+            _ => return Err(CoreError::InvalidBundle),
+        }
+    }
+    Ok(devices)
+}
+
 pub fn unlock(
     password: &str,
     secret_key: &SecretKey,
