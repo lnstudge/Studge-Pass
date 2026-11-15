@@ -71,6 +71,19 @@ pub async fn push_ops(
         return Err(ApiError::QuotaExceeded);
     }
 
+    // SPEC §7.7: at most 100 vaults per account. A brand-new vault id counts
+    // against the cap; re-pushing to an already-owned vault does not.
+    if state
+        .store()
+        .vault_owner(&vault_id)
+        .await?
+        .is_none()
+        && state.store().vault_count(&session.account_id).await? >= 100
+    {
+        tracing::warn!("vault quota exceeded");
+        return Err(ApiError::QuotaExceeded);
+    }
+
     // Idempotency (SPEC §7.4): the same bytes for the same (vault, op_id) are
     // accepted silently; different bytes under the same op_id are a conflict.
     // The lookup is scoped to this account, so another account's op ids never
