@@ -24,9 +24,14 @@ enum Command {
         relay: Option<String>,
         #[arg(long)]
         folder: Option<String>,
+        #[arg(long)]
+        password_stdin: bool,
     },
     Login,
-    Unlock,
+    Unlock {
+        #[arg(long)]
+        password_stdin: bool,
+    },
     Lock,
     Status,
     Sync,
@@ -40,6 +45,8 @@ enum Command {
         field: Option<String>,
         #[arg(long)]
         print: bool,
+        #[arg(long)]
+        password_stdin: bool,
     },
     Add {
         #[command(subcommand)]
@@ -78,6 +85,10 @@ enum Command {
         action: DeviceAction,
     },
     Config,
+    #[command(name = "__clear-clipboard", hide = true)]
+    ClearClipboard {
+        hash: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -101,9 +112,13 @@ fn main() {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
-        Command::Init { relay, folder } => commands::init::run(relay, folder),
+        Command::Init {
+            relay,
+            folder,
+            password_stdin,
+        } => commands::init::run(relay, folder, password_stdin),
         Command::Login => commands::login::run(),
-        Command::Unlock => commands::unlock::run(),
+        Command::Unlock { password_stdin } => commands::unlock::run(password_stdin),
         Command::Lock => commands::lock::run(),
         Command::Status => commands::status::run(),
         Command::Sync => commands::sync::run(),
@@ -112,7 +127,8 @@ fn run(cli: Cli) -> Result<()> {
             query,
             field,
             print,
-        } => commands::get::run(query, field, print),
+            password_stdin,
+        } => commands::get::run(query, field, print, password_stdin),
         Command::Add { kind } => match kind {
             AddKind::Login => commands::add_login::run(),
         },
@@ -136,5 +152,6 @@ fn run(cli: Cli) -> Result<()> {
             DeviceAction::Revoke { device } => commands::devices::revoke(device),
         },
         Command::Config => commands::config::run(),
+        Command::ClearClipboard { hash } => commands::clear_clipboard::run(hash),
     }
 }

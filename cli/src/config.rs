@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub account_id: Option<String>,
     pub device_id: Option<String>,
+    pub identity_public: Option<String>,
     pub vault_id: Option<String>,
     pub relay_url: Option<String>,
     pub folder_path: Option<String>,
