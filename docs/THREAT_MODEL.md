@@ -352,21 +352,41 @@ that verifies the claim.
 | # | Vector | Attacker | Transport-layer behaviour | Detection mechanism | Test | Verdict |
 |---|---|---|---|---|---|---|
 | 1 | Rollback the head to a previous snapshot after new ops exist | Malicious relay | Serve an old (signed) `VaultHead` with all ops | `check_head_update` detects the rollback (new head is an ancestor of pinned) | `evil_relay_rollback_is_detected` | **Blocked** |
-| 2 | Ghost tip: head references an op hash the client has never seen | Malicious relay | Return honest ops + head pointing to `0xEE…EE` | Engine checks every tip in the head against the local DAG after ingesting ops | `evil_relay_ghost_head_entry_is_detected` | **Blocked** |
+| 2 | Ghost tip: head references an op hash the client has never seen | Malicious relay | Return honest ops + head pointing to `0xEE…EE` | Engine checks every tip in the head against the staged DAG | `evil_relay_ghost_head_entry_is_detected` | **Blocked** |
 | 3 | Reorder ops (children before parents) | Malicious relay | Reverse the op list | DAG `add` rejects an op whose parent is not yet in the DAG → `MissingParent` | `evil_relay_reordered_ops_cause_missing_parent` | **Blocked** |
-| 4 | Drop all ops but return the honest head | Malicious relay | Return empty op list + current head | Head references ops we don't have → `HeadReferencesUnknownOp` | `evil_relay_truncate_ops_is_detected` (n=0) | **Blocked** |
+| 4 | Drop all ops but return the honest head | Malicious relay | Return empty op list + current head | Head references ops we don't have → `HeadReferencesUnknownOp` | `evil_relay_drop_ops_is_detected` | **Blocked** |
 | 5 | Truncate op list (return only first n ops) | Malicious relay | Return ops[0..n] + honest head | Head references ops beyond n → `HeadReferencesUnknownOp` | `evil_relay_truncate_ops_is_detected` | **Blocked** |
 | 6 | Swap the CBOR bytes of two ops | Malicious relay | ops[0] ← raw(op[1]), ops[1] ← raw(op[0]) | CBOR re-encode check: op_id / vault_id fields disagree with body → `MalformedPayload`; or child arrives before parent → `MissingParent` | `evil_relay_swapped_ciphertext_is_detected` | **Blocked** |
 | 7 | Flip a bit in an op's payload (AEAD ciphertext) | Malicious relay | Flip a byte near end of raw CBOR | Re-encode check detects modified bytes → `MalformedPayload`; or AEAD decryption fails | `evil_relay_flipped_bit_is_detected` | **Blocked** |
 | 8 | Strip the Ed25519 signature (zero all 64 sig bytes) | Malicious relay | Zero sig bytes in raw CBOR | Re-encode check catches the discrepancy, or `verify()` fails on the zeroed sig | `evil_relay_stripped_signature_is_detected` | **Blocked** |
 | 9 | Substitute device certificate (flip head sig byte) | Malicious relay | Flip byte 40 in the head's raw CBOR (inside the Ed25519 signature) | `VaultHead::verify()` fails → `OpVerificationFailed` | `evil_relay_substitute_device_cert_is_detected` | **Blocked** |
-| 10 | Replace vault_id in op bodies (cross-vault substitution) | Malicious relay | Replace 16-byte vault_id in raw CBOR of every op | Re-encode check: vault_id in AAD disagrees with body bytes → `MalformedPayload` | `evil_relay_swapped_ciphertext_is_detected` (variant) | **Blocked** |
+| 10 | Replace vault_id in op bodies (cross-vault substitution) | Malicious relay | Replace 16-byte vault_id in raw CBOR of every op | Re-encode check: vault_id in AAD disagrees with body bytes → `MalformedPayload` | `evil_relay_wrong_vault_id_is_detected` | **Blocked** |
 | 11 | Downgrade the suite id (`v1` → `v0`) in the head | Malicious relay | Replace CBOR text `"v1"` with `"v0"` in head bytes | `VaultHead::from_cbor` rejects unknown suite → `MalformedPayload` | `evil_relay_downgrade_suite_is_detected` | **Blocked** |
 | 12 | Replay an old op (append it again after the stream) | Malicious relay | Append ops[0] again at the end of the op list | DAG `add` is idempotent: duplicate hash is silently ignored; client state unchanged | `evil_relay_replay_old_op_is_harmless` | **Harmless** (idempotent) |
-| 13 | Serve honest ops but no head | Malicious relay | Return `None` head | Engine accepts new ops without head update; next sync will catch up | (implicit in `two_device_concurrent_edits_converge`) | **Harmless at transport layer** |
-| 14 | Withhold a subset of ops from one device to cause a fork | Malicious relay | Return ops[0..k] only (head omitted or matching) | Missing parents are detected on the next full pull; the DAG cannot commit tips it doesn't have | `evil_relay_truncate_ops_is_detected` | **Blocked** |
+| 13 | Withhold the head when a pin exists | Malicious relay | Return `None` head after client has a pin | Engine detects no-head-with-pin as a rollback → `RollbackDetected` | `evil_relay_withheld_head_is_detected` | **Blocked** |
+| 14 | Withhold a subset of ops from one device to cause a fork | Malicious relay | Return ops[0..k] only + honest head | Missing parents → `MissingParent`; head references unknown ops → `HeadReferencesUnknownOp` | `evil_relay_truncate_ops_is_detected` | **Blocked** |
+| 15 | ForkHead: head references ghost op hash | Malicious relay | Return honest ops + a head whose first tip is a ghost hash | Engine checks all tips against staged DAG → `HeadReferencesUnknownOp` | `evil_relay_fork_head_is_detected` | **Blocked** |
+| 16 | Staged ops discarded on bad head (DAG atomicity) | Malicious relay | Inject a valid-sig op with unknown parent, plus a head pointing to it | Staged DAG rejects the op at step 2 (MissingParent); committed DAG unchanged | `fork_in_staged_ops_leaves_dag_unchanged` | **Blocked** |
+| 17 | Push failure loses pending ops | n/a (I/O error) | `transport.push()` returns `Io` error | Engine restores `pending` queue before returning the error | `pending_ops_restored_on_push_failure` | **Fixed** |
+| 18 | TOFU vault accepted without second-device confirmation | Malicious relay (or logic bug) | First sync pins the head but `is_tofu` stays true until `confirm_head()` | UI must call `confirm_head()` after verification; engine never auto-clears | `is_tofu_true_until_confirm_head_is_called` | **Fixed** |
 
-### New risks recorded
+### Phase 5 Review Fixes (2026-11-15)
+
+The following bugs were found in the PR review and fixed before merge:
+
+| Fix | Description | Named test |
+|---|---|---|
+| Fix 1 | `pub use folder::FolderTransport` in mod.rs was unconditional, breaking the wasm build | (build check) |
+| Fix 2 | `FolderTransport` / `HttpRelayTransport` moved to `studge-sync-transports`; `reqwest` removed from core; `sync()` takes `now: Timestamp` parameter | (build check + all tests) |
+| Fix 3a | Pending ops were drained before `transport.push()` and lost on `Io` error | `pending_ops_restored_on_push_failure` |
+| Fix 3b | Withheld head (None) was silently accepted when a pin exists | `withheld_head_is_detected_when_pin_exists`, `evil_relay_withheld_head_is_detected` |
+| Fix 3c | Pulled ops merged into the committed DAG before head checks | `fork_in_staged_ops_leaves_dag_unchanged` |
+| Fix 3d | TOFU flag cleared on first sync instead of requiring `confirm_head()` | `is_tofu_true_until_confirm_head_is_called` |
+| Fix 3e | Pull cursor used only the first DAG head, missing concurrent branches | `sync_with_two_concurrent_heads_fetches_all_ops` |
+| Fix 4 | `ForkHead`, `DropOps`, `WrongVaultId` had no named evil-relay tests | `evil_relay_fork_head_is_detected`, `evil_relay_drop_ops_is_detected`, `evil_relay_wrong_vault_id_is_detected` |
+| Fix 5 | D-0501 incorrectly said "Approved by founder" | `docs/DECISIONS.md` updated to "Status: Proposed" |
+
+### Risks
 
 | Risk | Severity | Status |
 |---|---|---|
