@@ -39,6 +39,8 @@ Never run `sudo`; never `apt-get` without providing the exact `wsl -u root` comm
 2. After every logical step: run fast checks, `git add <specific files>`,
    inspect `git diff --cached` for secrets, `git commit -s -m "type(scope): msg"`.
 3. Never push to main. Never force-push. Never rewrite pushed history.
+   The founder is the sole author: no `Co-authored-by:`, no `Signed-off-by:` for any
+   other name, no "Generated with" or other agent/tool attribution in commits or PRs.
 4. Open PR with `gh pr create`; stop and wait for founder review — do not merge.
 
 ## Before every commit
