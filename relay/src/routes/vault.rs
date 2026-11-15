@@ -41,14 +41,8 @@ pub async fn push_ops(
 ) -> ApiResult<Response> {
     let vault_id = hex_id16(&vault_hex)?;
     require_media_type(&headers, "application/cbor")?;
-    // SPEC §7.4: the first push creates the vault row implicitly (ensure_vault
-    // is INSERT OR IGNORE, so it is a no-op on subsequent pushes).
-    state
-        .store()
-        .ensure_vault(&session.account_id, &vault_id)
-        .await?;
 
-    // SPEC §7.7: pushes are limited per account per minute.
+    // SPEC §7.7: pushes are limited per account per minute, before any work.
     let identity = hex(&session.account_id);
     state
         .check_rate(
@@ -58,6 +52,11 @@ pub async fn push_ops(
             state.config().push_per_account_minute,
         )
         .await?;
+
+    // SPEC §7.4 + §7.8: a vault id belongs to exactly one account (R-0601). A
+    // vault owned by someone else answers the same 404 as a vault that does not
+    // exist, and nothing is written.
+    require_vault_available(&state, &session, &vault_id).await?;
 
     let ops = parse_ops(&body, state.config().max_ops_per_push)?;
 
@@ -72,20 +71,31 @@ pub async fn push_ops(
         return Err(ApiError::QuotaExceeded);
     }
 
+    // SPEC §7.7: at most 100 vaults per account. A brand-new vault id counts
+    // against the cap; re-pushing to an already-owned vault does not.
+    if state.store().vault_owner(&vault_id).await?.is_none()
+        && state.store().vault_count(&session.account_id).await? >= 100
+    {
+        tracing::warn!("vault quota exceeded");
+        return Err(ApiError::QuotaExceeded);
+    }
+
     // Idempotency (SPEC §7.4): the same bytes for the same (vault, op_id) are
     // accepted silently; different bytes under the same op_id are a conflict.
+    // The lookup is scoped to this account, so another account's op ids never
+    // answer here (R-0601).
     let mut accepted = 0usize;
     let mut rejected: Vec<(String, &'static str)> = Vec::new();
     let mut rows: Vec<OpRow> = Vec::new();
     let mut max_lamport = 0i64;
     for op in ops {
         if op.body.len() > MAX_OP_BODY_BYTES {
-            rejected.push((op.op_hash, "too_large"));
+            rejected.push((op.op_id, "too_large"));
             continue;
         }
         match state
             .store()
-            .op_hash_for_id(&vault_id, &hex_to_bytes(&op.op_id)?)
+            .op_hash_for_id(&session.account_id, &vault_id, &hex_to_bytes(&op.op_id)?)
             .await?
         {
             Some(existing) if existing == hex_to_bytes(&op.op_hash)? => {
@@ -102,9 +112,22 @@ pub async fn push_ops(
                     lamport: op.lamport,
                     body: op.body.clone(),
                     size: op.body.len() as i64,
+                    device_id: op.device_id,
+                    kind: op.kind,
+                    item_id: op.item_id,
                 });
             }
         }
+    }
+    // The authoritative ownership check, in the same store call that creates
+    // the row: a racing push from another account cannot slip between the check
+    // above and this insert, and the account that loses writes nothing.
+    if !state
+        .store()
+        .claim_vault(&session.account_id, &vault_id)
+        .await?
+    {
+        return Err(ApiError::NotFound);
     }
     if !rows.is_empty() {
         let inserted = state
@@ -126,8 +149,8 @@ pub async fn push_ops(
         .ok_or(ApiError::NotFound)?;
     Ok(Json(json!({
         "accepted": accepted,
-        "rejected": rejected.into_iter().map(|(op_hash, reason)| json!({
-            "op_id": op_hash,
+        "rejected": rejected.into_iter().map(|(op_id, reason)| json!({
+            "op_id": op_id,
             "reason": reason,
         })).collect::<Vec<_>>(),
         "head": vault.head_hash.as_ref().map(|hash| hex(hash)).unwrap_or_default(),
@@ -162,13 +185,16 @@ pub async fn fetch_ops(
             let hash = hex_hash32(hash_hex)?;
             let position = state
                 .store()
-                .op_position(&vault_id, &hash)
+                .op_position(&session.account_id, &vault_id, &hash)
                 .await?
                 .ok_or(ApiError::InvalidRequest)?;
             Some(position)
         }
     };
-    let rows = state.store().ops_after(&vault_id, cursor, limit).await?;
+    let rows = state
+        .store()
+        .ops_after(&session.account_id, &vault_id, cursor, limit)
+        .await?;
     let mut body = Vec::new();
     // A CBOR array of the stored op bytes, exactly as they arrived.
     use ciborium::value::Value;
@@ -287,6 +313,19 @@ async fn require_vault(
     }
 }
 
+/// Refuses a vault id that already belongs to another account, with the same
+/// `404` the relay uses for a vault that does not exist (SPEC §7.8, R-0601).
+async fn require_vault_available(
+    state: &RelayState,
+    session: &Session,
+    vault_id: &[u8; 16],
+) -> Result<(), ApiError> {
+    match state.store().vault_owner(vault_id).await? {
+        Some(owner) if owner.as_slice() != session.account_id.as_slice() => Err(ApiError::NotFound),
+        _ => Ok(()),
+    }
+}
+
 fn require_media_type(headers: &HeaderMap, expected: &str) -> Result<(), ApiError> {
     let media = headers
         .get("content-type")
@@ -300,6 +339,9 @@ fn require_media_type(headers: &HeaderMap, expected: &str) -> Result<(), ApiErro
 }
 
 fn hex_to_bytes(value: &str) -> Result<Vec<u8>, ApiError> {
+    if !value.len().is_multiple_of(2) || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(ApiError::InvalidRequest);
+    }
     (0..value.len() / 2)
         .map(|index| {
             u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)

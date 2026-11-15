@@ -74,7 +74,8 @@ impl HttpRelayTransport {
             .get("head")
             .and_then(|v| v.as_str())
             .ok_or(SyncError::MalformedPayload)?;
-        let head_bytes = base64_decode(head_b64)?;
+        let head_bytes =
+            studge_core::codec::base64_decode(head_b64).map_err(|_| SyncError::MalformedPayload)?;
         let head = VaultHead::from_cbor(&head_bytes).map_err(|_| SyncError::MalformedPayload)?;
         Ok(Some(head))
     }
@@ -110,10 +111,16 @@ impl Transport for HttpRelayTransport {
             return Err(SyncError::Io(format!("push: HTTP {}", resp.status())));
         }
         let body: serde_json::Value = resp.json().map_err(|_| SyncError::MalformedPayload)?;
+        // The "accepted" field is mandatory: a relay that omits it is malformed,
+        // and a count that does not match the ops we sent means some ops are
+        // still pending and must stay queued.
         let accepted = body
             .get("accepted")
             .and_then(|v| v.as_u64())
-            .unwrap_or(ops.len() as u64) as usize;
+            .ok_or(SyncError::MalformedPayload)? as usize;
+        if accepted != ops.len() {
+            return Err(SyncError::MalformedPayload);
+        }
         Ok(accepted)
     }
 
@@ -200,36 +207,4 @@ impl Transport for HttpRelayTransport {
     }
 }
 
-fn base64_decode(s: &str) -> Result<Vec<u8>, SyncError> {
-    use std::collections::HashMap;
-    static TABLE: std::sync::OnceLock<HashMap<char, u8>> = std::sync::OnceLock::new();
-    let table = TABLE.get_or_init(|| {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        chars
-            .chars()
-            .enumerate()
-            .map(|(i, c)| (c, i as u8))
-            .collect()
-    });
-    let s = s.trim_end_matches('=');
-    let mut out = Vec::with_capacity(s.len() * 3 / 4);
-    let bytes: Vec<u8> = s
-        .chars()
-        .filter(|c| *c != '\n' && *c != '\r')
-        .map(|c| table.get(&c).copied().ok_or(SyncError::MalformedPayload))
-        .collect::<Result<Vec<_>, _>>()?;
-    for chunk in bytes.chunks(4) {
-        let b0 = chunk[0];
-        let b1 = *chunk.get(1).unwrap_or(&0);
-        let b2 = *chunk.get(2).unwrap_or(&0);
-        let b3 = *chunk.get(3).unwrap_or(&0);
-        out.push((b0 << 2) | (b1 >> 4));
-        if chunk.len() >= 3 {
-            out.push((b1 << 4) | (b2 >> 2));
-        }
-        if chunk.len() >= 4 {
-            out.push((b2 << 6) | b3);
-        }
-    }
-    Ok(out)
-}
+// Base64 decoding uses studge_core::codec (the project's single codec).

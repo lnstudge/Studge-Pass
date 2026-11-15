@@ -137,6 +137,11 @@ pub async fn enrol_device(
         return Err(ApiError::InvalidRequest);
     }
 
+    // SPEC §7.7 / D-0601 (proposed): at most 100 devices per account.
+    if state.store().device_count(&session.account_id).await? >= 100 {
+        return Err(ApiError::QuotaExceeded);
+    }
+
     let created = state
         .store()
         .add_device(

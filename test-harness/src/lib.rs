@@ -6,7 +6,7 @@
 //!
 //! # Using `EvilRelay`
 //!
-//! ```rust,ignore
+//! ```text
 //! let mut evil = EvilRelay::new(MemoryTransport::new());
 //! evil.set_attack(Attack::RollbackHead);
 //! // Run the sync engine against it:

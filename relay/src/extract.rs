@@ -222,6 +222,12 @@ pub struct OpIn {
     pub lamport: i64,
     /// The raw bytes as received.
     pub body: Vec<u8>,
+    /// The device that signed the op.
+    pub device_id: Vec<u8>,
+    /// The op kind, as its wire name.
+    pub kind: String,
+    /// The item the op touches, when its kind names one.
+    pub item_id: Option<Vec<u8>>,
 }
 
 /// Parses and validates a batch of ops from a CBOR body (SPEC §7.6).
@@ -263,6 +269,9 @@ pub fn parse_ops(body: &[u8], max_ops: usize) -> Result<Vec<OpIn>, ApiError> {
             op_id: hex(op.op_id()),
             lamport: i64::try_from(op.lamport()).map_err(|_| ApiError::InvalidRequest)?,
             body: bytes.to_vec(),
+            device_id: op.device_id().to_vec(),
+            kind: op.kind().as_str().to_string(),
+            item_id: op.item_id().map(|id| id.to_vec()),
         });
     }
     Ok(ops)

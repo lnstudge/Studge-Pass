@@ -237,8 +237,18 @@ impl TestAccount {
 
 // ── op / head factories ──────────────────────────────────────────────────────
 
-/// Builds a CBOR map `{"ops": [...]}` of `count` valid, signed stored ops.
+/// Builds a CBOR array of `count` valid, signed stored ops.
 pub fn make_ops(vault_id: &[u8; 16], count: usize) -> Vec<u8> {
+    let op_ids: Vec<[u8; 16]> = (0..count)
+        .map(|_| random::array().expect("op_id"))
+        .collect();
+    make_ops_with_op_ids(vault_id, &op_ids)
+}
+
+/// Builds a CBOR array of valid, signed stored ops with caller-chosen op ids.
+///
+/// Naming the op ids lets a test replay one specific `op_id` (R-0601 squatting).
+pub fn make_ops_with_op_ids(vault_id: &[u8; 16], op_ids: &[[u8; 16]]) -> Vec<u8> {
     use ciborium::value::Value;
     use studge_core::cbor::bytes as cbor_bytes;
     use studge_core::crypto::keys::VaultKey;
@@ -247,20 +257,19 @@ pub fn make_ops(vault_id: &[u8; 16], count: usize) -> Vec<u8> {
     let device = signing::SigningKeyPair::generate().expect("device");
     let device_id: [u8; 16] = random::array().expect("device_id");
     let now = signing::Timestamp::now().expect("now");
-    let mut items = Vec::with_capacity(count);
+    let mut items = Vec::with_capacity(op_ids.len());
     let mut parent: Option<[u8; 32]> = None;
 
-    for lamport in 1..=(count as u64) {
-        let op_id: [u8; 16] = random::array().expect("op_id");
+    for (index, op_id) in op_ids.iter().enumerate() {
         let item_id: [u8; 16] = random::array().expect("item_id");
         let parents: Vec<[u8; 32]> = parent.into_iter().collect();
         let envelope = Op::seal_payload(&vk, vault_id, &item_id, OpKind::Create, b"test payload")
             .expect("seal");
         let op = Op::new(
             *vault_id,
-            op_id,
+            *op_id,
             parents,
-            lamport,
+            index as u64 + 1,
             device_id,
             now.clone(),
             OpKind::Create,

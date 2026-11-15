@@ -394,4 +394,15 @@ The following bugs were found in the PR review and fixed before merge:
 | R-0502 — `FolderTransport` conflicted-copy files accumulate on disk if two writers collide; the engine tolerates them but disk quota can fill | low | Accepted (no production use until Phase 9) |
 | R-0503 — `HttpRelayTransport` does not retry on transient network errors; the engine retries on the next sync cycle, which may be minutes later | low | Accepted (offline-first design handles this) |
 
+### Phase 6 security fixes (relay hardening, 2026-11-15)
+
+| Id | Risk | Severity | Status | Mitigation / what closes it |
+| --- | --- | --- | --- | --- |
+| R-0601 | Cross-account vault access: a vault id must be globally owned; otherwise account B can push one op to account A's vault and then read/inject into its stream | high | Fixed | Vault ids globally unique; push refuses foreign owner with 404; every op query scoped to (account_id, vault_id); migration 0003; tests cross_account_* |
+| R-0602 | Vaults-per-account quota not enforced (SPEC §7.7): an attacker can create unbounded vaults | medium | Fixed | 100-vault cap with 413/quota_exceeded; checked before claim_vault |
+| R-0603 | Rate-limit audit rows never expire and keys include client-chosen identities, allowing table growth and key injection | medium | Fixed | Old buckets purged; table capped; identities hashed in keys |
+| R-0604 | HttpRelayTransport treats a missing "accepted" field as full success, dropping pending ops | medium | Fixed | Require "accepted"; error when accepted != ops sent |
+| R-0605 | Hand-rolled base64, lenient hex_to_bytes, Null on corrupt account record, and a log_ip_addresses setting that implies IP logging | low | Fixed | Use studge_core codec; strict hex; error on corrupt record; setting removed |
+| R-0606 | Unbounded device enrolment per account exhausts storage and sessions | medium | Proposed | D-0601: 100-device cap with 413 (status Proposed) |
+
 <!-- THREAT-END -->
