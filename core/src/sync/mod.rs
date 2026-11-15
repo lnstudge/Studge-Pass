@@ -36,9 +36,11 @@ pub mod transport;
 pub mod http;
 
 pub use engine::SyncEngine;
-pub use folder::FolderTransport;
 pub use memory::MemoryTransport;
 pub use transport::{SyncError, Transport, VaultOps};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use folder::FolderTransport;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use http::HttpRelayTransport;
