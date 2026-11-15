@@ -343,6 +343,9 @@ fn require_media_type(headers: &HeaderMap, expected: &str) -> Result<(), ApiErro
 }
 
 fn hex_to_bytes(value: &str) -> Result<Vec<u8>, ApiError> {
+    if value.len() % 2 != 0 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(ApiError::InvalidRequest);
+    }
     (0..value.len() / 2)
         .map(|index| {
             u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)

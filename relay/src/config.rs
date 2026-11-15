@@ -122,8 +122,6 @@ pub struct RelayConfig {
     /// Trusted reverse-proxy addresses/CIDRs. Only these peers may supply
     /// `X-Forwarded-For`; others are ignored. Default: empty (direct mode).
     pub trusted_proxies: Vec<TrustedProxy>,
-    /// Whether client IP addresses may appear in logs.
-    pub log_ip_addresses: bool,
     /// Whether logs are JSON.
     pub log_json: bool,
     /// Request timeout.
@@ -150,7 +148,6 @@ impl Default for RelayConfig {
             read_per_account_minute: DEFAULT_READ_PER_ACCOUNT_MINUTE,
             cors_origins: Vec::new(),
             trusted_proxies: Vec::new(),
-            log_ip_addresses: true,
             log_json: false,
             request_timeout_seconds: DEFAULT_REQUEST_TIMEOUT_SECONDS,
         }
@@ -260,9 +257,6 @@ impl RelayConfig {
             }
         }
         if let Some(log) = section(&table, "log")? {
-            if let Some(ip) = log.get("ip_addresses") {
-                self.log_ip_addresses = ip.as_bool().ok_or(ConfigError::Invalid)?;
-            }
             if let Some(json) = log.get("json") {
                 self.log_json = json.as_bool().ok_or(ConfigError::Invalid)?;
             }
@@ -308,9 +302,6 @@ impl RelayConfig {
                 "READ_PER_ACCOUNT_MINUTE" => {
                     self.read_per_account_minute =
                         value.parse().map_err(|_| ConfigError::Invalid)?
-                }
-                "LOG_IP_ADDRESSES" => {
-                    self.log_ip_addresses = parse_bool(&value)?;
                 }
                 "LOG_JSON" => self.log_json = parse_bool(&value)?,
                 "CORS_ORIGINS" => {
@@ -473,7 +464,6 @@ allowed_origins = ["https://app.example", "tauri://localhost"]
 
 [log]
 json = true
-ip_addresses = false
 "#,
             )
             .expect("valid toml");
@@ -483,7 +473,6 @@ ip_addresses = false
         assert_eq!(config.register_per_ip_hour, 3);
         assert_eq!(config.cors_origins.len(), 2);
         assert!(config.log_json);
-        assert!(!config.log_ip_addresses);
     }
 
     #[test]
