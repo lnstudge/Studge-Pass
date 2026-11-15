@@ -597,3 +597,16 @@ Applied in response to founder review of PR #54:
 - D-0501 is **Proposed** (not yet approved by founder): `studge-sync-transports`
   crate with `reqwest 0.12 + rustls-tls + json` and `tempfile 3.x`.
 
+## Security relay fixes (branch security-relay-fixes, PR #57)
+
+- Fixed R-0601 cross-account vault access: vault ids globally owned, ops scoped to
+  (account_id, vault_id), migration 0003, 404 on foreign push.
+- Fixed R-0602 vaults-per-account cap (100, 413).
+- Fixed R-0603 rate-limit audit expiry, table cap, hashed identities.
+- Fixed R-0604 HttpRelayTransport requires accepted count.
+- Fixed R-0605 strict hex/base64, corrupt account record error, removed
+  log_ip_addresses.
+- Proposed D-0601 (100 devices per account, 413).
+- Tests: relay 39 passed, integration 14 passed (incl. 3 cross-account), sync
+  transports build. cargo deny, clippy, fmt green.
+
