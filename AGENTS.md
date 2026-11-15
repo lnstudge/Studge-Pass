@@ -144,6 +144,10 @@ The founder watches the build as it happens. Never work silently.
    4. `git commit -s -m "<type>(<scope>): <summary>"`, using Conventional Commits.
    5. `git push -u origin phase-NN-short-name`.
 3. Never push to main directly. Never force-push. Never rewrite history that has already been pushed.
+   **Authorship:** the founder is the sole author of every commit and pull request. Never add
+   `Co-authored-by:`, `Signed-off-by:` for any name other than the founder's (`git commit -s` adds
+   the founder's own sign-off), "Generated with …" lines, or any other agent or tool attribution
+   to commit messages, pull request titles or bodies.
 4. At the end of a phase: run the full checks, do the self-attack review, make the final push, then open a pull request:
    `gh pr create --base main --title "Phase NN: <name>" --body "<summary, test results, self-attack findings, screenshots if UI>"`.
    Do NOT merge it. I review and merge.
