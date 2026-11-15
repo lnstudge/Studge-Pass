@@ -28,7 +28,10 @@ pub fn run(password_stdin: bool) -> Result<()> {
         let sk = lines.next().map(|s| s.to_string());
         (pw, sk)
     } else {
-        (prompt_password("Master password: ").context("read password")?, None)
+        (
+            prompt_password("Master password: ").context("read password")?,
+            None,
+        )
     };
 
     let secret_key_str = if let Some(sk) = sk_stdin {

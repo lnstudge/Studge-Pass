@@ -67,7 +67,8 @@ fn hex_encode(bytes: &[u8]) -> String {
 pub fn store_secret_key(account_id: &str, sk: &str) -> Result<()> {
     validate_account_id(account_id)?;
     ensure_store()?;
-    let entry = Entry::new(SERVICE, &format!("{account_id}:sk")).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let entry =
+        Entry::new(SERVICE, &format!("{account_id}:sk")).map_err(|e| anyhow::anyhow!("{e}"))?;
     entry.set_password(sk).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
@@ -75,7 +76,8 @@ pub fn store_secret_key(account_id: &str, sk: &str) -> Result<()> {
 pub fn load_secret_key(account_id: &str) -> Result<Option<Zeroizing<String>>> {
     validate_account_id(account_id)?;
     ensure_store()?;
-    let entry = Entry::new(SERVICE, &format!("{account_id}:sk")).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let entry =
+        Entry::new(SERVICE, &format!("{account_id}:sk")).map_err(|e| anyhow::anyhow!("{e}"))?;
     match entry.get_password() {
         Ok(p) => Ok(Some(Zeroizing::new(p))),
         Err(keyring_core::Error::NoEntry) => Ok(None),
@@ -117,14 +119,18 @@ pub fn create_session(
         .account(aid)
         .build()
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let envelope = aead::seal(&session_key, &aad, &plaintext).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let envelope =
+        aead::seal(&session_key, &aad, &plaintext).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let bytes = envelope.to_cbor().map_err(|e| anyhow::anyhow!("{e}"))?;
     fs::write(session_path, bytes).context("write session file")?;
 
-    let entry = Entry::new(SERVICE, &format!("{account_id}:session")).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let entry = Entry::new(SERVICE, &format!("{account_id}:session"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let sk_str = hex_encode(&session_key_bytes);
-    entry.set_password(&sk_str).map_err(|e| anyhow::anyhow!("{e}"))?;
+    entry
+        .set_password(&sk_str)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 
@@ -142,7 +148,8 @@ pub fn load_session(
     let mut aid = [0u8; 16];
     aid.copy_from_slice(&aid_bytes);
 
-    let entry = Entry::new(SERVICE, &format!("{account_id}:session")).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let entry = Entry::new(SERVICE, &format!("{account_id}:session"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let sk_str = match entry.get_password() {
         Ok(p) => p,
         Err(keyring_core::Error::NoEntry) => return Ok(None),
@@ -187,7 +194,11 @@ pub fn load_session(
     }
     let mut ak = Zeroizing::new([0u8; 32]);
     ak.copy_from_slice(&plaintext[0..32]);
-    let expires_at = u64::from_le_bytes(plaintext[32..40].try_into().map_err(|_| anyhow::anyhow!("bad expiry"))?);
+    let expires_at = u64::from_le_bytes(
+        plaintext[32..40]
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("bad expiry"))?,
+    );
     let mut dev = [0u8; 16];
     dev.copy_from_slice(&plaintext[40..56]);
 
@@ -209,7 +220,8 @@ pub fn load_session(
 pub fn delete_session(account_id: &str, session_path: &PathBuf) -> Result<()> {
     validate_account_id(account_id)?;
     ensure_store()?;
-    let entry = Entry::new(SERVICE, &format!("{account_id}:session")).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let entry = Entry::new(SERVICE, &format!("{account_id}:session"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let _ = entry.delete_credential();
     let _ = fs::remove_file(session_path);
     Ok(())
