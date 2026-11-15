@@ -73,10 +73,10 @@ impl RelayState {
         let key = format!("{operation}:{identity_hash}:{bucket}");
         // Sweep expired buckets and cap the table so audit cannot grow without
         // bound (R-0603).
-        let cutoff = Timestamp::from_unix_seconds(now.unix_seconds() - 86_400)
+        let cutoff = Timestamp::from_unix_seconds(now.unix_seconds() - 3600)
             .map_err(|_| ApiError::Unavailable)?;
         let _ = self.store().purge_expired_counters(cutoff.as_str()).await;
-        self.store().cap_audit_table(10_000).await?;
+        self.store().cap_audit_table(100_000).await?;
         let count = self
             .store()
             .bump_counter(&key, now.as_str(), i64::from(limit))

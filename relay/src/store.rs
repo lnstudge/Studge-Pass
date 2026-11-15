@@ -1445,4 +1445,28 @@ mod tests {
         assert_eq!(a, 2);
         assert_eq!(b, 2);
     }
+
+    #[tokio::test]
+    async fn a_flood_of_expired_keys_does_not_lock_out_a_normal_login() {
+        let store = store().await;
+        // Flood with expired buckets (old window).
+        for i in 0..50 {
+            store
+                .bump_counter(&format!("login:flood:{i}"), "2020-01-01T00:00:00Z", 10)
+                .await
+                .expect("bump flood");
+        }
+        // Purge expired windows (older than 1 hour relative to now).
+        let purged = store
+            .purge_expired_counters("2026-01-01T00:00:00Z")
+            .await
+            .expect("purge");
+        assert!(purged > 0, "expired buckets purged");
+        // A normal login counter still works.
+        let count = store
+            .bump_counter("login:normal:1", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("normal login");
+        assert_eq!(count, 1);
+    }
 }
