@@ -76,7 +76,7 @@ impl RelayState {
         let cutoff = Timestamp::from_unix_seconds(now.unix_seconds() - 86_400)
             .map_err(|_| ApiError::Unavailable)?;
         let _ = self.store().purge_expired_counters(cutoff.as_str()).await;
-        let _ = self.store().cap_audit_table(10_000).await;
+        self.store().cap_audit_table(10_000).await?;
         let count = self
             .store()
             .bump_counter(&key, now.as_str(), i64::from(limit))
