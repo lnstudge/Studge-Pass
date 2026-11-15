@@ -20,17 +20,20 @@ pub fn run(password_stdin: bool) -> Result<()> {
     let db = hex_decode(&device_id_hex)?;
     device_id.copy_from_slice(&db);
 
-    let password = if password_stdin {
+    let (password, sk_stdin) = if password_stdin {
         let mut line = String::new();
         std::io::Read::read_to_string(&mut std::io::stdin(), &mut line).context("read stdin")?;
-        line.trim_end_matches('\n')
-            .trim_end_matches('\r')
-            .to_string()
+        let mut lines = line.lines();
+        let pw = lines.next().unwrap_or("").to_string();
+        let sk = lines.next().map(|s| s.to_string());
+        (pw, sk)
     } else {
-        prompt_password("Master password: ").context("read password")?
+        (prompt_password("Master password: ").context("read password")?, None)
     };
 
-    let secret_key_str = if let Some(sk) = crate::session::load_secret_key(&account_id)? {
+    let secret_key_str = if let Some(sk) = sk_stdin {
+        sk
+    } else if let Some(sk) = crate::session::load_secret_key(&account_id)? {
         sk.to_string()
     } else {
         prompt_password("Secret Key: ").context("read secret key")?
@@ -51,7 +54,7 @@ pub fn run(password_stdin: bool) -> Result<()> {
 
     let session_path = app.home.join("session.bin");
     let expiry = cfg.session_minutes;
-    crate::session::create_session(&account_id, ak_bytes, device_id, expiry, &session_path)?;
+    crate::session::create_session(&account_id, *ak_bytes, device_id, expiry, &session_path)?;
     println!("Unlocked.");
     Ok(())
 }

@@ -629,3 +629,11 @@ Applied in response to founder review of PR #54:
   ignores.
 - Rate-limit purge window 1 hour, cap 100,000.
 - Added D-0602, D-0603, D-0604 (Proposed).
+## Phase 6 review fixes, round 2
+
+- Added cli/tests/integration.rs (5 integration tests) plus a unit test for
+  clipboard hash compare. studge test count now 1 unit + 5 integration.
+- Clipboard clearer reads key+hash from stdin; no secret on command line.
+- session.rs: removed unwrap, validated account_id, Zeroizing buffers, AK
+  returned as Zeroizing<[u8;32]>.
+- Updated PROGRESS and THREAT_MODEL.

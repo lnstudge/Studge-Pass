@@ -4,6 +4,11 @@ use std::time::Duration;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
+fn matches(key: &[u8; 32], expected: &[u8; 32], value: &[u8]) -> bool {
+    let actual = blake3::keyed_hash(key, value);
+    bool::from(actual.as_bytes().ct_eq(expected))
+}
+
 pub fn run() -> Result<()> {
     let mut input = Zeroizing::new([0u8; 64]);
     std::io::stdin()
@@ -27,7 +32,17 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-fn matches(key: &[u8; 32], expected: &[u8; 32], value: &[u8]) -> bool {
-    let actual = blake3::keyed_hash(key, value);
-    bool::from(actual.as_bytes().ct_eq(expected))
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn hash_compare_logic() {
+        let key = [1u8; 32];
+        let value = "secret";
+        let h = blake3::keyed_hash(&key, value.as_bytes());
+        // matching
+        assert_eq!(h.as_bytes(), h.as_bytes());
+        // different value
+        let h2 = blake3::keyed_hash(&key, b"other");
+        assert_ne!(h.as_bytes(), h2.as_bytes());
+    }
 }
