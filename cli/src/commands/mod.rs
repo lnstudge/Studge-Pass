@@ -1,4 +1,5 @@
 pub mod add_login;
+pub mod clear_clipboard;
 pub mod config;
 pub mod devices;
 pub mod edit;

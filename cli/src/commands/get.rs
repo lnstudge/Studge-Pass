@@ -1,9 +1,12 @@
+use anyhow::{Context, Result};
+use std::process::Command;
+
 use crate::app::App;
 use crate::config::Config;
 use crate::vault_util::load_items;
-use anyhow::{Context, Result};
 
-pub fn run(query: String, field: Option<String>, print: bool) -> Result<()> {
+pub fn run(query: String, field: Option<String>, print: bool, password_stdin: bool) -> Result<()> {
+    let _ = password_stdin;
     let app = App::new()?;
     let cfg = Config::load(&app.config_path)?;
     let (items, _) = load_items(&app, &cfg)?;
@@ -23,17 +26,17 @@ pub fn run(query: String, field: Option<String>, print: bool) -> Result<()> {
     if print {
         println!("{}", value);
     } else {
+        let hash = blake3::hash(value.as_bytes()).to_hex().to_string();
+        // spawn detached clearer
+        let exe = std::env::current_exe().context("exe")?;
+        let _ = Command::new(exe)
+            .arg("__clear-clipboard")
+            .arg(&hash)
+            .spawn();
         let mut cb = arboard::Clipboard::new().context("clipboard")?;
         cb.set_text(value.clone()).context("set clipboard")?;
         println!("Copied {} to clipboard (clears in 30s).", field_name);
-        // clear after 30s in background thread
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(30));
-            if let Ok(mut cb) = arboard::Clipboard::new() {
-                let _ = cb.set_text(String::new());
-            }
-            let _ = value;
-        });
+        // keep value zeroized? it goes out of scope
     }
     Ok(())
 }

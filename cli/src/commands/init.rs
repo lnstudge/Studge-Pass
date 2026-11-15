@@ -1,19 +1,25 @@
 use crate::app::App;
 use crate::config::Config;
 use anyhow::{Context, Result};
-use rpassword::prompt_password;
 use std::fs;
 use studge_core::account::{create_account, UnlockedAccount};
 use studge_core::crypto::signing::SigningKeyPair;
 use studge_core::crypto::signing::Timestamp;
 use studge_core::storage::LocalStore;
 
-pub fn run(relay: Option<String>, folder: Option<String>) -> Result<()> {
+pub fn run(relay: Option<String>, folder: Option<String>, password_stdin: bool) -> Result<()> {
     let app = App::new()?;
     let mut cfg = Config::load(&app.config_path)?;
 
-    // Password from env with warning, else TTY
-    let password = read_password("Master password: ")?;
+    let password = if password_stdin {
+        let mut line = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut line).context("read stdin")?;
+        line.trim_end_matches('\n')
+            .trim_end_matches('\r')
+            .to_string()
+    } else {
+        rpassword::prompt_password("Master password: ").context("read password")?
+    };
 
     println!("Creating account...");
     let (mut bundle, secret_key, kit) = create_account(&password)?;
@@ -44,6 +50,7 @@ pub fn run(relay: Option<String>, folder: Option<String>) -> Result<()> {
     // config
     cfg.account_id = Some(hex(bundle.account_id()));
     cfg.device_id = Some(hex16(&device_id));
+    cfg.identity_public = Some(hex(account.identity_public()));
     cfg.vault_id = Some(hex(&vault_id));
     cfg.relay_url = relay.clone();
     cfg.folder_path = folder.clone();
@@ -54,7 +61,6 @@ pub fn run(relay: Option<String>, folder: Option<String>) -> Result<()> {
     cfg.save(&app.config_path)?;
 
     // store device_key in keyring? store password instead
-    session_store_password(&cfg, &password)?;
     if let Some(id) = &cfg.account_id {
         crate::session::store_secret_key(id, &secret_key.encode())?;
     }
@@ -93,21 +99,6 @@ pub fn run(relay: Option<String>, folder: Option<String>) -> Result<()> {
     println!("Recovery kit: {}", kit_path.display());
     let _ = vk;
     let _ = kit;
-    Ok(())
-}
-
-fn read_password(prompt: &str) -> Result<String> {
-    if let Ok(v) = std::env::var("STUDGE_PASSWORD") {
-        eprintln!("WARNING: reading password from STUDGE_PASSWORD env var");
-        return Ok(v);
-    }
-    prompt_password(prompt).context("read password")
-}
-
-fn session_store_password(cfg: &Config, password: &str) -> Result<()> {
-    if let Some(id) = &cfg.account_id {
-        crate::session::store_password(id, password)?;
-    }
     Ok(())
 }
 

@@ -1,24 +1,40 @@
 use anyhow::{Context, Result};
 use rpassword::prompt_password;
 use studge_core::account::unlock as unlock_account;
+use studge_core::crypto::secret_key::SecretKey;
 use studge_core::storage::LocalStore;
 
 use crate::app::App;
 use crate::config::Config;
 
-pub fn run() -> Result<()> {
+pub fn run(password_stdin: bool) -> Result<()> {
     let app = App::new()?;
     let cfg = Config::load(&app.config_path)?;
     let account_id = cfg
         .account_id
         .clone()
         .context("no account; run init first")?;
-    let password = if let Ok(v) = std::env::var("STUDGE_PASSWORD") {
-        eprintln!("WARNING: reading password from STUDGE_PASSWORD env var");
-        v
+    let device_id_hex = cfg.device_id.clone().context("no device")?;
+    let mut device_id = [0u8; 16];
+    let db = hex_decode(&device_id_hex)?;
+    device_id.copy_from_slice(&db);
+
+    let password = if password_stdin {
+        let mut line = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut line).context("read stdin")?;
+        line.trim_end_matches('\n')
+            .trim_end_matches('\r')
+            .to_string()
     } else {
         prompt_password("Master password: ").context("read password")?
     };
+
+    let secret_key_str = if let Some(sk) = crate::session::load_secret_key(&account_id)? {
+        sk.to_string()
+    } else {
+        prompt_password("Secret Key: ").context("read secret key")?
+    };
+    let secret_key = SecretKey::decode(&secret_key_str).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let store = app.open_store()?;
     let aid_bytes = hex_decode(&account_id)?;
@@ -28,25 +44,24 @@ pub fn run() -> Result<()> {
         .get_bundle(&aid)
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .context("no account bundle in store")?;
-    let sk = cfg.device_key_seed.clone().unwrap_or_default();
-    // secret key from recovery? We don't store secret key. Need it. Prompt?
-    // For unlock we need secret key. Read from env or prompt.
-    let secret_key_str = prompt_password("Secret Key: ").context("read secret key")?;
-    let secret_key = studge_core::crypto::secret_key::SecretKey::decode(&secret_key_str)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let _account =
+    let account =
         unlock_account(&password, &secret_key, &bundle).map_err(|e| anyhow::anyhow!("{e}"))?;
-    crate::session::store_password(&account_id, &password)?;
-    crate::session::store_secret_key(&account_id, &secret_key.encode())?;
+    let ak_bytes = account.account_key_bytes();
+
+    let session_path = app.home.join("session.bin");
+    let expiry = cfg.session_minutes;
+    crate::session::create_session(&account_id, ak_bytes, device_id, expiry, &session_path)?;
     println!("Unlocked.");
-    let _ = sk;
     Ok(())
 }
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
+    if !s.len().is_multiple_of(2) {
+        return Err(anyhow::anyhow!("bad hex"));
+    }
     let mut out = Vec::with_capacity(s.len() / 2);
     for i in (0..s.len()).step_by(2) {
-        out.push(u8::from_str_radix(&s[i..i + 2], 16).context("bad hex")?);
+        out.push(u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| anyhow::anyhow!("bad hex"))?);
     }
     Ok(out)
 }
