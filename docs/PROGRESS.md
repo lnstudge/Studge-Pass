@@ -496,3 +496,104 @@ Applied in response to founder review of PR #47:
 
 
 
+
+## Phase 5 — Sync engine and evil-relay harness
+
+- **Status:** In review
+- **Branch:** `phase-05-sync` · **Issue:** #11 · **Milestone:** Phase 5
+
+### What changed
+
+- **Sync engine (`core/src/sync/`).** Five modules:
+  - `transport.rs` — `Transport` trait (push/pull/put_head), `SyncError` (12
+    variants: `MissingParent`, `RollbackDetected`, `ForkDetected`,
+    `HeadReferencesUnknownOp`, `OpVerificationFailed`, `HeadVerificationFailed`,
+    `StorageFull`, `MalformedPayload`, `Conflict`, `Io`, `Network`,
+    `Unauthorized`), `VaultOps` return type, `NO_HEAD` sentinel.
+  - `memory.rs` — `MemoryTransport` with `inject_raw_op` (update-capable for
+    tamper tests) and `set_raw_head`; 5 unit tests.
+  - `folder.rs` — `FolderTransport` (non-wasm, atomic writes via temp file +
+    rename, conflicted-copy tolerance); 3 unit tests.
+  - `engine.rs` — `SyncEngine` + `VaultSyncState`; full
+    pull → verify → merge → check-head → push → put-head cycle; offline-first
+    pending queue (`enqueue`); 4 unit tests.
+  - `http.rs` — `HttpRelayTransport` (non-wasm, `reqwest` blocking + rustls-tls
+    + json; D-0501); no unit tests (integration only, Phase 6+).
+- **Evil-relay harness (`test-harness/`).**
+  - `src/fixture.rs` — two-device `Fixture` with `make_op`, `genesis`,
+    `engine`, `state1/2`, `two_op_history`, `loaded_dag`.
+  - `src/evil_relay.rs` — `EvilRelay` wrapping `MemoryTransport` with 14
+    `Attack` variants (Honest, DropOps, ReorderOps, ReplayOldOp, RollbackHead,
+    ForkHead, SwapCiphertext, FlipBit, StripSignature, SubstituteDeviceCert,
+    WrongVaultId, DowngradeSuite, TruncateOps, GhostHeadEntry) and snapshot
+    machinery for rollback tests.
+  - `tests/evil_relay_tests.rs` — **14 named evil-relay attack tests** (all
+    named `evil_relay_<attack>_is_detected` or `evil_relay_…_is_harmless`) plus
+    `offline_device_catches_up`, `two_device_concurrent_edits_converge`,
+    `three_device_concurrent_edits_converge`.
+  - `examples/evil_relay_show.rs` — coloured terminal table that runs every
+    attack variant against a fresh two-op history.
+- **Docs.**
+  - `docs/DECISIONS.md` D-0501 (transport crate set: reqwest/rustls-tls,
+    tempfile).
+  - `docs/THREAT_MODEL.md` §19 (18 evil-relay vectors, all with named tests;
+    R-0501–R-0503).
+  - `sync-transports/` — new workspace crate `studge-sync-transports` housing
+    `FolderTransport` and `HttpRelayTransport` (removed from core).
+
+### How to try it
+
+```powershell
+# Run all tests (248 core + 36 relay + 18 harness + rest = 344 total)
+.\x.ps1 "CARGO_INCREMENTAL=0 cargo test --all"
+
+# Watch the attack table in colour (15 attack variants)
+.\x.ps1 "cargo run -p studge-test-harness --example evil_relay_show"
+```
+
+### Test results (after review fixes, 2026-11-15)
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test --all` | **344 passed, 0 failed, 3 ignored** |
+| `cargo deny check` | advisories ok, bans ok, licenses ok, sources ok |
+| `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` | pass |
+
+### Self-attack review
+
+18 vectors in `docs/THREAT_MODEL.md §19`; 15 blocked by named tests, 1 harmless
+(idempotent replay), 2 "Fixed" (pending restore and TOFU); 3 new risks recorded
+(R-0501–R-0503), all low.
+
+### Review fixes (PR #54)
+
+Applied in response to founder review of PR #54:
+
+| Fix | Commit | Detail |
+|---|---|---|
+| Fix 1 — wasm build broken | `a8e772c` | `pub use folder::FolderTransport` in `sync/mod.rs` was unconditional. Gated behind `#[cfg(not(target_arch = "wasm32"))]`. wasm build passes. |
+| Fix 2 — reqwest in core | `3125191` | `FolderTransport` and `HttpRelayTransport` moved to new crate `studge-sync-transports`; `reqwest` removed from core; `SyncEngine::sync()` takes `now: Timestamp` parameter (SystemTime panics on wasm32). wasm build clean. |
+| Fix 3a — pending ops lost on push failure | `3125191` | Engine drained `pending` before calling `transport.push()`; lost on `Io` error. Queue is now restored before returning. Test: `pending_ops_restored_on_push_failure`. |
+| Fix 3b — withheld head silently accepted | `3125191` | Returning `None` head when a pin exists was not an error. Engine now returns `RollbackDetected`. Attack `WithholdHead` added. Tests: `withheld_head_is_detected_when_pin_exists`, `evil_relay_withheld_head_is_detected`. |
+| Fix 3c — staged-DAG not atomic | `3125191` | Pulled ops were merged into the committed DAG before head checks; a bad head could not be undone. Stage-then-commit pattern implemented. Test: `fork_in_staged_ops_leaves_dag_unchanged`. |
+| Fix 3d — TOFU auto-cleared | `3125191` | TOFU flag was cleared on first sync; must stay `true` until `confirm_head()` is called by the UI layer. `VaultSyncState::confirm_head()` added. Test: `is_tofu_true_until_confirm_head_is_called`. |
+| Fix 3e — concurrent cursor incomplete | `3125191` | Pull cursor used `heads().into_iter().next()` (first head only), missing concurrent branches. Now uses all heads (cursor = min hash). Test: `sync_with_two_concurrent_heads_fetches_all_ops`. |
+| Fix 4 — missing named tests | `3125191` | `ForkHead`, `DropOps`, `WrongVaultId` attacks had no dedicated named tests. Added: `evil_relay_fork_head_is_detected`, `evil_relay_drop_ops_is_detected`, `evil_relay_wrong_vault_id_is_detected`. |
+| Fix 5 — D-0501 status | `d008c82` | D-0501 incorrectly said "Approved by founder". Rewritten with "Status: Proposed" and correct `studge-sync-transports` crate layout description. |
+| THREAT_MODEL §19 | `de54f61` | 18-row attack table (up from 14); review-fix table added; row 13 changed from "Harmless" to "Blocked" (withheld head with pin now errors). |
+| Fix 6 — pull cursor race | `6b29e94` | `last_pull_cursor` field added to `VaultSyncState`; cursor is now the hash of the last op returned by `transport.pull` (relay order, SPEC §7.4), never a DAG tip. Cursored pulls that fail with `HeadReferencesUnknownOp` or `MissingParent` retry once with `cursor=None`. Tests: `concurrent_push_race_does_not_strand_ops`, `lost_cursor_refetches_from_start`. |
+
+### Known gaps and follow-ups
+
+- **`HttpRelayTransport` integration test** — requires a live relay; deferred to
+  Phase 6 (CLI). The unit structure is tested indirectly through `MemoryTransport`.
+- **`FolderTransport` is not yet wired to any user-facing component** — arrives
+  in Phase 9 (desktop local storage).
+- Phase 11 will add `ik`/`item-field` records and a decrypted in-memory cache
+  (Phase 3 follow-up).
+- R-0501 pull-proof mechanism deferred to Phase 13.
+- D-0501 is **Proposed** (not yet approved by founder): `studge-sync-transports`
+  crate with `reqwest 0.12 + rustls-tls + json` and `tempfile 3.x`.
+

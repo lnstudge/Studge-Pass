@@ -638,3 +638,38 @@ with the approved SPEC; the founder approves them by merging PR #47.
 
 - **Affects:** `deny.toml`, `THREAT_MODEL.md` R-0405.
   **Status:** Approved by founder (at the merge of PR #47).
+
+## D-0501 — Sync transport crate layout and dependency set (Phase 5)
+
+- **Decision:** Create a new workspace crate `studge-sync-transports` for
+  `FolderTransport` and `HttpRelayTransport`.  `studge-core` retains only
+  `MemoryTransport` (no I/O, no network).  `reqwest 0.12` (blocking, rustls-tls,
+  json) lives in `studge-sync-transports`, not in `core`.  `tempfile 3.23`
+  stays as a dev-dep in `test-harness` and `sync-transports`.
+
+- **Context:** Phase 5 originally placed all transports inside `studge-core`,
+  which pulled `reqwest` into core and caused the wasm build to fail (Fix 1
+  gated the re-exports; review Fix 2 moved the crates out entirely).  `studge-core`
+  must compile for `wasm32-unknown-unknown` without any I/O or network crates.
+  `SyncEngine::sync()` received a `now: Timestamp` parameter so that core
+  makes no `SystemTime` calls (which panic on wasm).
+
+- **Options considered:**
+  - Keep everything in core behind `cfg(not(target_arch = "wasm32"))`: works
+    but pollutes core's dependency tree and makes wasm builds fragile.
+  - Separate crate `studge-sync-transports` (chosen): clean split, core stays
+    I/O-free, easy to evolve independently.
+  - Feature flag in core: adds feature-flag complexity without real benefit.
+
+- **Choice:** `studge-sync-transports` crate (native-only, never compiled for
+  wasm32) with `reqwest 0.12` (blocking + rustls-tls) for `HttpRelayTransport`
+  and `std::fs` only for `FolderTransport`.  `tempfile` is test-only.
+
+- **Security note:** `HttpRelayTransport` uses `rustls-tls` only (no OpenSSL),
+  satisfying the `deny.toml` OpenSSL ban.  Certificate validation is on by
+  default.  `CDLA-Permissive-2.0` (webpki-roots, transitive via reqwest) was
+  added to the `deny.toml` allow-list.
+
+- **Affects:** `Cargo.toml` (workspace), `core/Cargo.toml`,
+  `sync-transports/Cargo.toml`, `test-harness/Cargo.toml`.
+  **Status:** Approved by founder (at the merge of PR #54).

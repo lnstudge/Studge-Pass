@@ -6,3 +6,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
+
+[dependencies]
+studge-core = { path = "../core" }
+
+[dev-dependencies]
+tempfile = "3.23.0"
