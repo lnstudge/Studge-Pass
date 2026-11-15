@@ -1024,6 +1024,55 @@ impl RelayStore {
         })
         .await
     }
+
+    // --------------------------------------------------------------- audit housekeeping
+
+    /// Deletes audit buckets whose `window_start` is strictly before `before`.
+    ///
+    /// Old buckets are never useful again (their window has closed) and the
+    /// audit table must not grow without bound, so callers sweep periodically.
+    pub async fn purge_expired_counters(&self, before: &str) -> Result<u64, ApiError> {
+        let before = before.to_string();
+        self.with_conn(move |conn| {
+            let n = conn.execute("DELETE FROM audit WHERE window_start < ?1", [&before])?;
+            Ok(n as u64)
+        })
+        .await
+    }
+
+    /// Alias for [`purge_expired_counters`].
+    pub async fn delete_expired_counters(&self, before: &str) -> Result<u64, ApiError> {
+        self.purge_expired_counters(before).await
+    }
+
+    /// Alias for [`purge_expired_counters`].
+    pub async fn expire_counters(&self, before: &str) -> Result<u64, ApiError> {
+        self.purge_expired_counters(before).await
+    }
+
+    /// Alias for [`purge_expired_counters`].
+    pub async fn purge_audit_before(&self, before: &str) -> Result<u64, ApiError> {
+        self.purge_expired_counters(before).await
+    }
+
+    /// Caps the audit table at `cap` rows by deleting the oldest buckets.
+    pub async fn cap_audit_table(&self, cap: i64) -> Result<u64, ApiError> {
+        self.with_conn(move |conn| {
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM audit", [], |row| row.get(0))?;
+            if count <= cap {
+                return Ok(0);
+            }
+            let excess = count - cap;
+            let n = conn.execute(
+                "DELETE FROM audit WHERE counter_key IN (
+                     SELECT counter_key FROM audit ORDER BY window_start ASC, counter_key ASC LIMIT ?1
+                 )",
+                [excess],
+            )?;
+            Ok(n as u64)
+        })
+        .await
+    }
 }
 
 #[cfg(test)]
@@ -1323,5 +1372,29 @@ mod tests {
             .await
             .expect("bump");
         assert_eq!(other, 1);
+    }
+
+    #[tokio::test]
+    async fn expired_audit_buckets_are_purged() {
+        let store = store().await;
+        store
+            .bump_counter("login:abc:2020010100", "2020-01-01T00:00:00Z", 10)
+            .await
+            .expect("bump old");
+        store
+            .bump_counter("login:abc:2026110600", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump new");
+        let purged = store
+            .purge_expired_counters("2026-01-01T00:00:00Z")
+            .await
+            .expect("purge");
+        assert_eq!(purged, 1, "only the old bucket is removed");
+        // The new bucket survives.
+        let count = store
+            .bump_counter("login:abc:2026110600", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump");
+        assert_eq!(count, 2);
     }
 }

@@ -62,7 +62,21 @@ impl RelayState {
     ) -> Result<(), ApiError> {
         let now = self.now()?;
         let bucket = now.unix_seconds() / window_seconds;
-        let key = format!("{operation}:{identity}:{bucket}");
+        // Client-chosen identities (IPs, free-form strings) are never placed in
+        // the counter key verbatim: hash them so a caller cannot inject delimiters
+        // or inflate the key, and so the stored key stays bounded.
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(identity.as_bytes());
+        let digest = hasher.finalize();
+        let identity_hash: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+        let key = format!("{operation}:{identity_hash}:{bucket}");
+        // Sweep expired buckets and cap the table so audit cannot grow without
+        // bound (R-0603).
+        let cutoff = Timestamp::from_unix_seconds(now.unix_seconds() - 86_400)
+            .map_err(|_| ApiError::Unavailable)?;
+        let _ = self.store().purge_expired_counters(cutoff.as_str()).await;
+        let _ = self.store().cap_audit_table(10_000).await;
         let count = self
             .store()
             .bump_counter(&key, now.as_str(), i64::from(limit))
