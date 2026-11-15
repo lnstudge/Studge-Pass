@@ -674,7 +674,7 @@ with the approved SPEC; the founder approves them by merging PR #47.
   `sync-transports/Cargo.toml`, `test-harness/Cargo.toml`.
   **Status:** Approved by founder (at the merge of PR #54).
 
-## D-0601 — Maximum 100 devices per account (proposed)
+## D-0601 — Maximum 100 devices per account
 
 - **Decision:** An account may have at most 100 enrolled (non-revoked) devices.
   Enrolling the 101st device is refused with `413`/`quota_exceeded`.
@@ -694,4 +694,4 @@ with the approved SPEC; the founder approves them by merging PR #47.
 
 - **Affects:** `relay/src/routes/account.rs` (`enrol_device`), `relay/src/store.rs`
   (`add_device`, new `device_count`).
-  **Status:** Proposed
+  **Status:** Approved by founder (at the merge of PR #57).
