@@ -536,33 +536,53 @@ Applied in response to founder review of PR #47:
 - **Docs.**
   - `docs/DECISIONS.md` D-0501 (transport crate set: reqwest/rustls-tls,
     tempfile).
-  - `docs/THREAT_MODEL.md` §19 (14 evil-relay vectors, all with named tests;
+  - `docs/THREAT_MODEL.md` §19 (18 evil-relay vectors, all with named tests;
     R-0501–R-0503).
+  - `sync-transports/` — new workspace crate `studge-sync-transports` housing
+    `FolderTransport` and `HttpRelayTransport` (removed from core).
 
 ### How to try it
 
 ```powershell
-# Run all tests (246 core + 14 evil-relay + 3 multi-device + rest = 335 total)
+# Run all tests (248 core + 36 relay + 18 harness + rest = 344 total)
 .\x.ps1 "CARGO_INCREMENTAL=0 cargo test --all"
 
-# Watch the attack table in colour
+# Watch the attack table in colour (15 attack variants)
 .\x.ps1 "cargo run -p studge-test-harness --example evil_relay_show"
 ```
 
-### Test results
+### Test results (after review fixes, 2026-11-15)
 
 | Check | Result |
 | --- | --- |
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --all-targets --all-features -- -D warnings` | pass |
-| `cargo test --all` | **335 passed, 0 failed, 2 ignored** |
+| `cargo test --all` | **344 passed, 0 failed, 3 ignored** |
 | `cargo deny check` | advisories ok, bans ok, licenses ok, sources ok |
 | `cargo build -p studge-core-wasm --target wasm32-unknown-unknown` | pass |
 
 ### Self-attack review
 
-14 vectors in `docs/THREAT_MODEL.md §19`; 13 blocked by named tests (1 is
-harmless/idempotent by design); 3 new risks recorded (R-0501–R-0503), all low.
+18 vectors in `docs/THREAT_MODEL.md §19`; 15 blocked by named tests, 1 harmless
+(idempotent replay), 2 "Fixed" (pending restore and TOFU); 3 new risks recorded
+(R-0501–R-0503), all low.
+
+### Review fixes (PR #54)
+
+Applied in response to founder review of PR #54:
+
+| Fix | Commit | Detail |
+|---|---|---|
+| Fix 1 — wasm build broken | `a8e772c` | `pub use folder::FolderTransport` in `sync/mod.rs` was unconditional. Gated behind `#[cfg(not(target_arch = "wasm32"))]`. wasm build passes. |
+| Fix 2 — reqwest in core | `3125191` | `FolderTransport` and `HttpRelayTransport` moved to new crate `studge-sync-transports`; `reqwest` removed from core; `SyncEngine::sync()` takes `now: Timestamp` parameter (SystemTime panics on wasm32). wasm build clean. |
+| Fix 3a — pending ops lost on push failure | `3125191` | Engine drained `pending` before calling `transport.push()`; lost on `Io` error. Queue is now restored before returning. Test: `pending_ops_restored_on_push_failure`. |
+| Fix 3b — withheld head silently accepted | `3125191` | Returning `None` head when a pin exists was not an error. Engine now returns `RollbackDetected`. Attack `WithholdHead` added. Tests: `withheld_head_is_detected_when_pin_exists`, `evil_relay_withheld_head_is_detected`. |
+| Fix 3c — staged-DAG not atomic | `3125191` | Pulled ops were merged into the committed DAG before head checks; a bad head could not be undone. Stage-then-commit pattern implemented. Test: `fork_in_staged_ops_leaves_dag_unchanged`. |
+| Fix 3d — TOFU auto-cleared | `3125191` | TOFU flag was cleared on first sync; must stay `true` until `confirm_head()` is called by the UI layer. `VaultSyncState::confirm_head()` added. Test: `is_tofu_true_until_confirm_head_is_called`. |
+| Fix 3e — concurrent cursor incomplete | `3125191` | Pull cursor used `heads().into_iter().next()` (first head only), missing concurrent branches. Now uses all heads (cursor = min hash). Test: `sync_with_two_concurrent_heads_fetches_all_ops`. |
+| Fix 4 — missing named tests | `3125191` | `ForkHead`, `DropOps`, `WrongVaultId` attacks had no dedicated named tests. Added: `evil_relay_fork_head_is_detected`, `evil_relay_drop_ops_is_detected`, `evil_relay_wrong_vault_id_is_detected`. |
+| Fix 5 — D-0501 status | `d008c82` | D-0501 incorrectly said "Approved by founder". Rewritten with "Status: Proposed" and correct `studge-sync-transports` crate layout description. |
+| THREAT_MODEL §19 | `de54f61` | 18-row attack table (up from 14); review-fix table added; row 13 changed from "Harmless" to "Blocked" (withheld head with pin now errors). |
 
 ### Known gaps and follow-ups
 
@@ -573,4 +593,6 @@ harmless/idempotent by design); 3 new risks recorded (R-0501–R-0503), all low.
 - Phase 11 will add `ik`/`item-field` records and a decrypted in-memory cache
   (Phase 3 follow-up).
 - R-0501 pull-proof mechanism deferred to Phase 13.
+- D-0501 is **Proposed** (not yet approved by founder): `studge-sync-transports`
+  crate with `reqwest 0.12 + rustls-tls + json` and `tempfile 3.x`.
 

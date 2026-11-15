@@ -68,18 +68,60 @@
       "state": "done",
       "summary": "CDLA-Permissive-2.0 added to deny.toml allowlist (webpki-roots via reqwest). All checks pass: fmt, clippy, test --all (335/0/2), cargo deny. Committed fb35665, pushed. PR #54 opened (Closes #11).",
       "commit_sha": "fb35665"
+    },
+    {
+      "n": 10,
+      "title": "Review Fix 1+2: wasm build, studge-sync-transports, reqwest removed from core",
+      "state": "done",
+      "summary": "Fix 1 (a8e772c): gate FolderTransport re-export behind cfg(not(wasm32)). Fix 2 (3125191): move FolderTransport + HttpRelayTransport to new crate studge-sync-transports; remove reqwest from core; sync() takes now: Timestamp param so wasm32 no longer panics.",
+      "commit_sha": "3125191"
+    },
+    {
+      "n": 11,
+      "title": "Review Fixes 3a-3e: 5 engine bugs fixed with named tests",
+      "state": "done",
+      "summary": "Fix 3a: pending ops restored on push failure. Fix 3b: withheld head (None) with pin → RollbackDetected; Attack::WithholdHead added. Fix 3c: staged-DAG pattern — commit only after head checks pass. Fix 3d: TOFU stays true until confirm_head() called. Fix 3e: pull cursor uses all concurrent heads (min hash). 5 new named tests. (3125191)",
+      "commit_sha": "3125191"
+    },
+    {
+      "n": 12,
+      "title": "Review Fix 4: named tests for ForkHead, DropOps, WrongVaultId",
+      "state": "done",
+      "summary": "Added evil_relay_fork_head_is_detected, evil_relay_drop_ops_is_detected, evil_relay_wrong_vault_id_is_detected. All 3 pass. (3125191)",
+      "commit_sha": "3125191"
+    },
+    {
+      "n": 13,
+      "title": "Review Fix 5: D-0501 rewritten (Status: Proposed)",
+      "state": "done",
+      "summary": "D-0501 incorrectly said 'Approved by founder'. Rewritten with correct crate layout (studge-sync-transports) and Status: Proposed. (d008c82)",
+      "commit_sha": "d008c82"
+    },
+    {
+      "n": 14,
+      "title": "THREAT_MODEL §19 updated: 18 attack vectors + review-fix table",
+      "state": "done",
+      "summary": "§19 expanded from 14 to 18 rows: ForkHead, DropOps, WrongVaultId, WithholdHead, staged-DAG atomicity, pending-restore, TOFU. Row 13 changed from Harmless to Blocked. Review-fix table added. (de54f61)",
+      "commit_sha": "de54f61"
+    },
+    {
+      "n": 15,
+      "title": "PROGRESS.md review fixes section + final checks",
+      "state": "done",
+      "summary": "docs/PROGRESS.md Phase 5 entry updated: review fixes table (10 rows), test counts updated, self-attack updated to 18 vectors. docs/preview/status.json steps 10-15 added. All final checks run: fmt pass, clippy pass, test --all pass, cargo deny pass, wasm build pass.",
+      "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
     "tests": {
-      "passed": 335,
+      "passed": 344,
       "failed": 0,
-      "ignored": 2
+      "ignored": 3
     },
     "deny": "pass",
-    "updated_at": "2026-11-06T06:00:00Z"
+    "updated_at": "2026-11-15T01:00:00Z"
   },
   "commits": [],
   "screenshots": [],
@@ -92,7 +134,7 @@
     {
       "label": "Evil-relay attack table",
       "command_or_url": ".\\x.ps1 \"cargo run -p studge-test-harness --example evil_relay_show\"",
-      "expect": "Coloured table showing 13 attacks detected/blocked."
+      "expect": "Coloured table showing 15 attack variants detected/blocked."
     }
   ],
   "risks": [
