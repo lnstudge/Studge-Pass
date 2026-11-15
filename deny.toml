@@ -24,9 +24,6 @@ yanked = "deny"
 # Tracked in THREAT_MODEL.md §18 as R-0405 (low). Decision in docs/DECISIONS.md D-0402.
 ignore = [
     { id = "RUSTSEC-2026-0387", reason = "transitive via opaque-ke v4.0.1; ristretto255 hot paths use curve25519-dalek; see D-0402" },
-    { id = "RUSTSEC-2026-0370", reason = "transitive via keyring 4.2.0 -> zvariant; no safe upgrade; OS credential store only" },
-    { id = "RUSTSEC-2026-0371", reason = "transitive via keyring 4.2.0 -> zbus_names; no safe upgrade; OS credential store only" },
-    { id = "RUSTSEC-2026-0372", reason = "transitive via keyring 4.2.0 -> zvariant_derive; no safe upgrade; OS credential store only" },
 ]
 
 [licenses]
