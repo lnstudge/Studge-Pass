@@ -583,6 +583,7 @@ Applied in response to founder review of PR #54:
 | Fix 4 — missing named tests | `3125191` | `ForkHead`, `DropOps`, `WrongVaultId` attacks had no dedicated named tests. Added: `evil_relay_fork_head_is_detected`, `evil_relay_drop_ops_is_detected`, `evil_relay_wrong_vault_id_is_detected`. |
 | Fix 5 — D-0501 status | `d008c82` | D-0501 incorrectly said "Approved by founder". Rewritten with "Status: Proposed" and correct `studge-sync-transports` crate layout description. |
 | THREAT_MODEL §19 | `de54f61` | 18-row attack table (up from 14); review-fix table added; row 13 changed from "Harmless" to "Blocked" (withheld head with pin now errors). |
+| Fix 6 — pull cursor race | TBD | `last_pull_cursor` field added to `VaultSyncState`; cursor is now the hash of the last op returned by `transport.pull` (relay order, SPEC §7.4), never a DAG tip. Cursored pulls that fail with `HeadReferencesUnknownOp` or `MissingParent` retry once with `cursor=None`. Tests: `concurrent_push_race_does_not_strand_ops`, `lost_cursor_refetches_from_start`. |
 
 ### Known gaps and follow-ups
 

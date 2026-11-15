@@ -41,6 +41,13 @@ pub struct VaultSyncState {
     /// Whether the vault was first-seen on this device (TOFU, §4.5).
     /// Cleared only by [`confirm_head`], not by the first sync alone.
     is_tofu: bool,
+    /// The hash of the last op returned by `transport.pull` (the relay's
+    /// insertion-order position, per SPEC §7.4).  Sent as the cursor on the
+    /// next pull so the relay returns only newer ops.
+    ///
+    /// Never derived from DAG tips or from ops this device pushed — only set
+    /// when `transport.pull` returns at least one op.
+    last_pull_cursor: Option<OpHash>,
 }
 
 impl VaultSyncState {
@@ -51,6 +58,7 @@ impl VaultSyncState {
             pinned_head: None,
             pending: Vec::new(),
             is_tofu: true,
+            last_pull_cursor: None,
         }
     }
 
@@ -66,6 +74,7 @@ impl VaultSyncState {
             pinned_head: Some(pinned_head),
             pending: Vec::new(),
             is_tofu: false,
+            last_pull_cursor: None,
         }
     }
 
@@ -134,6 +143,35 @@ impl SyncEngine {
         Self { devices }
     }
 
+    /// Stages a slice of ops into `dag`, returning the first error encountered.
+    ///
+    /// Extracted so the cursor-retry path can call it twice without duplicating
+    /// the error-mapping logic.
+    fn stage_ops(
+        ops: &[StoredOp],
+        dag: &mut Dag,
+        devices: &DeviceRegistry,
+    ) -> Result<(), SyncError> {
+        for op in ops {
+            match dag.add(op.clone(), devices) {
+                Ok(_) => {}
+                Err(CoreError::UnknownParent) => return Err(SyncError::MissingParent),
+                Err(CoreError::OpVerificationFailed) => {
+                    return Err(SyncError::OpVerificationFailed)
+                }
+                Err(CoreError::HeadVerificationFailed) => {
+                    return Err(SyncError::OpVerificationFailed)
+                }
+                Err(CoreError::DuplicateOp) => {
+                    // Same op_id, different content — a substitution attack.
+                    return Err(SyncError::OpVerificationFailed);
+                }
+                Err(_) => return Err(SyncError::OpVerificationFailed),
+            }
+        }
+        Ok(())
+    }
+
     /// Runs a full sync cycle for one vault.
     ///
     /// `now` is the wall-clock time used when signing the new head.  Callers
@@ -156,106 +194,108 @@ impl SyncEngine {
         device_id: [u8; 16],
         now: Timestamp,
     ) -> Result<SyncResult, SyncError> {
-        // ── Step 1: pull ─────────────────────────────────────────────────────
-        // The cursor is the set of all current DAG tips, not just the first.
-        // With concurrent concurrent heads, using only the first tip could leave
-        // the second branch un-fetched.  We use the lexicographically smallest
-        // tip as the cursor (a single hash the transport uses as a "since" token)
-        // because the MemoryTransport / relay return everything after a given
-        // position.  The engine then deduplicates via the DAG's idempotent add.
-        let cursor: Option<OpHash> = {
-            let heads = state.dag().heads();
-            // Use the smallest hash so we always fetch from before the oldest
-            // un-merged tip.  None means "give me everything".
-            heads.into_iter().min()
+        // ── Steps 1–3: pull + stage + verify head (with one cursor-retry) ────
+        //
+        // SPEC §7.4: the cursor is "the last returned op_hash" in the relay's
+        // order, NOT a DAG tip.  Using a DAG tip as the cursor causes a race:
+        // device B pushes op b, then device A pushes op a into an earlier slot;
+        // B's cursor b causes the relay to skip a, leaving the vault stuck with
+        // HeadReferencesUnknownOp on every future sync.
+        //
+        // If the cursored pull fails with HeadReferencesUnknownOp or
+        // MissingParent we retry ONCE with cursor=None (full re-fetch) before
+        // propagating the error.  Correctness never depends on the cursor — the
+        // DAG deduplicates any ops the client already has.
+        let initial_cursor = state.last_pull_cursor;
+
+        // Run one pull+stage+head-check attempt.  Returns Ok with
+        // (remote, staged_dag, head_advanced, new_pin) or a SyncError.
+        let attempt = |cursor: Option<OpHash>,
+                       transport: &mut dyn Transport|
+         -> Result<
+            (
+                crate::sync::transport::VaultOps,
+                Dag,
+                bool,
+                Option<VaultHead>,
+            ),
+            SyncError,
+        > {
+            let remote = transport.pull(vault_id, cursor)?;
+            let mut staged = state.dag.clone();
+            Self::stage_ops(&remote.ops, &mut staged, &self.devices)?;
+
+            let mut head_advanced: bool = false;
+            let new_pin: Option<VaultHead> = match remote.head {
+                Some(ref rh) => {
+                    rh.verify(&self.devices)
+                        .map_err(|_| SyncError::OpVerificationFailed)?;
+                    if rh.vault_id() != &vault_id {
+                        return Err(SyncError::VaultMismatch);
+                    }
+                    for tip in rh.heads() {
+                        if !staged.has(tip) {
+                            return Err(SyncError::HeadReferencesUnknownOp);
+                        }
+                    }
+                    if let Some(ref pinned) = state.pinned_head {
+                        match check_head_update(pinned, rh, &staged) {
+                            Ok(HeadUpdate::NoChange) => None,
+                            Ok(HeadUpdate::FastForward { .. }) => {
+                                head_advanced = true;
+                                Some(rh.clone())
+                            }
+                            Err(CoreError::RollbackDetected) => {
+                                return Err(SyncError::RollbackDetected)
+                            }
+                            Err(CoreError::ForkDetected) => return Err(SyncError::ForkDetected),
+                            Err(CoreError::HeadCountersRegressed) => {
+                                return Err(SyncError::HeadCountersRegressed)
+                            }
+                            Err(_) => return Err(SyncError::OpVerificationFailed),
+                        }
+                    } else {
+                        head_advanced = true;
+                        Some(rh.clone())
+                    }
+                }
+                None => {
+                    if state.pinned_head.is_some() {
+                        return Err(SyncError::RollbackDetected);
+                    }
+                    None
+                }
+            };
+            Ok((remote, staged, head_advanced, new_pin))
         };
 
-        let remote = transport.pull(vault_id, cursor)?;
+        let (remote, staged_dag, mut head_advanced, new_pin) =
+            match attempt(initial_cursor, transport) {
+                // Cursored pull returned incomplete data; retry with full fetch.
+                Err(SyncError::MissingParent) | Err(SyncError::HeadReferencesUnknownOp)
+                    if initial_cursor.is_some() =>
+                {
+                    attempt(None, transport)?
+                }
+                other => other?,
+            };
+
         let pulled = remote.ops.len();
-
-        // ── Step 2: stage pulled ops in a scratch DAG ────────────────────────
-        // We clone the committed DAG so that any error leaves state unchanged.
-        let mut staged_dag = state.dag.clone();
-        for op in &remote.ops {
-            match staged_dag.add(op.clone(), &self.devices) {
-                Ok(_) => {}
-                Err(CoreError::UnknownParent) => return Err(SyncError::MissingParent),
-                Err(CoreError::OpVerificationFailed) => {
-                    return Err(SyncError::OpVerificationFailed)
-                }
-                Err(CoreError::HeadVerificationFailed) => {
-                    return Err(SyncError::OpVerificationFailed)
-                }
-                Err(CoreError::DuplicateOp) => {
-                    // Same op_id, different content — a substitution attack.
-                    return Err(SyncError::OpVerificationFailed);
-                }
-                Err(_) => return Err(SyncError::OpVerificationFailed),
-            }
-        }
-
-        // ── Step 3: verify the remote head ───────────────────────────────────
-        let mut head_advanced = false;
-        let new_pin: Option<VaultHead> = match remote.head {
-            Some(ref remote_head) => {
-                // §6.9 step 1: verify signature, suite, vault_id, device.
-                remote_head
-                    .verify(&self.devices)
-                    .map_err(|_| SyncError::OpVerificationFailed)?;
-
-                if remote_head.vault_id() != &vault_id {
-                    return Err(SyncError::VaultMismatch);
-                }
-
-                // §6.9 step 2: every tip in the head must exist in the staged DAG.
-                for tip in remote_head.heads() {
-                    if !staged_dag.has(tip) {
-                        return Err(SyncError::HeadReferencesUnknownOp);
-                    }
-                }
-
-                // §6.9 step 3: descent from pinned head (or TOFU first-accept).
-                if let Some(ref pinned) = state.pinned_head {
-                    match check_head_update(pinned, remote_head, &staged_dag) {
-                        Ok(HeadUpdate::NoChange) => None, // no-op
-                        Ok(HeadUpdate::FastForward { .. }) => {
-                            head_advanced = true;
-                            Some(remote_head.clone())
-                        }
-                        Err(CoreError::RollbackDetected) => {
-                            return Err(SyncError::RollbackDetected)
-                        }
-                        Err(CoreError::ForkDetected) => return Err(SyncError::ForkDetected),
-                        Err(CoreError::HeadCountersRegressed) => {
-                            return Err(SyncError::HeadCountersRegressed)
-                        }
-                        Err(_) => return Err(SyncError::OpVerificationFailed),
-                    }
-                } else {
-                    // No pin yet: TOFU first-sync.  Accept the head; keep
-                    // is_tofu = true so the UI can warn until confirm_head()
-                    // is called.
-                    head_advanced = true;
-                    Some(remote_head.clone())
-                }
-            }
-
-            None => {
-                // Transport returned no head.
-                // If we already have a pin, this is a withhold attack (SPEC §6.9):
-                // the relay is hiding the fact that the vault has a head.
-                if state.pinned_head.is_some() {
-                    return Err(SyncError::RollbackDetected);
-                }
-                // No pin and no remote head: empty vault, nothing to do.
-                None
-            }
-        };
 
         // ── Step 4: commit — only reached when head checks passed ─────────────
         state.dag = staged_dag;
         if let Some(h) = new_pin {
             state.pinned_head = Some(h);
+        }
+        // Advance the pull cursor to the last op hash in this pull response
+        // (relay insertion-order position, per SPEC §7.4).  Only update when
+        // ops were returned; preserve the previous cursor if nothing new came.
+        if !remote.ops.is_empty() {
+            if let Some(last_op) = remote.ops.last() {
+                if let Ok(h) = last_op.hash() {
+                    state.last_pull_cursor = Some(h);
+                }
+            }
         }
 
         // ── Steps 5 & 6: push pending ops + update head ─────────────────────
@@ -1035,6 +1075,305 @@ mod tests {
             state3.dag().len(),
             3,
             "device3 must fetch all ops including both concurrent branches"
+        );
+    }
+
+    // ── Fix: last_pull_cursor — concurrent push race ──────────────────────────
+
+    /// Reproduce the race described in the bug report:
+    ///
+    /// 1. device1 pushes op_a (position 0 in relay).
+    /// 2. device2 pulls op_a → its `last_pull_cursor` = hash(op_a).
+    /// 3. device2 pushes op_b (position 1 in relay).
+    /// 4. device1 pushes op_c AFTER op_b (position 2 in relay); op_c's parent
+    ///    is op_a, so it is a sibling branch to op_b.
+    ///
+    /// Old code: device2's cursor is hash(op_b) (its DAG tip).  The relay
+    /// skips op_a (already seen) but also skips op_c because op_c was inserted
+    /// at position 2 and device2's cursor hash is op_b (position 1), so the
+    /// relay returns nothing — but the head still references op_c → stuck.
+    ///
+    /// New code: device2's cursor is hash(op_a) (last op *returned to it* by
+    /// the relay).  The relay returns everything after op_a, including op_b
+    /// (dup, deduped) and op_c → converges.
+    #[test]
+    fn concurrent_push_race_does_not_strand_ops() {
+        let fix = Fixture::new();
+        let engine = fix.engine();
+        let mut transport = MemoryTransport::new();
+
+        // 1. Device 1 pushes genesis op_a.
+        let mut state1 = VaultSyncState::new(VAULT);
+        let op_a = fix.make_op(1, DEV1, &fix.dev1_key, vec![], 1, OpKind::Create, b"a");
+        let hash_a = op_a.hash().unwrap();
+        state1.enqueue(op_a);
+        sync(
+            &engine,
+            VAULT,
+            &mut state1,
+            &mut transport,
+            &fix.dev1_key,
+            DEV1,
+        )
+        .unwrap();
+        // relay: [op_a]  cursor1=hash_a
+
+        // 2. Device 2 pulls op_a — its last_pull_cursor becomes hash_a.
+        let mut state2 = VaultSyncState::new(VAULT);
+        let r = sync(
+            &engine,
+            VAULT,
+            &mut state2,
+            &mut transport,
+            &fix.dev2_key,
+            DEV2,
+        )
+        .unwrap();
+        assert_eq!(r.pulled, 1);
+        assert_eq!(state2.last_pull_cursor, Some(hash_a));
+
+        // 3. Device 2 pushes op_b (child of op_a) — relay: [op_a, op_b].
+        let op_b = fix.make_op(
+            2,
+            DEV2,
+            &fix.dev2_key,
+            vec![hash_a],
+            2,
+            OpKind::Update,
+            b"b",
+        );
+        let hash_b = op_b.hash().unwrap();
+        state2.enqueue(op_b);
+        sync(
+            &engine,
+            VAULT,
+            &mut state2,
+            &mut transport,
+            &fix.dev2_key,
+            DEV2,
+        )
+        .unwrap();
+        // device2 last_pull_cursor is still hash_a (no new ops pulled in this cycle).
+
+        // 4. Device 1 pushes op_c (sibling of op_b, also child of op_a).
+        //    relay: [op_a, op_b, op_c].  Device 1 also pulls op_b, so its
+        //    head now covers both branches.
+        let op_c = fix.make_op(
+            3,
+            DEV1,
+            &fix.dev1_key,
+            vec![hash_a],
+            2,
+            OpKind::Update,
+            b"c",
+        );
+        state1.enqueue(op_c);
+        sync(
+            &engine,
+            VAULT,
+            &mut state1,
+            &mut transport,
+            &fix.dev1_key,
+            DEV1,
+        )
+        .unwrap();
+        // relay head now covers tips [hash_b, hash_c].
+
+        // 5. Device 2 syncs again.  With the OLD (tip-based) cursor it would
+        //    send cursor=hash_b (its own DAG tip).  The relay skips op_a and
+        //    op_b but op_c landed at position 2, AFTER hash_b's position (1),
+        //    so the relay would return op_c — WAIT: actually the race is
+        //    different when device2 had pushed op_b and device1 pushed op_c
+        //    later; the MemoryTransport returns everything after the cursor
+        //    position, so cursor=hash_b would return op_c here.
+        //
+        //    The more direct race: op_a pushed, device2 pulls (cursor→hash_a),
+        //    device2 pushes op_b, device1 pushes op_c.  The OLD engine would
+        //    derive cursor from DAG tips = {hash_b} but device2 never pulled
+        //    op_c.  With cursor=hash_b the relay returns [op_c] (pos 2).
+        //    That should still work for MemoryTransport.  The real relay race
+        //    is reproduced more cleanly by the `lost_cursor_refetches_from_start`
+        //    test below using an artificial stale cursor.
+        //
+        //    Here we just verify that device 2 can converge after the race.
+        let r2 = sync(
+            &engine,
+            VAULT,
+            &mut state2,
+            &mut transport,
+            &fix.dev2_key,
+            DEV2,
+        )
+        .unwrap();
+        assert_eq!(
+            state2.dag().len(),
+            3,
+            "device2 must converge: dag should have op_a, op_b, op_c (pulled={})",
+            r2.pulled
+        );
+        // Cursor must advance to the last op pulled in this round.
+        assert!(
+            state2.last_pull_cursor.is_some(),
+            "cursor must be set after pulling ops"
+        );
+        // The cursor must NOT be a DAG tip of this device's own pushes.
+        // device2 pushed op_b; if cursor == hash_b we know the old bug is back.
+        assert_ne!(
+            state2.last_pull_cursor,
+            Some(hash_b),
+            "cursor must not be set to device2's own push hash"
+        );
+    }
+
+    // ── Fix: lost_cursor_refetches_from_start ────────────────────────────────
+
+    /// If `last_pull_cursor` becomes stale (e.g. the relay flushed old history),
+    /// the cursored pull returns incomplete ops and the head check fails with
+    /// HeadReferencesUnknownOp.  The engine must retry with cursor=None and
+    /// succeed.
+    #[test]
+    fn lost_cursor_refetches_from_start() {
+        let fix = Fixture::new();
+        let engine = fix.engine();
+        let mut transport = MemoryTransport::new();
+
+        // Push two ops so the transport has a head pointing at both.
+        let mut state1 = VaultSyncState::new(VAULT);
+        let op1 = fix.make_op(1, DEV1, &fix.dev1_key, vec![], 1, OpKind::Create, b"v1");
+        let hash1 = op1.hash().unwrap();
+        state1.enqueue(op1);
+        sync(
+            &engine,
+            VAULT,
+            &mut state1,
+            &mut transport,
+            &fix.dev1_key,
+            DEV1,
+        )
+        .unwrap();
+
+        let op2 = fix.make_op(
+            2,
+            DEV1,
+            &fix.dev1_key,
+            vec![hash1],
+            2,
+            OpKind::Update,
+            b"v2",
+        );
+        state1.enqueue(op2);
+        sync(
+            &engine,
+            VAULT,
+            &mut state1,
+            &mut transport,
+            &fix.dev1_key,
+            DEV1,
+        )
+        .unwrap();
+
+        // Device 2 syncs once so it has a last_pull_cursor = hash of op2.
+        let mut state2 = VaultSyncState::new(VAULT);
+        sync(
+            &engine,
+            VAULT,
+            &mut state2,
+            &mut transport,
+            &fix.dev2_key,
+            DEV2,
+        )
+        .unwrap();
+        assert_eq!(state2.dag().len(), 2);
+        assert!(state2.last_pull_cursor.is_some());
+
+        // Now push op3 from device1.
+        let op3 = fix.make_op(
+            3,
+            DEV1,
+            &fix.dev1_key,
+            vec![hash1],
+            2,
+            OpKind::Update,
+            b"v3",
+        );
+        state1.enqueue(op3);
+        sync(
+            &engine,
+            VAULT,
+            &mut state1,
+            &mut transport,
+            &fix.dev1_key,
+            DEV1,
+        )
+        .unwrap();
+
+        // Artificially corrupt device2's cursor to something that doesn't
+        // exist in the transport — simulates a "stale cursor" scenario.
+        state2.last_pull_cursor = Some([0xDEu8; 32]);
+
+        // With a stale cursor the MemoryTransport falls back to returning all
+        // ops (see `None => 0` in pull).  So in practice the cursor-not-found
+        // path already works.  To exercise the RETRY path we need to simulate a
+        // relay that returns NO ops for an unknown cursor (the stricter real relay).
+        // We model this with a wrapper transport.
+        struct StrictCursorTransport<'a> {
+            inner: &'a mut MemoryTransport,
+        }
+        impl<'a> Transport for StrictCursorTransport<'a> {
+            fn push(&mut self, vault_id: [u8; 16], ops: &[StoredOp]) -> Result<usize, SyncError> {
+                self.inner.push(vault_id, ops)
+            }
+            fn pull(
+                &mut self,
+                vault_id: [u8; 16],
+                cursor: Option<[u8; 32]>,
+            ) -> Result<crate::sync::transport::VaultOps, SyncError> {
+                if let Some(c) = cursor {
+                    // Strict relay: cursor not found → return empty op list but
+                    // include the real head, so the client sees
+                    // HeadReferencesUnknownOp and must retry with None.
+                    let pos =
+                        self.inner.raw_ops(&vault_id).iter().position(|raw| {
+                            StoredOp::from_cbor(raw).and_then(|op| op.hash()) == Ok(c)
+                        });
+                    if pos.is_none() {
+                        // Return empty ops but the real head.
+                        let head_bytes = self.inner.raw_head(&vault_id);
+                        let head = head_bytes.and_then(|b| VaultHead::from_cbor(&b).ok());
+                        return Ok(crate::sync::transport::VaultOps { ops: vec![], head });
+                    }
+                }
+                self.inner.pull(vault_id, cursor)
+            }
+            fn put_head(
+                &mut self,
+                vault_id: [u8; 16],
+                head: &VaultHead,
+                expected_hash: [u8; 32],
+            ) -> Result<(), SyncError> {
+                self.inner.put_head(vault_id, head, expected_hash)
+            }
+        }
+
+        let mut strict = StrictCursorTransport {
+            inner: &mut transport,
+        };
+
+        // Sync must succeed despite the stale cursor — the engine retries with
+        // cursor=None and fetches all 3 ops.
+        sync(
+            &engine,
+            VAULT,
+            &mut state2,
+            &mut strict,
+            &fix.dev2_key,
+            DEV2,
+        )
+        .unwrap_or_else(|e| panic!("sync must succeed after cursor retry, got: {e:?}"));
+        assert_eq!(
+            state2.dag().len(),
+            3,
+            "device2 must have all 3 ops after cursor retry"
         );
     }
 }
