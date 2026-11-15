@@ -2783,6 +2783,7 @@ dependencies = [
  "serde_json",
  "studge-core",
  "studge-sync-transports",
+ "subtle",
  "tempfile",
  "thiserror",
  "windows-native-keyring-store",

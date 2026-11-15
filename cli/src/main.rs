@@ -86,9 +86,7 @@ enum Command {
     },
     Config,
     #[command(name = "__clear-clipboard", hide = true)]
-    ClearClipboard {
-        hash: String,
-    },
+    ClearClipboard,
 }
 
 #[derive(Debug, Subcommand)]
@@ -152,6 +150,6 @@ fn run(cli: Cli) -> Result<()> {
             DeviceAction::Revoke { device } => commands::devices::revoke(device),
         },
         Command::Config => commands::config::run(),
-        Command::ClearClipboard { hash } => commands::clear_clipboard::run(hash),
+        Command::ClearClipboard => commands::clear_clipboard::run(),
     }
 }

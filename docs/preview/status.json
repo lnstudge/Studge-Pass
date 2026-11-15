@@ -19,12 +19,40 @@
       "state": "done",
       "summary": "clap subcommands, init, unlock, lock, status, list, get, totp, generate, health, vault_util. Relay cap_audit_table fix.",
       "commit_sha": null
+    },
+    {
+      "n": 3,
+      "title": "Review fixes round 2: clipboard",
+      "state": "done",
+      "summary": "Clipboard clearer receives a random key and keyed hash through stdin; values are zeroized and comparison is constant-time.",
+      "commit_sha": null
     }
   ],
   "checks": {
     "fmt": "pass",
     "clippy": "pass",
-    "tests": "pass",
-    "deny": "pass"
-  }
+    "tests": {
+      "passed": null,
+      "failed": null,
+      "ignored": null
+    },
+    "deny": "pass",
+    "updated_at": "2026-11-15T00:00:00Z"
+  },
+  "commits": [],
+  "screenshots": [],
+  "try_it": [
+    {
+      "label": "Run CLI tests",
+      "command_or_url": ".\\x.ps1 cargo test -p studge",
+      "expect": "CLI tests pass."
+    }
+  ],
+  "risks": [],
+  "links": [
+    {
+      "label": "Phase 6 pull request",
+      "url": "https://github.com/lnstudge/Studge-Pass/pull/58"
+    }
+  ]
 }
