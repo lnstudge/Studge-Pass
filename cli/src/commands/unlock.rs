@@ -3,6 +3,7 @@ use rpassword::prompt_password;
 use studge_core::account::unlock as unlock_account;
 use studge_core::crypto::secret_key::SecretKey;
 use studge_core::storage::LocalStore;
+use zeroize::Zeroizing;
 
 use crate::app::App;
 use crate::config::Config;
@@ -46,7 +47,7 @@ pub fn run(password_stdin: bool) -> Result<()> {
         .context("no account bundle in store")?;
     let account =
         unlock_account(&password, &secret_key, &bundle).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let ak_bytes = account.account_key_bytes();
+    let ak_bytes = Zeroizing::new(account.account_key_bytes());
 
     let session_path = app.home.join("session.bin");
     let expiry = cfg.session_minutes;

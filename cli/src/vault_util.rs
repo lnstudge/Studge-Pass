@@ -25,7 +25,7 @@ pub fn load_items(app: &App, cfg: &Config) -> Result<(Vec<Item>, [u8; 16])> {
     if sess_dev != device_id {
         return Err(anyhow::anyhow!("session device mismatch"));
     }
-    let account_key = AccountKey::from_bytes(ak_bytes);
+    let account_key = AccountKey::from_bytes(*ak_bytes);
 
     let store = app.open_store()?;
     let aid = hex_decode(&account_id)?;

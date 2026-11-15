@@ -25,6 +25,13 @@
       "title": "Review fixes round 2: clipboard",
       "state": "done",
       "summary": "Clipboard clearer receives a random key and keyed hash through stdin; values are zeroized and comparison is constant-time.",
+      "commit_sha": "d278785"
+    },
+    {
+      "n": 4,
+      "title": "Review fixes round 2: sessions",
+      "state": "done",
+      "summary": "Session storage propagates credential-store errors, validates account ids, and zeroizes plaintext and key material.",
       "commit_sha": null
     }
   ],
