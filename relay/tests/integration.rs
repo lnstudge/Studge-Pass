@@ -387,6 +387,140 @@ async fn malformed_inputs_return_400_not_500() {
 }
 
 #[tokio::test]
+async fn cross_account_push_to_foreign_vault_is_404() {
+    let relay = Relay::start().await;
+    let alice = TestAccount::new();
+    alice.register(&relay).await;
+    let alice_token = alice.login(&relay).await;
+    let bob = TestAccount::new();
+    bob.register(&relay).await;
+    let bob_token = bob.login(&relay).await;
+
+    let vault_id = helpers::random_id();
+    let ops = helpers::make_ops(&vault_id, 1);
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&alice_token)
+        .header("content-type", "application/cbor")
+        .body(ops)
+        .send()
+        .await
+        .expect("alice push");
+    assert_eq!(r.status(), 200, "alice claims the vault");
+
+    // Bob pushes to the same vault id: refused, nothing written.
+    let bob_ops = helpers::make_ops(&vault_id, 1);
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&bob_token)
+        .header("content-type", "application/cbor")
+        .body(bob_ops)
+        .send()
+        .await
+        .expect("bob push");
+    assert_eq!(r.status(), 404, "foreign vault push is 404");
+}
+
+#[tokio::test]
+async fn cross_account_cannot_read_after_push() {
+    let relay = Relay::start().await;
+    let alice = TestAccount::new();
+    alice.register(&relay).await;
+    let alice_token = alice.login(&relay).await;
+    let bob = TestAccount::new();
+    bob.register(&relay).await;
+    let bob_token = bob.login(&relay).await;
+
+    let vault_id = helpers::random_id();
+    let ops = helpers::make_ops(&vault_id, 1);
+    relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&alice_token)
+        .header("content-type", "application/cbor")
+        .body(ops)
+        .send()
+        .await
+        .expect("alice push");
+
+    // Bob's attempted push does not grant him read access.
+    let bob_ops = helpers::make_ops(&vault_id, 1);
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&bob_token)
+        .header("content-type", "application/cbor")
+        .body(bob_ops)
+        .send()
+        .await
+        .expect("bob push");
+    assert_eq!(r.status(), 404);
+
+    let r = relay
+        .client()
+        .get(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&bob_token)
+        .send()
+        .await
+        .expect("bob fetch");
+    assert_eq!(r.status(), 404, "bob cannot read alice's vault");
+}
+
+#[tokio::test]
+async fn cross_account_op_id_squatting_is_impossible() {
+    let relay = Relay::start().await;
+    let alice = TestAccount::new();
+    alice.register(&relay).await;
+    let alice_token = alice.login(&relay).await;
+    let bob = TestAccount::new();
+    bob.register(&relay).await;
+    let bob_token = bob.login(&relay).await;
+
+    let vault_id = helpers::random_id();
+    let op_id = helpers::random_id();
+    let alice_ops = helpers::make_ops_with_op_ids(&vault_id, &[op_id]);
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&alice_token)
+        .header("content-type", "application/cbor")
+        .body(alice_ops.clone())
+        .send()
+        .await
+        .expect("alice push");
+    assert_eq!(r.status(), 200);
+
+    // Bob cannot squat the same op id in Alice's vault.
+    let bob_ops = helpers::make_ops_with_op_ids(&vault_id, &[op_id]);
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&bob_token)
+        .header("content-type", "application/cbor")
+        .body(bob_ops)
+        .send()
+        .await
+        .expect("bob push");
+    assert_eq!(r.status(), 404);
+
+    // Alice's original op is untouched and idempotent.
+    let r = relay
+        .client()
+        .post(relay.url(&format!("/v1/vaults/{}/ops", helpers::hex_id(&vault_id))))
+        .bearer_auth(&alice_token)
+        .header("content-type", "application/cbor")
+        .body(alice_ops)
+        .send()
+        .await
+        .expect("alice replay");
+    assert_eq!(r.status(), 200);
+    let body: serde_json::Value = r.json().await.expect("json");
+    assert_eq!(body["accepted"], 1);
+}
+
+#[tokio::test]
 async fn an_unknown_path_returns_404() {
     let relay = Relay::start().await;
     let resp = relay

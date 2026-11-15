@@ -4,6 +4,10 @@
 //! as received** and never updated; the only destructive path is deleting a
 //! whole account, which cascades.
 //!
+//! A `vault_id` is owned by exactly one account (SPEC §7.4, R-0601). Every op
+//! query is scoped to `(account_id, vault_id)` and the `vaults` table carries a
+//! global unique index on `vault_id`, so two accounts can never share a stream.
+//!
 //! All rusqlite calls are synchronous and dispatched via
 //! `tokio::task::spawn_blocking` so the async runtime is never blocked.
 
@@ -56,7 +60,7 @@ pub struct VaultRow {
 }
 
 /// One stored op.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct OpRow {
     /// The op hash.
     pub op_hash: Vec<u8>,
@@ -68,6 +72,12 @@ pub struct OpRow {
     pub body: Vec<u8>,
     /// The size of `body`.
     pub size: i64,
+    /// The device that signed the op.
+    pub device_id: Vec<u8>,
+    /// The op kind, as its wire name.
+    pub kind: String,
+    /// The item the op touches, when its kind names one.
+    pub item_id: Option<Vec<u8>>,
 }
 
 /// The database handle — cheaply `Clone`able.
@@ -154,10 +164,75 @@ CREATE TABLE IF NOT EXISTS audit (
     created_at TEXT NOT NULL,
     PRIMARY KEY (account_id, device_id)
 );",
+    // 0003 — vault ids are globally owned and ops carry their account (R-0601).
+    //
+    // Before this migration `ops` was keyed by `vault_id` alone, so an account
+    // could push one op to another account's vault id and from then on read —
+    // and inject into — that whole op stream. The table is rebuilt with
+    // `account_id` in the primary key and in the unique constraint, and with a
+    // foreign key to `vaults` that cascades: deleting an account now really
+    // deletes its op ciphertext (R-0607). `vaults.vault_id` becomes globally
+    // unique, so ownership cannot be split again.
+    "CREATE TABLE ops_v3 (
+    account_id BLOB NOT NULL,
+    vault_id   BLOB NOT NULL,
+    op_hash    BLOB NOT NULL,
+    op_id      BLOB NOT NULL,
+    lamport    INTEGER NOT NULL,
+    kind       TEXT NOT NULL,
+    item_id    BLOB,
+    device_id  BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    body       BLOB NOT NULL,
+    size       INTEGER NOT NULL,
+    PRIMARY KEY (account_id, op_hash),
+    UNIQUE (account_id, vault_id, op_id),
+    FOREIGN KEY (account_id, vault_id) REFERENCES vaults (account_id, vault_id)
+        ON DELETE CASCADE
+);
+
+INSERT INTO ops_v3 (account_id, vault_id, op_hash, op_id, lamport, kind, item_id,
+                    device_id, created_at, body, size)
+SELECT v.account_id, o.vault_id, o.op_hash, o.op_id, o.lamport, o.kind, o.item_id,
+       o.device_id, o.created_at, o.body, o.size
+FROM ops o
+JOIN vaults v ON v.vault_id = o.vault_id;
+
+DROP TABLE ops;
+ALTER TABLE ops_v3 RENAME TO ops;
+
+CREATE INDEX IF NOT EXISTS ops_account_vault_order
+    ON ops (account_id, vault_id, lamport, op_hash);
+
+CREATE UNIQUE INDEX IF NOT EXISTS vaults_vault_id_global ON vaults (vault_id);",
 ];
 
+/// Why opening or upgrading the database failed.
+#[derive(Debug)]
+enum MigrateError {
+    /// SQLite refused a statement.
+    Db(rusqlite::Error),
+    /// A migration refused to run on this data. Refusing beats guessing.
+    Refused(&'static str),
+}
+
+impl std::fmt::Display for MigrateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Db(error) => write!(f, "{error}"),
+            Self::Refused(reason) => f.write_str(reason),
+        }
+    }
+}
+
+impl From<rusqlite::Error> for MigrateError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Db(error)
+    }
+}
+
 /// Opens a connection, sets pragmas and applies pending migrations.
-fn open_connection(path: Option<&Path>) -> rusqlite::Result<Connection> {
+fn open_connection(path: Option<&Path>) -> Result<Connection, MigrateError> {
     let conn = match path {
         Some(p) => Connection::open(p)?,
         None => Connection::open_in_memory()?,
@@ -173,7 +248,7 @@ fn open_connection(path: Option<&Path>) -> rusqlite::Result<Connection> {
 }
 
 /// Applies any migration whose number is higher than the current schema version.
-fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
+fn run_migrations(conn: &Connection) -> Result<(), MigrateError> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
              version INTEGER NOT NULL
@@ -190,19 +265,57 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
     for (i, sql) in MIGRATIONS.iter().enumerate() {
         let version = i as i64 + 1;
         if version > current {
-            conn.execute_batch(sql)?;
-            conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?1)",
-                [version],
-            )?;
+            // 0003 rebuilds `ops` and makes `vault_id` globally unique; it must
+            // not run on a database where one vault id already has two owners.
+            if version == 3 {
+                check_global_vault_ownership(conn)?;
+            }
+            // The migration and its version row commit together, so an
+            // interrupted upgrade leaves the previous version intact instead
+            // of a half-rebuilt table.
+            let batch = format!(
+                "BEGIN;\n{sql}\nINSERT INTO schema_version (version) VALUES ({version});\nCOMMIT;"
+            );
+            if let Err(error) = conn.execute_batch(&batch) {
+                let _ = conn.execute_batch("ROLLBACK");
+                return Err(MigrateError::Db(error));
+            }
         }
     }
     Ok(())
 }
 
-/// Converts a rusqlite error into the relay's generic `ApiError::Unavailable`.
+/// Refuses to upgrade a database where one `vault_id` already has two owners.
+///
+/// That state is either a 2^-128 collision or R-0601 having been exercised.
+/// Picking an owner would silently hand one account's ops to another, so the
+/// relay refuses to start and leaves the database untouched.
+fn check_global_vault_ownership(conn: &Connection) -> Result<(), MigrateError> {
+    let duplicates: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM (
+             SELECT vault_id FROM vaults GROUP BY vault_id HAVING COUNT(*) > 1
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if duplicates == 0 {
+        Ok(())
+    } else {
+        Err(MigrateError::Refused(
+            "migration 0003 refused: a vault id is owned by more than one account (R-0601)",
+        ))
+    }
+}
+
+/// Converts a database error into the relay's generic `ApiError::Unavailable`.
 fn db_err(e: rusqlite::Error) -> ApiError {
     tracing::error!(error = %e, "database error");
+    ApiError::Unavailable
+}
+
+/// Converts an open/migrate failure into the generic error, logging the reason.
+fn open_err(e: MigrateError) -> ApiError {
+    tracing::error!(error = %e, "database could not be opened");
     ApiError::Unavailable
 }
 
@@ -213,7 +326,7 @@ impl RelayStore {
         let conn = tokio::task::spawn_blocking(move || open_connection(Some(&path)))
             .await
             .map_err(|_| ApiError::Unavailable)?
-            .map_err(db_err)?;
+            .map_err(open_err)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -224,7 +337,7 @@ impl RelayStore {
         let conn = tokio::task::spawn_blocking(|| open_connection(None))
             .await
             .map_err(|_| ApiError::Unavailable)?
-            .map_err(db_err)?;
+            .map_err(open_err)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -512,16 +625,47 @@ impl RelayStore {
 
     // ----------------------------------------------------------------- vaults
 
-    /// Creates the vault row if it does not exist yet.
-    pub async fn ensure_vault(&self, account_id: &[u8], vault_id: &[u8]) -> Result<(), ApiError> {
+    /// The account that owns `vault_id`, if the vault exists at all.
+    ///
+    /// Vault ids are globally owned (SPEC §7.4, R-0601): the caller uses this
+    /// to tell "new vault" from "someone else's vault" before creating rows.
+    pub async fn vault_owner(&self, vault_id: &[u8]) -> Result<Option<Vec<u8>>, ApiError> {
+        let vault_id = vault_id.to_vec();
+        self.with_conn(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT account_id FROM vaults WHERE vault_id = ?1")?;
+            let mut rows = stmt.query([&vault_id as &dyn rusqlite::ToSql])?;
+            match rows.next()? {
+                Some(row) => Ok(Some(row.get(0)?)),
+                None => Ok(None),
+            }
+        })
+        .await
+    }
+
+    /// Claims `vault_id` for `account_id`, creating the row on the first push.
+    ///
+    /// Returns `false` when the id already belongs to a different account. The
+    /// check and the insert are one database call, so a racing push from
+    /// another account cannot slip between them, and nothing is written on the
+    /// `false` path. The caller answers the same `404` it uses for a missing
+    /// vault (SPEC §7.8).
+    pub async fn claim_vault(&self, account_id: &[u8], vault_id: &[u8]) -> Result<bool, ApiError> {
         let account_id = account_id.to_vec();
         let vault_id = vault_id.to_vec();
         self.with_conn(move |conn| {
+            // `vaults.vault_id` is globally unique (migration 0003), so the
+            // insert is a no-op when anyone owns the id.
             conn.execute(
                 "INSERT OR IGNORE INTO vaults (account_id, vault_id) VALUES (?1, ?2)",
                 rusqlite::params![account_id, vault_id],
             )?;
-            Ok(())
+            let owner: Vec<u8> = conn.query_row(
+                "SELECT account_id FROM vaults WHERE vault_id = ?1",
+                [&vault_id as &dyn rusqlite::ToSql],
+                |row| row.get(0),
+            )?;
+            Ok(owner == account_id)
         })
         .await
     }
@@ -584,8 +728,8 @@ impl RelayStore {
     /// Inserts ops for one vault. Returns the number actually stored.
     ///
     /// `INSERT OR IGNORE` gives idempotency: the same bytes for the same
-    /// `(vault_id, op_id)` are accepted silently; the caller checks for a
-    /// *different* hash under an existing `op_id` before calling this.
+    /// `(account_id, vault_id, op_id)` are accepted silently; the caller checks
+    /// for a *different* hash under an existing `op_id` before calling this.
     pub async fn insert_ops(
         &self,
         account_id: &[u8],
@@ -605,11 +749,20 @@ impl RelayStore {
             for op in &ops {
                 let n = tx.execute(
                     "INSERT OR IGNORE INTO ops
-                         (op_hash, vault_id, op_id, lamport, kind, item_id, device_id,
-                          created_at, body, size)
-                     VALUES (?1, ?2, ?3, ?4, 'create', NULL, ?5, ?6, ?7, ?8)",
+                         (account_id, vault_id, op_hash, op_id, lamport, kind, item_id,
+                          device_id, created_at, body, size)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                     rusqlite::params![
-                        op.op_hash, vault_id, op.op_id, op.lamport, account_id, now, op.body,
+                        account_id,
+                        vault_id,
+                        op.op_hash,
+                        op.op_id,
+                        op.lamport,
+                        op.kind,
+                        op.item_id,
+                        op.device_id,
+                        now,
+                        op.body,
                         op.size
                     ],
                 )?;
@@ -638,18 +791,22 @@ impl RelayStore {
         .await
     }
 
-    /// The stored op hash for an `(vault_id, op_id)`, if any.
+    /// The stored op hash for an `(account_id, vault_id, op_id)`, if any.
     pub async fn op_hash_for_id(
         &self,
+        account_id: &[u8],
         vault_id: &[u8],
         op_id: &[u8],
     ) -> Result<Option<Vec<u8>>, ApiError> {
+        let account_id = account_id.to_vec();
         let vault_id = vault_id.to_vec();
         let op_id = op_id.to_vec();
         self.with_conn(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT op_hash FROM ops WHERE vault_id = ?1 AND op_id = ?2")?;
-            let mut rows = stmt.query(rusqlite::params![vault_id, op_id])?;
+            let mut stmt = conn.prepare_cached(
+                "SELECT op_hash FROM ops
+                 WHERE account_id = ?1 AND vault_id = ?2 AND op_id = ?3",
+            )?;
+            let mut rows = stmt.query(rusqlite::params![account_id, vault_id, op_id])?;
             if let Some(row) = rows.next()? {
                 Ok(Some(row.get(0)?))
             } else {
@@ -659,23 +816,25 @@ impl RelayStore {
         .await
     }
 
-    /// Ops of a vault after a cursor, in `(lamport, op_hash)` order.
+    /// Ops of an account's vault after a cursor, in `(lamport, op_hash)` order.
     pub async fn ops_after(
         &self,
+        account_id: &[u8],
         vault_id: &[u8],
         cursor: Option<(i64, Vec<u8>)>,
         limit: i64,
     ) -> Result<Vec<OpRow>, ApiError> {
+        let account_id = account_id.to_vec();
         let vault_id = vault_id.to_vec();
         self.with_conn(move |conn| {
             let rows: Vec<OpRow> = match cursor {
                 None => {
                     let mut stmt = conn.prepare_cached(
-                        "SELECT op_hash, op_id, lamport, body, size FROM ops
-                         WHERE vault_id = ?1
-                         ORDER BY lamport, op_hash LIMIT ?2",
+                        "SELECT op_hash, op_id, lamport, body, size, device_id, kind, item_id
+                         FROM ops WHERE account_id = ?1 AND vault_id = ?2
+                         ORDER BY lamport, op_hash LIMIT ?3",
                     )?;
-                    let mut rows = stmt.query(rusqlite::params![vault_id, limit])?;
+                    let mut rows = stmt.query(rusqlite::params![account_id, vault_id, limit])?;
                     let mut out = Vec::new();
                     while let Some(row) = rows.next()? {
                         out.push(OpRow {
@@ -684,18 +843,23 @@ impl RelayStore {
                             lamport: row.get(2)?,
                             body: row.get(3)?,
                             size: row.get(4)?,
+                            device_id: row.get(5)?,
+                            kind: row.get(6)?,
+                            item_id: row.get(7)?,
                         });
                     }
                     out
                 }
                 Some((lamport, hash)) => {
                     let mut stmt = conn.prepare_cached(
-                        "SELECT op_hash, op_id, lamport, body, size FROM ops
-                         WHERE vault_id = ?1
-                           AND (lamport > ?2 OR (lamport = ?2 AND op_hash > ?3))
-                         ORDER BY lamport, op_hash LIMIT ?4",
+                        "SELECT op_hash, op_id, lamport, body, size, device_id, kind, item_id
+                         FROM ops WHERE account_id = ?1 AND vault_id = ?2
+                           AND (lamport > ?3 OR (lamport = ?3 AND op_hash > ?4))
+                         ORDER BY lamport, op_hash LIMIT ?5",
                     )?;
-                    let mut rows = stmt.query(rusqlite::params![vault_id, lamport, hash, limit])?;
+                    let mut rows = stmt.query(rusqlite::params![
+                        account_id, vault_id, lamport, hash, limit
+                    ])?;
                     let mut out = Vec::new();
                     while let Some(row) = rows.next()? {
                         out.push(OpRow {
@@ -704,6 +868,9 @@ impl RelayStore {
                             lamport: row.get(2)?,
                             body: row.get(3)?,
                             size: row.get(4)?,
+                            device_id: row.get(5)?,
+                            kind: row.get(6)?,
+                            item_id: row.get(7)?,
                         });
                     }
                     out
@@ -717,16 +884,19 @@ impl RelayStore {
     /// The `(lamport, op_hash)` of one op, for cursor resolution.
     pub async fn op_position(
         &self,
+        account_id: &[u8],
         vault_id: &[u8],
         op_hash: &[u8],
     ) -> Result<Option<(i64, Vec<u8>)>, ApiError> {
+        let account_id = account_id.to_vec();
         let vault_id = vault_id.to_vec();
         let op_hash = op_hash.to_vec();
         self.with_conn(move |conn| {
             let mut stmt = conn.prepare_cached(
-                "SELECT lamport, op_hash FROM ops WHERE vault_id = ?1 AND op_hash = ?2",
+                "SELECT lamport, op_hash FROM ops
+                 WHERE account_id = ?1 AND vault_id = ?2 AND op_hash = ?3",
             )?;
-            let mut rows = stmt.query(rusqlite::params![vault_id, op_hash])?;
+            let mut rows = stmt.query(rusqlite::params![account_id, vault_id, op_hash])?;
             if let Some(row) = rows.next()? {
                 Ok(Some((row.get(0)?, row.get(1)?)))
             } else {
@@ -946,7 +1116,7 @@ mod tests {
             .create_account(&ACCOUNT, b"r", b"file", "2026-11-06T00:00:00Z")
             .await
             .expect("create");
-        store.ensure_vault(&ACCOUNT, &VAULT).await.expect("vault");
+        store.claim_vault(&ACCOUNT, &VAULT).await.expect("vault");
         let ops = vec![
             OpRow {
                 op_hash: vec![1u8; 32],
@@ -954,6 +1124,7 @@ mod tests {
                 lamport: 1,
                 body: vec![9u8; 10],
                 size: 10,
+                ..OpRow::default()
             },
             OpRow {
                 op_hash: vec![2u8; 32],
@@ -961,6 +1132,7 @@ mod tests {
                 lamport: 2,
                 body: vec![9u8; 20],
                 size: 20,
+                ..OpRow::default()
             },
         ];
         assert_eq!(
@@ -986,11 +1158,15 @@ mod tests {
         assert_eq!(vault.storage_bytes, 30);
         assert_eq!(vault.lamport_max, 2);
 
-        let first_page = store.ops_after(&VAULT, None, 1).await.expect("page");
+        let first_page = store
+            .ops_after(&ACCOUNT, &VAULT, None, 1)
+            .await
+            .expect("page");
         assert_eq!(first_page.len(), 1);
         assert_eq!(first_page[0].lamport, 1);
         let next = store
             .ops_after(
+                &ACCOUNT,
                 &VAULT,
                 Some((first_page[0].lamport, first_page[0].op_hash.clone())),
                 10,
@@ -1008,7 +1184,7 @@ mod tests {
             .create_account(&ACCOUNT, b"r", b"file", "2026-11-06T00:00:00Z")
             .await
             .expect("create");
-        store.ensure_vault(&ACCOUNT, &VAULT).await.expect("vault");
+        store.claim_vault(&ACCOUNT, &VAULT).await.expect("vault");
         assert!(store
             .compare_and_swap_head(&ACCOUNT, &VAULT, None, b"head1", b"h1")
             .await
@@ -1054,6 +1230,82 @@ mod tests {
             .await
             .expect("revoke");
         assert!(store.session(b"tok").await.expect("get").is_none());
+    }
+
+    #[tokio::test]
+    async fn a_vault_id_is_claimed_by_one_account_only() {
+        const OTHER: [u8; 16] = [0xB2; 16];
+        let store = store().await;
+        for account in [ACCOUNT, OTHER] {
+            store
+                .create_account(&account, b"r", b"file", "2026-11-06T00:00:00Z")
+                .await
+                .expect("create");
+        }
+        assert!(store
+            .claim_vault(&ACCOUNT, &VAULT)
+            .await
+            .expect("first claim"));
+        assert!(store
+            .claim_vault(&ACCOUNT, &VAULT)
+            .await
+            .expect("repeat claim"));
+        // The second account gets nothing, and no row is written for it.
+        assert!(!store
+            .claim_vault(&OTHER, &VAULT)
+            .await
+            .expect("foreign claim"));
+        assert_eq!(
+            store.vault_owner(&VAULT).await.expect("owner"),
+            Some(ACCOUNT.to_vec())
+        );
+        assert!(
+            store.vault(&OTHER, &VAULT).await.expect("vault").is_none(),
+            "a refused claim must not create a vault row"
+        );
+        assert_eq!(store.vault_count(&OTHER).await.expect("count"), 0);
+    }
+
+    #[tokio::test]
+    async fn deleting_an_account_deletes_its_ops() {
+        let store = store().await;
+        store
+            .create_account(&ACCOUNT, b"r", b"file", "2020-01-01T00:00:00Z")
+            .await
+            .expect("create");
+        assert!(store.claim_vault(&ACCOUNT, &VAULT).await.expect("vault"));
+        let ops = vec![OpRow {
+            op_hash: vec![7u8; 32],
+            op_id: vec![7u8; 16],
+            lamport: 1,
+            body: vec![9u8; 10],
+            size: 10,
+            ..OpRow::default()
+        }];
+        assert_eq!(
+            store
+                .insert_ops(&ACCOUNT, &VAULT, &ops, 1, "2020-01-01T00:00:00Z")
+                .await
+                .expect("insert"),
+            1
+        );
+        store
+            .tombstone_account(&ACCOUNT, "2020-01-02T00:00:00Z")
+            .await
+            .expect("tombstone");
+        store
+            .purge_tombstones_before("2020-01-03T00:00:00Z")
+            .await
+            .expect("purge");
+        // R-0607: the op ciphertext goes with the account, not just the vault row.
+        assert!(
+            store
+                .ops_after(&ACCOUNT, &VAULT, None, 10)
+                .await
+                .expect("ops")
+                .is_empty(),
+            "ops must not outlive the account"
+        );
     }
 
     #[tokio::test]
