@@ -74,8 +74,8 @@ impl HttpRelayTransport {
             .get("head")
             .and_then(|v| v.as_str())
             .ok_or(SyncError::MalformedPayload)?;
-        let head_bytes = studge_core::codec::base64_decode(head_b64)
-            .map_err(|_| SyncError::MalformedPayload)?;
+        let head_bytes =
+            studge_core::codec::base64_decode(head_b64).map_err(|_| SyncError::MalformedPayload)?;
         let head = VaultHead::from_cbor(&head_bytes).map_err(|_| SyncError::MalformedPayload)?;
         Ok(Some(head))
     }

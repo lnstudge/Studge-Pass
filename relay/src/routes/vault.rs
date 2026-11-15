@@ -73,11 +73,7 @@ pub async fn push_ops(
 
     // SPEC §7.7: at most 100 vaults per account. A brand-new vault id counts
     // against the cap; re-pushing to an already-owned vault does not.
-    if state
-        .store()
-        .vault_owner(&vault_id)
-        .await?
-        .is_none()
+    if state.store().vault_owner(&vault_id).await?.is_none()
         && state.store().vault_count(&session.account_id).await? >= 100
     {
         tracing::warn!("vault quota exceeded");
