@@ -610,3 +610,12 @@ Applied in response to founder review of PR #54:
 - Tests: relay 39 passed, integration 14 passed (incl. 3 cross-account), sync
   transports build. cargo deny, clippy, fmt green.
 
+
+## Phase 6: command-line client (in progress)
+
+- Added studge CLI with clap subcommands: init, unlock, lock, status, list, get, totp, generate, health, and stubs for the remaining commands.
+- init creates an account, certifies the first device, creates a default vault, stores the bundle and vault key in SQLite, writes a recovery kit, and stores the password and Secret Key in the OS credential store.
+- get copies a field to the clipboard and clears it after 30 s; printing requires --print.
+- Relay follow-up: cap_audit_table no longer deletes active counters; returns RateLimited when over cap.
+- Tests: cargo test --all, clippy -D warnings, fmt, deny, wasm build all pass.
+- Known gaps: add/edit/rm/sync/import/export/devices/config not yet fully implemented; recorded as follow-ups.

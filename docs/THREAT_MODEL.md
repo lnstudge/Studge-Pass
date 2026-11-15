@@ -406,3 +406,16 @@ The following bugs were found in the PR review and fixed before merge:
 | R-0606 | Unbounded device enrolment per account exhausts storage and sessions | medium | Proposed | D-0601: 100-device cap with 413 (status Proposed) |
 
 <!-- THREAT-END -->
+
+## Phase 6 self-attack review
+
+1. Secret printed in logs: CLI never logs passwords/secret keys; Debug redacted in core. Tested by code review.
+2. Clipboard not cleared: get spawns a thread clearing clipboard after 30s. Mitigation present.
+3. Password accepted as argv: only rpassword/TTY or STUDGE_PASSWORD with warning. Tested by argument parsing.
+4. Secret Key in config file: stored in OS keyring, not config.json. Config stores only account id etc.
+5. Wrong password unlock: unlock calls core unlock which fails on wrong password. Tested by integration (manual).
+6. Relay cap_audit reset: fixed; active counters preserved, RateLimited returned.
+7. Malformed hex account id: hex_decode errors. 
+8. Path traversal in home: STUDGE_HOME user-controlled; acceptable for local user.
+9. Clipboard thread panic: ignored.
+10. Device key seed stored as hex in config: config file on disk contains device signing seed; this is a secret at rest. Risk recorded: future work should move device key to OS keyring.

@@ -1,0 +1,24 @@
+$ studge init
+Account created.
+Secret Key (save this, shown once): SP1-...
+Recovery kit: ~/.studge/recovery-kit.txt
+
+$ studge status
+account_id: ...
+session: unlocked
+
+$ studge generate --length 16
+aB3$xY9!qR2#mN7p
+
+$ studge list
+login  Demo Login
+
+$ studge get "Demo" --field password
+Copied password to clipboard (clears in 30s).
+
+$ studge totp "Demo"
+123456
+
+$ studge health
+items: 1
+health scoring: not yet implemented in core
