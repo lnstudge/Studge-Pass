@@ -23,6 +23,7 @@
 //! | `DowngradeSuite` | Serves head with suite `v0` | `OpVerificationFailed` |
 //! | `TruncateOps` | Returns first n ops only | `HeadReferencesUnknownOp` |
 //! | `GhostHeadEntry` | Head references unknown op hash | `HeadReferencesUnknownOp` |
+//! | `WithholdHead` | Returns honest ops but `head: None` | `RollbackDetected` (when pin exists) |
 
 use studge_core::oplog::head::VaultHead;
 use studge_core::oplog::op::{OpHash, StoredOp};
@@ -60,6 +61,9 @@ pub enum Attack {
     TruncateOps { n: usize },
     /// Return a head that references a ghost op hash.
     GhostHeadEntry,
+    /// Return honest ops but withhold the head (None).
+    /// Expected engine response: `RollbackDetected` when a pin exists.
+    WithholdHead,
 }
 
 /// A transport wrapper that injects attacks.
@@ -375,7 +379,6 @@ impl Transport for EvilRelay {
                     None => return Ok(honest),
                     Some(h) => h,
                 };
-                // Build a head pointing to a ghost hash via the inject API.
                 let ghost: OpHash = [0xDEu8; 32];
                 let mut head_bytes = head.to_cbor().map_err(|_| SyncError::MalformedPayload)?;
                 for tip in head.heads() {
@@ -385,6 +388,15 @@ impl Transport for EvilRelay {
                 Ok(VaultOps {
                     ops: honest.ops,
                     head: ghost_head,
+                })
+            }
+
+            Attack::WithholdHead => {
+                // Return honest ops but strip the head.
+                // If the client has a pin, the engine returns RollbackDetected.
+                Ok(VaultOps {
+                    ops: honest.ops,
+                    head: None,
                 })
             }
         }

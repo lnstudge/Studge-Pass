@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["core", "core-wasm", "cli", "relay", "test-harness"]
+members = ["core", "core-wasm", "cli", "relay", "sync-transports", "test-harness"]
 
 [workspace.package]
 version = "0.1.0"

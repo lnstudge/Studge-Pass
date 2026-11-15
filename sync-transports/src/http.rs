@@ -1,19 +1,16 @@
 //! HTTP relay transport (SPEC §7.1–§7.9).
 //!
-//! This module is gated behind `cfg(not(target_arch = "wasm32"))` because
-//! `reqwest` with `rustls-tls` cannot build for `wasm32-unknown-unknown`.  The
-//! browser extension uses a different mechanism (fetch API through the
-//! background service worker).
+//! Uses `reqwest` (blocking client, `rustls-tls`) to talk to a `studge-relay`
+//! instance.  The bearer token is stored in a `Zeroizing<String>` and never
+//! logged.  `rustls-tls` only; native TLS is never used (AGENTS.md rule 1).
 //!
-//! Decisions:
-//! - `rustls-tls` only; native TLS is never used (AGENTS.md rule 1, supply
-//!   chain).
-//! - Responses are parsed strictly; unknown fields cause a `SyncError`.
-//! - The bearer token is stored in a `Zeroizing<String>` and never logged.
+//! This crate is native-only: it must not be compiled for
+//! `wasm32-unknown-unknown`.  The browser extension uses a different transport
+//! (fetch API through the background service worker, Phase 10/13).
 
-use crate::oplog::head::VaultHead;
-use crate::oplog::op::StoredOp;
-use crate::sync::transport::{SyncError, Transport, VaultOps, NO_HEAD};
+use studge_core::oplog::head::VaultHead;
+use studge_core::oplog::op::StoredOp;
+use studge_core::sync::transport::{SyncError, Transport, VaultOps, NO_HEAD};
 use zeroize::Zeroizing;
 
 fn hex_hash(hash: &[u8; 32]) -> String {
@@ -26,8 +23,7 @@ fn hex_id(id: &[u8; 16]) -> String {
 
 /// HTTP relay transport.
 ///
-/// Uses `reqwest` (blocking client, rustls TLS) to talk to a `studge-relay`
-/// instance.  The bearer token is the raw 256-bit session token returned by
+/// The bearer token is the raw 256-bit session token returned by
 /// `POST /v1/login/finish`; it is sent once per request and never cached in
 /// logs or error messages.
 pub struct HttpRelayTransport {
@@ -57,6 +53,31 @@ impl HttpRelayTransport {
     fn auth_header(&self) -> String {
         format!("Bearer {}", self.token.as_str())
     }
+
+    fn get_head(&mut self, vault_id: [u8; 16]) -> Result<Option<VaultHead>, SyncError> {
+        let url = format!("{}/v1/vaults/{}/head", self.base_url, hex_id(&vault_id));
+        let resp = self
+            .client
+            .get(&url)
+            .header("Authorization", self.auth_header())
+            .header("Accept", "application/cbor")
+            .send()
+            .map_err(|e| SyncError::Io(e.to_string()))?;
+        if resp.status().as_u16() == 404 {
+            return Ok(None);
+        }
+        if !resp.status().is_success() {
+            return Err(SyncError::Io(format!("get_head: HTTP {}", resp.status())));
+        }
+        let body: serde_json::Value = resp.json().map_err(|_| SyncError::MalformedPayload)?;
+        let head_b64 = body
+            .get("head")
+            .and_then(|v| v.as_str())
+            .ok_or(SyncError::MalformedPayload)?;
+        let head_bytes = base64_decode(head_b64)?;
+        let head = VaultHead::from_cbor(&head_bytes).map_err(|_| SyncError::MalformedPayload)?;
+        Ok(Some(head))
+    }
 }
 
 impl Transport for HttpRelayTransport {
@@ -65,7 +86,6 @@ impl Transport for HttpRelayTransport {
         for op in ops {
             cbor_ops.push(op.to_cbor().map_err(|_| SyncError::MalformedPayload)?);
         }
-        // Encode as a CBOR array of op byte-strings.
         let mut payload: Vec<u8> = Vec::new();
         let value = ciborium::value::Value::Array(
             cbor_ops
@@ -89,7 +109,6 @@ impl Transport for HttpRelayTransport {
         if !resp.status().is_success() {
             return Err(SyncError::Io(format!("push: HTTP {}", resp.status())));
         }
-        // The relay returns JSON: { "accepted": N, ... }
         let body: serde_json::Value = resp.json().map_err(|_| SyncError::MalformedPayload)?;
         let accepted = body
             .get("accepted")
@@ -129,10 +148,9 @@ impl Transport for HttpRelayTransport {
             return Err(SyncError::Io(format!("pull: HTTP {}", resp.status())));
         }
         let bytes = resp.bytes().map_err(|e| SyncError::Io(e.to_string()))?;
-        // Expect a CBOR array of op byte-strings.
-        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let mut cursor_r = std::io::Cursor::new(&bytes[..]);
         let value: ciborium::value::Value =
-            ciborium::de::from_reader(&mut cursor).map_err(|_| SyncError::MalformedPayload)?;
+            ciborium::de::from_reader(&mut cursor_r).map_err(|_| SyncError::MalformedPayload)?;
         let arr = match value {
             ciborium::value::Value::Array(a) => a,
             _ => return Err(SyncError::MalformedPayload),
@@ -147,7 +165,6 @@ impl Transport for HttpRelayTransport {
             ops.push(op);
         }
 
-        // Fetch the head separately.
         let head = self.get_head(vault_id)?;
         Ok(VaultOps { ops, head })
     }
@@ -183,36 +200,7 @@ impl Transport for HttpRelayTransport {
     }
 }
 
-impl HttpRelayTransport {
-    fn get_head(&mut self, vault_id: [u8; 16]) -> Result<Option<VaultHead>, SyncError> {
-        let url = format!("{}/v1/vaults/{}/head", self.base_url, hex_id(&vault_id));
-        let resp = self
-            .client
-            .get(&url)
-            .header("Authorization", self.auth_header())
-            .header("Accept", "application/cbor")
-            .send()
-            .map_err(|e| SyncError::Io(e.to_string()))?;
-        if resp.status().as_u16() == 404 {
-            return Ok(None);
-        }
-        if !resp.status().is_success() {
-            return Err(SyncError::Io(format!("get_head: HTTP {}", resp.status())));
-        }
-        let body: serde_json::Value = resp.json().map_err(|_| SyncError::MalformedPayload)?;
-        let head_b64 = body
-            .get("head")
-            .and_then(|v| v.as_str())
-            .ok_or(SyncError::MalformedPayload)?;
-        let head_bytes = base64_decode(head_b64)?;
-        let head = VaultHead::from_cbor(&head_bytes).map_err(|_| SyncError::MalformedPayload)?;
-        Ok(Some(head))
-    }
-}
-
 fn base64_decode(s: &str) -> Result<Vec<u8>, SyncError> {
-    // Use a simple base64 decode without pulling a new crate.
-    // The relay returns standard base64; we decode it manually.
     use std::collections::HashMap;
     static TABLE: std::sync::OnceLock<HashMap<char, u8>> = std::sync::OnceLock::new();
     let table = TABLE.get_or_init(|| {

@@ -9,7 +9,8 @@ use studge_core::crypto::signing::{DeviceCertificate, SigningKeyPair, Timestamp}
 use studge_core::oplog::dag::Dag;
 use studge_core::oplog::devices::DeviceRegistry;
 use studge_core::oplog::op::{Op, OpHash, OpKind, StoredOp};
-use studge_core::sync::engine::{SyncEngine, VaultSyncState};
+use studge_core::sync::engine::{SyncEngine, SyncResult, VaultSyncState};
+use studge_core::sync::transport::{SyncError, Transport};
 
 pub const ACCOUNT: [u8; 16] = [0xAA; 16];
 pub const VAULT: [u8; 16] = [0xBB; 16];
@@ -19,6 +20,23 @@ pub const DEV2: [u8; 16] = [0xD2; 16];
 
 pub fn at(s: &str) -> Timestamp {
     Timestamp::parse(s).unwrap()
+}
+
+/// Fixed "now" timestamp for all test syncs.
+pub fn now() -> Timestamp {
+    at("2026-11-15T10:00:00Z")
+}
+
+/// Convenience wrapper: sync with the fixed test timestamp.
+pub fn sync(
+    engine: &SyncEngine,
+    vault_id: [u8; 16],
+    state: &mut VaultSyncState,
+    transport: &mut dyn Transport,
+    key: &SigningKeyPair,
+    dev: [u8; 16],
+) -> Result<SyncResult, SyncError> {
+    engine.sync(vault_id, state, transport, key, dev, now())
 }
 
 /// Two-device test fixture.
@@ -126,16 +144,14 @@ impl Default for Fixture {
 /// pinned at the second op.  Returns `(hash1, hash2, state1)`.
 pub fn two_op_history(
     fix: &Fixture,
-    transport: &mut dyn studge_core::sync::transport::Transport,
+    transport: &mut dyn Transport,
 ) -> (OpHash, OpHash, VaultSyncState) {
     let engine = fix.engine();
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, transport, &fix.dev1_key, DEV1).unwrap();
 
     let op2 = fix.make_op(
         2,
@@ -148,9 +164,7 @@ pub fn two_op_history(
     );
     let hash2 = op2.hash().unwrap();
     state1.enqueue(op2);
-    engine
-        .sync(VAULT, &mut state1, transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, transport, &fix.dev1_key, DEV1).unwrap();
 
     (hash1, hash2, state1)
 }

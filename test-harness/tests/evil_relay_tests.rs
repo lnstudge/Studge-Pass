@@ -19,6 +19,11 @@
 //! | `evil_relay_truncate_ops_is_detected` | `TruncateOps` | `HeadReferencesUnknownOp` |
 //! | `evil_relay_replay_old_op_is_harmless` | `ReplayOldOp` | no error (idempotent) |
 //! | `evil_relay_honest_passthrough_succeeds` | `Honest` | no error |
+//! | `evil_relay_swapped_ciphertext_is_detected` | `SwapCiphertext` | error |
+//! | `evil_relay_fork_head_is_detected` | `ForkHead` | `HeadReferencesUnknownOp` |
+//! | `evil_relay_drop_ops_is_detected` | `DropOps` | `HeadReferencesUnknownOp` |
+//! | `evil_relay_wrong_vault_id_is_detected` | `WrongVaultId` | `OpVerificationFailed` |
+//! | `evil_relay_withheld_head_is_detected` | `WithholdHead` | `RollbackDetected` |
 //! | `two_device_concurrent_edits_converge` | — | no error, final state has 3 ops |
 //! | `three_device_concurrent_edits_converge` | — | no error, all 3 devices agree |
 
@@ -27,12 +32,12 @@ use studge_core::sync::memory::MemoryTransport;
 use studge_core::sync::transport::SyncError;
 use studge_test_harness::{
     evil_relay::{Attack, EvilRelay},
-    fixture::{Fixture, DEV1, DEV2, VAULT},
+    fixture::{sync, Fixture, DEV1, DEV2, VAULT},
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Runs a full two-op setup on an EvilRelay and then syncs device2 against it.
+/// Runs a full two-op setup on an EvilRelay and then arms the attack.
 /// Returns (fix, evil, state2, hash1, hash2).
 fn two_op_setup_with_evil(
     attack: Attack,
@@ -45,16 +50,12 @@ fn two_op_setup_with_evil(
 ) {
     let fix = Fixture::new();
     let mut evil = EvilRelay::new(MemoryTransport::new());
-    // Build the honest two-op history through the evil relay (Honest mode)
-    // so its snapshot machinery runs.
     let engine = fix.engine();
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
 
     let op2 = fix.make_op(
         2,
@@ -67,13 +68,9 @@ fn two_op_setup_with_evil(
     );
     let hash2 = op2.hash().unwrap();
     state1.enqueue(op2);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
 
-    // Now arm the attack.
     evil.set_attack(attack);
-    // Device 2 starts fresh.
     let state2 = Fixture::state2();
     (fix, evil, state2, hash1, hash2)
 }
@@ -89,28 +86,19 @@ fn evil_relay_rollback_is_detected() {
 
     // First sync device2 honestly so it gets a pin on op2 head.
     evil.set_attack(Attack::Honest);
-    engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
     assert_eq!(state2.dag().len(), 2);
     assert!(state2.pinned_head().is_some());
 
     // Evil: serve the snapshot-0 head (op1 only) — a rollback.
     evil.set_attack(Attack::RollbackHead { snapshot_index: 0 });
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert_eq!(
         err,
         SyncError::RollbackDetected,
         "rollback must be detected"
     );
-    // Local state must be unchanged.
-    assert_eq!(
-        state2.dag().len(),
-        2,
-        "local state must be unchanged after rollback"
-    );
+    assert_eq!(state2.dag().len(), 2, "local state must be unchanged");
 }
 
 /// A head that references a hash the client has never seen MUST be detected.
@@ -120,11 +108,7 @@ fn evil_relay_ghost_head_entry_is_detected() {
         two_op_setup_with_evil(Attack::GhostHeadEntry);
     let engine = fix.engine();
 
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
-    // Either the head parse failed (MalformedPayload → mapped to
-    // OpVerificationFailed) or the engine caught the ghost tip.
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert!(
         matches!(
             err,
@@ -141,15 +125,12 @@ fn evil_relay_ghost_head_entry_is_detected() {
 fn evil_relay_reordered_ops_cause_missing_parent() {
     let fix = Fixture::new();
     let mut evil = EvilRelay::new(MemoryTransport::new());
-    // Build a two-op history through the evil relay so snapshots work.
     let engine = fix.engine();
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
     let op2 = fix.make_op(
         2,
         DEV1,
@@ -160,15 +141,11 @@ fn evil_relay_reordered_ops_cause_missing_parent() {
         b"v2",
     );
     state1.enqueue(op2);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
-    // Arm the reorder attack.
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
+
     evil.set_attack(Attack::ReorderOps);
     let mut state2 = Fixture::state2();
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert_eq!(
         err,
         SyncError::MissingParent,
@@ -182,26 +159,26 @@ fn evil_relay_reordered_ops_cause_missing_parent() {
 }
 
 /// A zeroed signature MUST be detected.
-/// The sig comes first in canonical CBOR; we zero bytes 7..71 (the sig data).
 #[test]
 fn evil_relay_stripped_signature_is_detected() {
     let fix = Fixture::new();
     let mut transport = MemoryTransport::new();
     let engine = fix.engine();
 
-    // Build one op honestly.
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1.clone());
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Build tampered bytes: same op but with zeroed sig.
-    // Canonical map starts: 0xAC (12 entries) | key "sig" (0x63 0x73 0x69 0x67)
-    // | value header (0x58 0x40) | 64 sig bytes.
-    // Sig data starts at byte 7, ends at byte 70.
     let mut raw = op1.to_cbor().unwrap();
     if raw.len() > 71 {
         raw[7..71].iter_mut().for_each(|b| *b = 0);
@@ -209,16 +186,19 @@ fn evil_relay_stripped_signature_is_detected() {
     transport.inject_raw_op(VAULT, hash1, raw);
 
     let mut state2 = Fixture::state2();
-    let result = engine.sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2);
-    // from_cbor: re-encode check will fail because the raw bytes have zeroed
-    // sig but the struct still re-encodes to the original sig → MalformedPayload.
-    // OR: from_cbor reads the zeroed sig → re-encode matches → verify() fails.
+    let result = sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    );
     assert!(result.is_err(), "stripped signature must be detected");
     assert_eq!(state2.dag().len(), 0, "local state must be unchanged");
 }
 
 /// A flipped bit in a CBOR op MUST be detected.
-/// We flip a bit in the payload field bytes (largest field, at offset > 100).
 #[test]
 fn evil_relay_flipped_bit_is_detected() {
     let fix = Fixture::new();
@@ -229,22 +209,30 @@ fn evil_relay_flipped_bit_is_detected() {
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1.clone());
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Flip a byte in the payload (AEAD ciphertext) area.
-    // The payload is the last significant field; flip a byte near the end.
     let mut raw = op1.to_cbor().unwrap();
-    let flip_pos = raw.len() - 10; // near the end (in the payload ciphertext)
+    let flip_pos = raw.len() - 10;
     raw[flip_pos] ^= 0xFF;
     transport.inject_raw_op(VAULT, hash1, raw);
 
     let mut state2 = Fixture::state2();
-    let result = engine.sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2);
-    // The flip is in the payload field → re-encode check compares raw with
-    // re-serialised: the payload CBOR bytes change → mismatch → MalformedPayload.
-    // OR the op parses but fails sig or AEAD tag check.
+    let result = sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    );
     assert!(
         result.is_err(),
         "flipped bit must be detected: {:?}",
@@ -260,18 +248,11 @@ fn evil_relay_substitute_device_cert_is_detected() {
         two_op_setup_with_evil(Attack::SubstituteDeviceCert);
     let engine = fix.engine();
 
-    // First, sync device2 honestly to get the real ops.
     evil.set_attack(Attack::Honest);
-    engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
 
-    // Now arm substitution for next sync.
     evil.set_attack(Attack::SubstituteDeviceCert);
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
-    // The tampered head either fails from_cbor or fails verify.
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert!(
         matches!(
             err,
@@ -287,16 +268,10 @@ fn evil_relay_downgrade_suite_is_detected() {
     let (fix, mut evil, mut state2, _hash1, _hash2) =
         two_op_setup_with_evil(Attack::DowngradeSuite);
     let engine = fix.engine();
-    // First get the ops honestly, then arm the downgrade.
     evil.set_attack(Attack::Honest);
-    engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
     evil.set_attack(Attack::DowngradeSuite);
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
-    // The patched head fails from_cbor (suite "v0" is unknown) or verify.
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert!(
         matches!(
             err,
@@ -312,10 +287,7 @@ fn evil_relay_truncate_ops_is_detected() {
     let (fix, mut evil, mut state2, _hash1, _hash2) =
         two_op_setup_with_evil(Attack::TruncateOps { n: 0 });
     let engine = fix.engine();
-    let err = engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap_err();
-    // Head references op2 which we don't have (we got zero ops).
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
     assert!(
         matches!(
             err,
@@ -330,10 +302,7 @@ fn evil_relay_truncate_ops_is_detected() {
 fn evil_relay_replay_old_op_is_harmless() {
     let (fix, mut evil, mut state2, _hash1, _hash2) = two_op_setup_with_evil(Attack::ReplayOldOp);
     let engine = fix.engine();
-    // Replay is idempotent: the DAG already has the op so it's a no-op.
-    engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
     assert_eq!(state2.dag().len(), 2, "replay must not duplicate ops");
 }
 
@@ -342,31 +311,21 @@ fn evil_relay_replay_old_op_is_harmless() {
 fn evil_relay_honest_passthrough_succeeds() {
     let (fix, mut evil, mut state2, _hash1, _hash2) = two_op_setup_with_evil(Attack::Honest);
     let engine = fix.engine();
-    engine
-        .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
     assert_eq!(state2.dag().len(), 2);
 }
 
 /// Swapping the raw bytes of two ops MUST be detected.
-///
-/// When op_b (which references op_a as parent) is served first (swapped to
-/// position 0), the client gets `MissingParent`.  When op_a's bytes are at
-/// position 1, op_a's op_id and vault_id disagree with op_b's body → the
-/// re-encode check in `from_cbor` fails → `MalformedPayload`.
 #[test]
 fn evil_relay_swapped_ciphertext_is_detected() {
     let fix = Fixture::new();
     let mut evil = EvilRelay::new(MemoryTransport::new());
-    // Build history through the evil relay so snapshots are taken.
     let engine = fix.engine();
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
     let op2 = fix.make_op(
         2,
         DEV1,
@@ -377,20 +336,120 @@ fn evil_relay_swapped_ciphertext_is_detected() {
         b"v2",
     );
     state1.enqueue(op2);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
 
     evil.set_attack(Attack::SwapCiphertext { a: 0, b: 1 });
     let mut state2 = Fixture::state2();
-    let result = engine.sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2);
-    // Swap detection: MissingParent (op_b before op_a) or OpVerificationFailed
-    // (wrong op_id in the body).  Any error is correct.
+    let result = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2);
     assert!(
         result.is_err(),
         "swapped ciphertext must be detected; got: {:?}",
         result
     );
+}
+
+// ── Fix 4: new named attack tests ────────────────────────────────────────────
+
+/// ForkHead: a head with a ghost tip MUST be detected.
+/// The relay returns honest ops but a head pointing to a hash the client has
+/// never seen.  The engine must reject with HeadReferencesUnknownOp.
+#[test]
+fn evil_relay_fork_head_is_detected() {
+    let (fix, mut evil, mut state2, _hash1, _hash2) = two_op_setup_with_evil(Attack::ForkHead);
+    let engine = fix.engine();
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            SyncError::HeadReferencesUnknownOp
+                | SyncError::OpVerificationFailed
+                | SyncError::MalformedPayload
+        ),
+        "ForkHead must be detected: {err:?}"
+    );
+    // If this test ever passes (no error), the protection is gone.
+}
+
+/// DropOps: relay drops all ops but returns the honest head.
+/// The engine must detect that the head references ops it does not have.
+#[test]
+fn evil_relay_drop_ops_is_detected() {
+    let (fix, mut evil, mut state2, _hash1, _hash2) = two_op_setup_with_evil(Attack::DropOps);
+    let engine = fix.engine();
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
+    assert_eq!(
+        err,
+        SyncError::HeadReferencesUnknownOp,
+        "DropOps must be detected as HeadReferencesUnknownOp"
+    );
+    assert_eq!(state2.dag().len(), 0, "local state must be unchanged");
+}
+
+/// WrongVaultId: relay returns ops tagged with a different vault id.
+/// The re-encode check or signature verification must reject them.
+#[test]
+fn evil_relay_wrong_vault_id_is_detected() {
+    let (fix, mut evil, mut state2, _hash1, _hash2) =
+        two_op_setup_with_evil(Attack::WrongVaultId {
+            other_vault: [0xFFu8; 16],
+        });
+    let engine = fix.engine();
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            SyncError::OpVerificationFailed
+                | SyncError::MalformedPayload
+                | SyncError::HeadReferencesUnknownOp
+        ),
+        "WrongVaultId must be detected: {err:?}"
+    );
+    assert_eq!(state2.dag().len(), 0, "local state must be unchanged");
+}
+
+/// WithholdHead: relay returns honest ops but no head, while device already
+/// has a pin.  Engine must detect this as RollbackDetected (Fix 3b).
+#[test]
+fn evil_relay_withheld_head_is_detected() {
+    use studge_test_harness::evil_relay::Attack;
+    let fix = Fixture::new();
+    let mut evil = EvilRelay::new(MemoryTransport::new());
+    let engine = fix.engine();
+
+    // Build two-op history.
+    let mut state1 = Fixture::state1();
+    let op1 = fix.genesis();
+    let hash1 = op1.hash().unwrap();
+    state1.enqueue(op1);
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
+    let op2 = fix.make_op(
+        2,
+        DEV1,
+        &fix.dev1_key,
+        vec![hash1],
+        2,
+        OpKind::Update,
+        b"v2",
+    );
+    state1.enqueue(op2);
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
+
+    // Device 2 syncs honestly to get a pin.
+    let mut state2 = Fixture::state2();
+    evil.set_attack(Attack::Honest);
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
+    assert!(state2.pinned_head().is_some(), "state2 must have a pin");
+
+    // Now the relay withholds the head.
+    evil.set_attack(Attack::WithholdHead);
+    let err = sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap_err();
+    assert_eq!(
+        err,
+        SyncError::RollbackDetected,
+        "withheld head must be detected as RollbackDetected"
+    );
+    // Local state unchanged.
+    assert_eq!(state2.dag().len(), 2, "local state must be unchanged");
 }
 
 // ─── Multi-device simulation tests ───────────────────────────────────────────
@@ -403,17 +462,20 @@ fn two_device_concurrent_edits_converge() {
     let mut transport = MemoryTransport::new();
     let engine = fix.engine();
 
-    // Device 1 pushes genesis.
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Both devices go offline and each creates an op from the same parent.
-    // Device 1: update A
     let op_a = fix.make_op(
         2,
         DEV1,
@@ -423,14 +485,18 @@ fn two_device_concurrent_edits_converge() {
         OpKind::Update,
         b"dev1-edit",
     );
-    let _hash_a = op_a.hash().unwrap();
     state1.enqueue(op_a);
 
-    // Device 2: comes online, pulls genesis, then makes its own concurrent edit.
     let mut state2 = Fixture::state2();
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
     assert_eq!(state2.dag().len(), 1, "device2 should see genesis");
 
     let op_b = fix.make_op(
@@ -444,29 +510,40 @@ fn two_device_concurrent_edits_converge() {
     );
     state2.enqueue(op_b);
 
-    // Both sync: device1 pushes A, device2 pulls A then pushes B.
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
-
-    // Now device1 pulls B.
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
     assert_eq!(state1.dag().len(), 3, "device1 should see genesis + A + B");
     assert_eq!(state2.dag().len(), 3, "device2 should see genesis + A + B");
 
-    // Both DAGs must have the same set of tip hashes.
     let tips1 = state1.dag().heads();
     let tips2 = state2.dag().heads();
-    assert_eq!(
-        tips1, tips2,
-        "both devices must agree on the DAG tips after convergence"
-    );
+    assert_eq!(tips1, tips2, "both devices must agree on the DAG tips");
 }
 
 /// Three devices concurrently produce one op each; all must converge on the
@@ -478,7 +555,6 @@ fn three_device_concurrent_edits_converge() {
 
     const DEV3: [u8; 16] = [0xD3; 16];
     let fix = Fixture::new();
-    // Add a third device to the registry.
     let dev3_key = SigningKeyPair::from_seed([4u8; 32]);
     let mut registry = fix.registry.clone();
     let cert3 = DeviceCertificate::create(
@@ -496,26 +572,33 @@ fn three_device_concurrent_edits_converge() {
 
     let mut transport = MemoryTransport::new();
 
-    // Device 1 pushes genesis.
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // All three devices pull genesis.
     let mut state2 = studge_core::sync::engine::VaultSyncState::new(VAULT);
     let mut state3 = studge_core::sync::engine::VaultSyncState::new(VAULT);
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state3, &mut transport, &dev3_key, DEV3)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
+    sync(&engine, VAULT, &mut state3, &mut transport, &dev3_key, DEV3).unwrap();
 
-    // Each device makes a concurrent edit from the genesis.
     let op_a = fix.make_op(2, DEV1, &fix.dev1_key, vec![hash1], 2, OpKind::Update, b"A");
     state1.enqueue(op_a);
     let op_b = fix.make_op(3, DEV2, &fix.dev2_key, vec![hash1], 2, OpKind::Update, b"B");
@@ -523,33 +606,50 @@ fn three_device_concurrent_edits_converge() {
     let op_c = fix.make_op(4, DEV3, &dev3_key, vec![hash1], 2, OpKind::Update, b"C");
     state3.enqueue(op_c);
 
-    // All sync in order.
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state3, &mut transport, &dev3_key, DEV3)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
+    sync(&engine, VAULT, &mut state3, &mut transport, &dev3_key, DEV3).unwrap();
 
-    // All devices pull to catch up.
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
-    engine
-        .sync(VAULT, &mut state3, &mut transport, &dev3_key, DEV3)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
+    sync(&engine, VAULT, &mut state3, &mut transport, &dev3_key, DEV3).unwrap();
 
     assert_eq!(state1.dag().len(), 4, "4 ops: genesis + A + B + C");
     assert_eq!(state2.dag().len(), 4);
     assert_eq!(state3.dag().len(), 4);
 
-    // All three must see the same tips.
     let tips1 = state1.dag().heads();
     let tips2 = state2.dag().heads();
     let tips3 = state3.dag().heads();
@@ -564,21 +664,30 @@ fn offline_device_catches_up() {
     let mut transport = MemoryTransport::new();
     let engine = fix.engine();
 
-    // Device 1: push genesis.
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Device 2 goes offline: it queues one op without syncing.
     let mut state2 = Fixture::state2();
-    // Device 2 must first have genesis to compute parents.
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
     let op_offline = fix.make_op(
         2,
         DEV2,
@@ -590,7 +699,6 @@ fn offline_device_catches_up() {
     );
     state2.enqueue(op_offline);
 
-    // Device 1 makes two more edits.
     let op1b = fix.make_op(
         3,
         DEV1,
@@ -602,23 +710,38 @@ fn offline_device_catches_up() {
     );
     let hash1b = op1b.hash().unwrap();
     state1.enqueue(op1b);
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Device 2 comes back online and syncs (pulls dev1-edit-1 + pushes offline-edit).
-    engine
-        .sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
+    .unwrap();
     let _ = hash1b;
 
-    // Device 2 should now have: genesis + dev1-edit-1 + offline-edit (3 ops, two branches).
     assert_eq!(state2.dag().len(), 3, "offline device must catch up");
 
-    // Device 1 now pulls op_offline from device 2.
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
     assert_eq!(state1.dag().len(), 3, "device1 must converge with device2");
     assert_eq!(
         state1.dag().len(),

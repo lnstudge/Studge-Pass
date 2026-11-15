@@ -11,8 +11,9 @@
 //!        │
 //!        ├── pull: fetch ops + head from the backend
 //!        ├── verify: signature, device cert, AAD, parents present, Lamport
-//!        ├── merge: DAG::add for each new op
+//!        ├── stage: collect ops in a temporary set
 //!        ├── check_head_update: descends from pinned head?
+//!        ├── commit: merge staged ops into the DAG (only after head verified)
 //!        ├── push: send locally-queued ops
 //!        └── update head: CAS
 //! ```
@@ -20,27 +21,14 @@
 //! # Wasm compatibility
 //!
 //! `studge-core` builds for `wasm32-unknown-unknown` (the browser extension).
-//! There is therefore **no** async runtime dependency in this module; every
-//! method is synchronous/blocking.  Callers that need async (Tauri, CLI) wrap
-//! the engine in `tokio::task::spawn_blocking` or an equivalent.
-//!
-//! `HttpRelayTransport` is the one exception: it uses `reqwest` and is gated
-//! behind `cfg(not(target_arch = "wasm32"))` so the wasm build never sees it.
+//! There is therefore **no** I/O dependency in this module.
+//! `FolderTransport` and `HttpRelayTransport` live in the
+//! `studge-sync-transports` crate (native-only).
 
 pub mod engine;
-pub mod folder;
 pub mod memory;
 pub mod transport;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod http;
 
 pub use engine::SyncEngine;
 pub use memory::MemoryTransport;
 pub use transport::{SyncError, Transport, VaultOps};
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use folder::FolderTransport;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use http::HttpRelayTransport;

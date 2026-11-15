@@ -18,7 +18,7 @@ use studge_core::{
 };
 use studge_test_harness::{
     evil_relay::{Attack, EvilRelay},
-    fixture::{DEV1, DEV2, VAULT},
+    fixture::{sync, DEV1, DEV2, VAULT},
 };
 
 // ─── Terminal colour helpers (no extra deps) ──────────────────────────────────
@@ -53,9 +53,6 @@ fn main() {
     println!("  {YELLOW}~{RESET}  = attack was idempotent / harmless by design");
     println!();
 
-    // Each row: (label, expected_err?, run_fn)
-    // expected_err = None means "any error is acceptable"
-    // expected_err = Some(e) means "exactly this error"
     #[allow(clippy::type_complexity)]
     let rows: Vec<(
         &str,
@@ -111,8 +108,15 @@ fn main() {
         ("DowngradeSuite — replace 'v1' with 'v0'", None, || {
             run_one(Attack::DowngradeSuite, true)
         }),
+        ("ForkHead — head with ghost tip", None, || {
+            run_one(Attack::ForkHead, false)
+        }),
+        (
+            "WithholdHead — no head when pin exists",
+            Some(SyncError::RollbackDetected),
+            || run_one(Attack::WithholdHead, true),
+        ),
         ("ReplayOldOp — append first op again", None, || {
-            // Expected to succeed (idempotent)
             run_one(Attack::ReplayOldOp, false)
         }),
     ];
@@ -144,37 +148,30 @@ fn main() {
             });
 
         let verdict = match (&result, expected) {
-            // Honest passthrough — expect success.
             (Ok(_), None) if is_honest => {
                 passed += 1;
                 ok("passed — no attack")
             }
-            // ReplayOldOp — idempotent.
             (Ok(_), None) if is_replay => {
                 passed += 1;
                 note("harmless (idempotent)")
             }
-            // Any error is fine when expected == None (we just need is_err).
             (Err(_), None) => {
                 passed += 1;
                 ok(&format!("blocked ({:?})", result.as_ref().unwrap_err()))
             }
-            // Specific error matched.
             (Err(e), Some(exp)) if e == exp => {
                 passed += 1;
                 ok(&format!("blocked ({e:?})"))
             }
-            // Specific error — different variant (still blocked, warn).
             (Err(e), Some(_)) => {
                 passed += 1;
                 note(&format!("blocked (got {e:?})"))
             }
-            // No error but we expected one.
             (Ok(_), Some(exp)) => {
                 failed_list.push(format!("  FAIL — {label}: expected {exp:?}, got Ok"));
                 fail(&format!("NOT blocked (expected {exp:?})"))
             }
-            // Unexpected success (attack expected to be detected).
             (Ok(_), None) => {
                 failed_list.push(format!("  FAIL — {label}: unexpected Ok"));
                 fail("NOT blocked")
@@ -206,11 +203,6 @@ fn main() {
 
 // ─── Run one attack against a fresh two-op history ───────────────────────────
 
-/// Builds a two-op history, arms the attack, then syncs a fresh device2.
-///
-/// `pre_sync_d2` — if true, device2 syncs honestly first (needed for attacks
-/// that require a pinned head before the evil pull: rollback, downgrade,
-/// substitute-cert).
 fn run_one(attack: Attack, pre_sync_d2: bool) -> Result<SyncResult, SyncError> {
     use studge_test_harness::fixture::Fixture;
 
@@ -218,14 +210,11 @@ fn run_one(attack: Attack, pre_sync_d2: bool) -> Result<SyncResult, SyncError> {
     let mut evil = EvilRelay::new(MemoryTransport::new());
     let engine = fix.engine();
 
-    // ── Device 1 builds a two-op history through the evil relay (Honest). ──
     let mut state1 = Fixture::state1();
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
 
     let op2 = fix.make_op(
         2,
@@ -237,26 +226,18 @@ fn run_one(attack: Attack, pre_sync_d2: bool) -> Result<SyncResult, SyncError> {
         b"DEMO ONLY v2",
     );
     state1.enqueue(op2);
-    engine
-        .sync(VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(&engine, VAULT, &mut state1, &mut evil, &fix.dev1_key, DEV1).unwrap();
 
-    // ── Device 2: optionally pre-sync, then arm the attack. ──
     let mut state2 = VaultSyncState::new(VAULT);
     if pre_sync_d2 {
-        engine
-            .sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
-            .unwrap();
+        sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2).unwrap();
     }
     evil.set_attack(attack);
-    engine.sync(VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
+    sync(&engine, VAULT, &mut state2, &mut evil, &fix.dev2_key, DEV2)
 }
 
 // ─── Direct-inject variants (bypass EvilRelay wrapper) ───────────────────────
 
-/// Flip a byte in the sig bytes of an op and inject it directly via
-/// `inject_raw_op` (bypassing CBOR re-encode check).  The unit tests use
-/// this approach.
 fn run_flipped_bit() -> Result<SyncResult, SyncError> {
     use studge_test_harness::fixture::Fixture;
 
@@ -268,21 +249,32 @@ fn run_flipped_bit() -> Result<SyncResult, SyncError> {
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1.clone());
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Flip a byte near the end of the raw CBOR (payload / AEAD tag area).
     let mut raw = op1.to_cbor().unwrap();
     let flip_pos = raw.len() - 10;
     raw[flip_pos] ^= 0xFF;
     transport.inject_raw_op(VAULT, hash1, raw);
 
     let mut state2 = Fixture::state2();
-    engine.sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
 }
 
-/// Zero the Ed25519 signature bytes in an op and inject it directly.
 fn run_stripped_sig() -> Result<SyncResult, SyncError> {
     use studge_test_harness::fixture::Fixture;
 
@@ -294,12 +286,16 @@ fn run_stripped_sig() -> Result<SyncResult, SyncError> {
     let op1 = fix.genesis();
     let hash1 = op1.hash().unwrap();
     state1.enqueue(op1.clone());
-    engine
-        .sync(VAULT, &mut state1, &mut transport, &fix.dev1_key, DEV1)
-        .unwrap();
+    sync(
+        &engine,
+        VAULT,
+        &mut state1,
+        &mut transport,
+        &fix.dev1_key,
+        DEV1,
+    )
+    .unwrap();
 
-    // Canonical CBOR map starts: header | key "sig" | value header | 64 sig bytes.
-    // Sig data is at bytes 7..71.
     let mut raw = op1.to_cbor().unwrap();
     if raw.len() > 71 {
         raw[7..71].iter_mut().for_each(|b| *b = 0);
@@ -307,5 +303,12 @@ fn run_stripped_sig() -> Result<SyncResult, SyncError> {
     transport.inject_raw_op(VAULT, hash1, raw);
 
     let mut state2 = Fixture::state2();
-    engine.sync(VAULT, &mut state2, &mut transport, &fix.dev2_key, DEV2)
+    sync(
+        &engine,
+        VAULT,
+        &mut state2,
+        &mut transport,
+        &fix.dev2_key,
+        DEV2,
+    )
 }

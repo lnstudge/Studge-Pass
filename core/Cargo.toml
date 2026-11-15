@@ -49,8 +49,7 @@ totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otp
 # bundled SQLite, same version as the relay so one copy of libsqlite3-sys
 # compiles into the workspace. sqlx has been removed from the relay (D-0401).
 rusqlite = { version = "0.41.1", features = ["bundled"] }
-# HTTP relay transport (D-0501): rustls only, no native TLS.
-reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+# reqwest removed: moved to studge-sync-transports (D-0501).
 
 [dev-dependencies]
 proptest = "1.12.0"
