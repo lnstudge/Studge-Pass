@@ -639,32 +639,37 @@ with the approved SPEC; the founder approves them by merging PR #47.
 - **Affects:** `deny.toml`, `THREAT_MODEL.md` R-0405.
   **Status:** Approved by founder (at the merge of PR #47).
 
-## D-0501 — Transport crate set for the sync engine (Phase 5)
+## D-0501 — Sync transport crate layout and dependency set (Phase 5)
 
-- **Decision:** Use `reqwest 0.12` (with `blocking` + `rustls-tls` + `json`
-  features, non-wasm only) for `HttpRelayTransport`, and `tempfile 3.23` (dev-dep
-  only) for `FolderTransport` integration tests.
+- **Decision:** Create a new workspace crate `studge-sync-transports` for
+  `FolderTransport` and `HttpRelayTransport`.  `studge-core` retains only
+  `MemoryTransport` (no I/O, no network).  `reqwest 0.12` (blocking, rustls-tls,
+  json) lives in `studge-sync-transports`, not in `core`.  `tempfile 3.23`
+  stays as a dev-dep in `test-harness` and `sync-transports`.
 
-- **Context:** Phase 5 adds three concrete `Transport` implementations.
-  `MemoryTransport` needs no crates. `FolderTransport` needs only `std::fs`
-  for production and `tempfile` in tests. `HttpRelayTransport` needs an HTTP
-  client for native (non-wasm) targets.
+- **Context:** Phase 5 originally placed all transports inside `studge-core`,
+  which pulled `reqwest` into core and caused the wasm build to fail (Fix 1
+  gated the re-exports; review Fix 2 moved the crates out entirely).  `studge-core`
+  must compile for `wasm32-unknown-unknown` without any I/O or network crates.
+  `SyncEngine::sync()` received a `now: Timestamp` parameter so that core
+  makes no `SystemTime` calls (which panic on wasm).
 
 - **Options considered:**
-  - `reqwest` (blocking, rustls-tls): well-maintained, already used as a
-    dev-dep in `relay/Cargo.toml`, integrates cleanly with `#[cfg(not(target_arch = "wasm32"))]`.
-  - `ureq`: lighter but async story is weaker; no clear advantage here.
-  - `hyper` directly: unnecessary complexity.
+  - Keep everything in core behind `cfg(not(target_arch = "wasm32"))`: works
+    but pollutes core's dependency tree and makes wasm builds fragile.
+  - Separate crate `studge-sync-transports` (chosen): clean split, core stays
+    I/O-free, easy to evolve independently.
+  - Feature flag in core: adds feature-flag complexity without real benefit.
 
-- **Choice:** `reqwest 0.12` with `blocking` + `rustls-tls`, gated behind
-  `cfg(not(target_arch = "wasm32"))`. The `wasm32` target uses the in-memory
-  transport or a future web-extension transport only (Phase 10/13). `tempfile`
-  is a test-only dependency and is already on the approved list transitively.
+- **Choice:** `studge-sync-transports` crate (native-only, never compiled for
+  wasm32) with `reqwest 0.12` (blocking + rustls-tls) for `HttpRelayTransport`
+  and `std::fs` only for `FolderTransport`.  `tempfile` is test-only.
 
-- **Security note:** `HttpRelayTransport` uses `rustls-tls` (no OpenSSL),
-  which satisfies the `deny.toml` OpenSSL ban. Certificate validation is on by
-  default (no `danger_accept_invalid_certs`).
+- **Security note:** `HttpRelayTransport` uses `rustls-tls` only (no OpenSSL),
+  satisfying the `deny.toml` OpenSSL ban.  Certificate validation is on by
+  default.  `CDLA-Permissive-2.0` (webpki-roots, transitive via reqwest) was
+  added to the `deny.toml` allow-list.
 
-- **Affects:** `core/Cargo.toml`, `test-harness/Cargo.toml`.
-  **Status:** Approved by founder (implicit: crate is on the transitively
-  approved list via relay dev-deps; blocking feature added here).
+- **Affects:** `Cargo.toml` (workspace), `core/Cargo.toml`,
+  `sync-transports/Cargo.toml`, `test-harness/Cargo.toml`.
+  **Status:** Proposed.
