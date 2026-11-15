@@ -672,4 +672,4 @@ with the approved SPEC; the founder approves them by merging PR #47.
 
 - **Affects:** `Cargo.toml` (workspace), `core/Cargo.toml`,
   `sync-transports/Cargo.toml`, `test-harness/Cargo.toml`.
-  **Status:** Proposed.
+  **Status:** Approved by founder (at the merge of PR #54).
