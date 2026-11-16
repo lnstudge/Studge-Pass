@@ -49,7 +49,11 @@ pub fn run() -> Result<()> {
                 dev.copy_from_slice(&db);
             }
         }
-        match crate::session::load_session(id, dev, &session_path) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        match crate::session::load_session(id, dev, &session_path, now) {
             Ok(Some(_)) => println!("session: unlocked"),
             _ => println!("session: locked"),
         }

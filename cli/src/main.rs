@@ -91,7 +91,16 @@ enum Command {
 
 #[derive(Debug, Subcommand)]
 enum AddKind {
-    Login,
+    Login {
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        username: Option<String>,
+        #[arg(long)]
+        password: Option<String>,
+        #[arg(long)]
+        url: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -128,7 +137,17 @@ fn run(cli: Cli) -> Result<()> {
             password_stdin,
         } => commands::get::run(query, field, print, password_stdin),
         Command::Add { kind } => match kind {
-            AddKind::Login => commands::add_login::run(),
+            AddKind::Login {
+                title,
+                username,
+                password,
+                url,
+            } => commands::add_login::run_with(commands::add_login::AddLoginArgs {
+                title,
+                username,
+                password,
+                url,
+            }),
         },
         Command::Edit { query } => commands::edit::run(query),
         Command::Rm { query } => commands::rm::run(query),

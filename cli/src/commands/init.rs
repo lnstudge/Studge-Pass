@@ -14,9 +14,14 @@ pub fn run(relay: Option<String>, folder: Option<String>, password_stdin: bool) 
     let password = if password_stdin {
         let mut line = String::new();
         std::io::Read::read_to_string(&mut std::io::stdin(), &mut line).context("read stdin")?;
-        line.trim_end_matches('\n')
+        let pw = line
+            .trim_end_matches('\n')
             .trim_end_matches('\r')
-            .to_string()
+            .to_string();
+        if pw.is_empty() {
+            return Err(anyhow::anyhow!("empty password"));
+        }
+        pw
     } else {
         rpassword::prompt_password("Master password: ").context("read password")?
     };

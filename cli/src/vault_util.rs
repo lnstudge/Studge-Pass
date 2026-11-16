@@ -3,9 +3,21 @@ use studge_core::crypto::keys::AccountKey;
 use studge_core::oplog::materialise;
 use studge_core::storage::LocalStore;
 use studge_core::vault::items::Item;
+use zeroize::Zeroizing;
 
 use crate::app::App;
 use crate::config::Config;
+
+pub fn load_session_pub(
+    account_id: &str,
+    device_id: [u8; 16],
+    session_path: &std::path::PathBuf,
+    now: u64,
+) -> Result<(Zeroizing<[u8; 32]>, [u8; 16])> {
+    crate::session::load_session(account_id, device_id, session_path, now)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .context("locked; run unlock")
+}
 
 pub fn load_items(app: &App, cfg: &Config) -> Result<(Vec<Item>, [u8; 16])> {
     let vault_hex = cfg.vault_id.clone().context("no vault")?;
@@ -20,8 +32,13 @@ pub fn load_items(app: &App, cfg: &Config) -> Result<(Vec<Item>, [u8; 16])> {
     device_id.copy_from_slice(&db);
 
     let session_path = app.home.join("session.bin");
-    let (ak_bytes, sess_dev) = crate::session::load_session(&account_id, device_id, &session_path)?
-        .context("locked; run unlock")?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let (ak_bytes, sess_dev) =
+        crate::session::load_session(&account_id, device_id, &session_path, now)?
+            .context("locked; run unlock")?;
     if sess_dev != device_id {
         return Err(anyhow::anyhow!("session device mismatch"));
     }

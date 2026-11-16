@@ -25,6 +25,9 @@ pub fn run(password_stdin: bool) -> Result<()> {
         std::io::Read::read_to_string(&mut std::io::stdin(), &mut line).context("read stdin")?;
         let mut lines = line.lines();
         let pw = lines.next().unwrap_or("").to_string();
+        if pw.is_empty() {
+            return Err(anyhow::anyhow!("empty password"));
+        }
         let sk = lines.next().map(|s| s.to_string());
         (pw, sk)
     } else {

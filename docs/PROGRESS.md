@@ -637,3 +637,10 @@ Applied in response to founder review of PR #54:
 - session.rs: removed unwrap, validated account_id, Zeroizing buffers, AK
   returned as Zeroizing<[u8;32]>.
 - Updated PROGRESS and THREAT_MODEL.
+## Review fixes, round 3
+
+- Added test-keystore feature (file-backed store) and compile_error in release.
+- load_session takes now parameter.
+- Added 5 session unit tests + fixed integration tests.
+- Empty password returns "empty password" error.
+- Added .commandcode/ to .gitignore.
