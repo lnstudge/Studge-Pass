@@ -644,3 +644,9 @@ Applied in response to founder review of PR #54:
 - Added 5 session unit tests + fixed integration tests.
 - Empty password returns "empty password" error.
 - Added .commandcode/ to .gitignore.
+## Review fixes, round 4
+
+- Fixed integration tests per founder review.
+- add login now prompts or reads password via --password-stdin.
+- Empty password returns "empty password".
+- .gitignore final newline.

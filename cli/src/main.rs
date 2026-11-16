@@ -97,9 +97,9 @@ enum AddKind {
         #[arg(long)]
         username: Option<String>,
         #[arg(long)]
-        password: Option<String>,
-        #[arg(long)]
         url: Option<String>,
+        #[arg(long)]
+        password_stdin: bool,
     },
 }
 
@@ -140,13 +140,13 @@ fn run(cli: Cli) -> Result<()> {
             AddKind::Login {
                 title,
                 username,
-                password,
                 url,
+                password_stdin,
             } => commands::add_login::run_with(commands::add_login::AddLoginArgs {
                 title,
                 username,
-                password,
                 url,
+                password_stdin,
             }),
         },
         Command::Edit { query } => commands::edit::run(query),

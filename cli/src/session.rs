@@ -2,6 +2,7 @@
 compile_error!("test-keystore feature is not allowed in release builds");
 
 use anyhow::{Context, Result};
+#[cfg(feature = "test-keystore")]
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
@@ -335,7 +336,7 @@ mod session_tests {
     static LOCK: Mutex<()> = Mutex::new(());
 
     fn with_home<F: FnOnce()>(f: F) {
-        let _g = LOCK.lock().unwrap();
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("STUDGE_HOME", dir.path());
         f();
@@ -391,10 +392,12 @@ mod session_tests {
             store_secret_key(&aid, "sk").unwrap();
             create_session(&aid, account_key, device_id, 10, &session_path).unwrap();
             let mut bytes = std::fs::read(&session_path).unwrap();
-            bytes[0] ^= 1;
+            let last = bytes.len() - 1;
+            bytes[last] ^= 1;
             std::fs::write(&session_path, bytes).unwrap();
             let res = load_session(&aid, device_id, &session_path, 1_700_000_000).unwrap();
             assert!(res.is_none());
+            assert!(!session_path.exists());
         });
     }
 
