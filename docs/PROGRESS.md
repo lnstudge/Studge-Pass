@@ -610,3 +610,43 @@ Applied in response to founder review of PR #54:
 - Tests: relay 39 passed, integration 14 passed (incl. 3 cross-account), sync
   transports build. cargo deny, clippy, fmt green.
 
+
+## Phase 6: command-line client (in progress)
+
+- Added studge CLI with clap subcommands: init, unlock, lock, status, list, get, totp, generate, health, and stubs for the remaining commands.
+- init creates an account, certifies the first device, creates a default vault, stores the bundle and vault key in SQLite, writes a recovery kit, and stores the password and Secret Key in the OS credential store.
+- get copies a field to the clipboard and clears it after 30 s; printing requires --print.
+- Relay follow-up: cap_audit_table no longer deletes active counters; returns RateLimited when over cap.
+- Tests: cargo test --all, clippy -D warnings, fmt, deny, wasm build all pass.
+- Known gaps: add/edit/rm/sync/import/export/devices/config not yet fully implemented; recorded as follow-ups.
+## Phase 6 review fixes
+
+- Removed master password storage; session now seals Account Key under a random
+  session key with authenticated expiry. lock keeps the Secret Key.
+- Clipboard clearing moved to a detached child process with hash compare.
+- Removed STUDGE_PASSWORD; added --password-stdin.
+- keyring uses platform-native backends only; cargo deny passes with no new
+  ignores.
+- Rate-limit purge window 1 hour, cap 100,000.
+- Added D-0602, D-0603, D-0604 (Proposed).
+## Phase 6 review fixes, round 2
+
+- Added cli/tests/integration.rs (5 integration tests) plus a unit test for
+  clipboard hash compare. studge test count now 1 unit + 5 integration.
+- Clipboard clearer reads key+hash from stdin; no secret on command line.
+- session.rs: removed unwrap, validated account_id, Zeroizing buffers, AK
+  returned as Zeroizing<[u8;32]>.
+- Updated PROGRESS and THREAT_MODEL.
+## Review fixes, round 3
+
+- Added test-keystore feature (file-backed store) and compile_error in release.
+- load_session takes now parameter.
+- Added 5 session unit tests + fixed integration tests.
+- Empty password returns "empty password" error.
+- Added .commandcode/ to .gitignore.
+## Review fixes, round 4
+
+- Fixed integration tests per founder review.
+- add login now prompts or reads password via --password-stdin.
+- Empty password returns "empty password".
+- .gitignore final newline.

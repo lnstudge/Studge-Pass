@@ -1073,23 +1073,25 @@ impl RelayStore {
         self.purge_expired_counters(before).await
     }
 
-    /// Caps the audit table at `cap` rows by deleting the oldest buckets.
+    /// Caps the audit table at `cap` rows.
+    ///
+    /// Expired buckets must be evicted beforehand via
+    /// [`Self::purge_expired_counters`]; this method never deletes active
+    /// buckets, because doing so would reset an in-flight rate limit.
+    /// If the table is still over the cap after expired rows have been
+    /// removed, this returns `RateLimited` so the caller refuses new
+    /// counters instead of silently resetting limits.
     pub async fn cap_audit_table(&self, cap: i64) -> Result<u64, ApiError> {
-        self.with_conn(move |conn| {
-            let count: i64 = conn.query_row("SELECT COUNT(*) FROM audit", [], |row| row.get(0))?;
-            if count <= cap {
-                return Ok(0);
-            }
-            let excess = count - cap;
-            let n = conn.execute(
-                "DELETE FROM audit WHERE counter_key IN (
-                     SELECT counter_key FROM audit ORDER BY window_start ASC, counter_key ASC LIMIT ?1
-                 )",
-                [excess],
-            )?;
-            Ok(n as u64)
-        })
-        .await
+        let count: i64 = self
+            .with_conn(move |conn| {
+                conn.query_row("SELECT COUNT(*) FROM audit", [], |row| row.get(0))
+            })
+            .await?;
+        if count <= cap {
+            Ok(0)
+        } else {
+            Err(ApiError::RateLimited)
+        }
     }
 }
 
@@ -1414,5 +1416,57 @@ mod tests {
             .await
             .expect("bump");
         assert_eq!(count, 2);
+    }
+
+    #[tokio::test]
+    async fn cap_audit_table_does_not_delete_active_counters() {
+        let store = store().await;
+        // Two active buckets.
+        store
+            .bump_counter("login:a:1", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump a");
+        store
+            .bump_counter("login:b:2", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump b");
+        // Cap of 1 is below the number of active rows.
+        let res = store.cap_audit_table(1).await;
+        assert!(res.is_err(), "over cap must refuse instead of deleting");
+        // Both active counters survive.
+        let a = store
+            .bump_counter("login:a:1", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump a");
+        let b = store
+            .bump_counter("login:b:2", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("bump b");
+        assert_eq!(a, 2);
+        assert_eq!(b, 2);
+    }
+
+    #[tokio::test]
+    async fn a_flood_of_expired_keys_does_not_lock_out_a_normal_login() {
+        let store = store().await;
+        // Flood with expired buckets (old window).
+        for i in 0..50 {
+            store
+                .bump_counter(&format!("login:flood:{i}"), "2020-01-01T00:00:00Z", 10)
+                .await
+                .expect("bump flood");
+        }
+        // Purge expired windows (older than 1 hour relative to now).
+        let purged = store
+            .purge_expired_counters("2026-01-01T00:00:00Z")
+            .await
+            .expect("purge");
+        assert!(purged > 0, "expired buckets purged");
+        // A normal login counter still works.
+        let count = store
+            .bump_counter("login:normal:1", "2026-11-06T00:00:00Z", 10)
+            .await
+            .expect("normal login");
+        assert_eq!(count, 1);
     }
 }

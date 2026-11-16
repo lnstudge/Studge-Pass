@@ -36,6 +36,8 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Test
         run: cargo test --all
+      - name: Test (cli, test-keystore)
+        run: cargo test -p studge --features test-keystore
       - name: Test (known-answer vectors)
         run: cargo test -p studge-core --features test-vectors
       - name: Build wasm
