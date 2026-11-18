@@ -48,7 +48,7 @@ totp-rs = { version = "6.0.0", default-features = false, features = ["std", "otp
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # bundled SQLite, same version as the relay so one copy of libsqlite3-sys
 # compiles into the workspace. sqlx has been removed from the relay (D-0401).
-rusqlite = { version = "0.41.1", features = ["bundled"] }
+rusqlite = { version = "0.42.0", features = ["bundled"] }
 # reqwest removed: moved to studge-sync-transports (D-0501).
 
 [dev-dependencies]
