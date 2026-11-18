@@ -28,7 +28,7 @@ studge-core = { path = "../core" }
 # RNG; serde stays off because protocol messages travel as base64 in JSON.
 opaque-ke = { version = "4.0.1", default-features = false, features = ["ristretto255", "std"] }
 # The key-exchange hash demanded by TripleDh (the crate's canonical choice).
-sha2 = "0.10.9"
+sha2 = "0.11.1"
 # Only used as the OsRng handle opaque-ke's API takes; the OS source itself.
 rand = { version = "0.8.5", default-features = false }
 
