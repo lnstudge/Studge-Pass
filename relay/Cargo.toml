@@ -44,7 +44,7 @@ ciborium = "0.2.2"
 serde_json = "1.0.154"
 # rusqlite 0.41.1 with bundled SQLite — the same version as studge-core so
 # only one copy of libsqlite3-sys compiles into the binary (D-0401).
-rusqlite = { version = "0.41.1", features = ["bundled"] }
+rusqlite = { version = "0.43.0", features = ["bundled"] }
 zeroize = { version = "1.9.1", features = ["derive"] }
 
 [dev-dependencies]
